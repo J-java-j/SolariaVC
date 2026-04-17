@@ -1,10 +1,46 @@
 import Spotlight from './Spotlight';
 
-const team = [
-  { name: 'Johnson Jiang', role: 'Founder & Managing Partner', focus: 'Quant Research · Capital Markets' },
-  { name: 'Open Seat', role: 'Partner — Quant Strategies', focus: 'Statistical Arb · Vol' },
-  { name: 'Open Seat', role: 'Partner — Ventures', focus: 'Pre-seed · Seed · Diligence' },
-  { name: 'Open Seat', role: 'Head of Research', focus: 'Factor Models · Alt Data' },
+type Member = {
+  name: string;
+  role: string;
+  dept: 'Capital' | 'R&D' | 'Marketing';
+  focus: string;
+  founder?: boolean;
+};
+
+const team: Member[] = [
+  {
+    name: 'Johnson Jiang',
+    role: 'Founder & Managing Partner',
+    dept: 'Capital',
+    focus: 'Quant Research · Capital Markets',
+    founder: true,
+  },
+  {
+    name: 'Karl Li',
+    role: 'Co-Founder',
+    dept: 'Capital',
+    focus: 'Strategy · Operations',
+    founder: true,
+  },
+  {
+    name: 'Esteban Reyes',
+    role: 'Head of Research & Development',
+    dept: 'R&D',
+    focus: 'Quant Models · Backtesting',
+  },
+  {
+    name: 'Tahir Eygoren',
+    role: 'Research & Development',
+    dept: 'R&D',
+    focus: 'Model Implementation · Data Pipelines',
+  },
+  {
+    name: 'Monica Lin',
+    role: 'Marketing',
+    dept: 'Marketing',
+    focus: 'Brand · Communications',
+  },
 ];
 
 const facts = [
@@ -14,9 +50,24 @@ const facts = [
   { k: 'Desks', v: 'Capital · Ventures · Research' },
 ];
 
+const deptStyles: Record<Member['dept'], string> = {
+  Capital: 'bg-moss-500/10 text-moss-200 ring-moss-500/30',
+  'R&D': 'bg-sky-500/10 text-sky-200 ring-sky-500/30',
+  Marketing: 'bg-amber-500/10 text-amber-200 ring-amber-500/30',
+};
+
+const avatarGradient: Record<Member['dept'], string> = {
+  Capital: 'from-moss-300/40 via-moss-700/50 to-ink-800',
+  'R&D': 'from-sky-300/40 via-sky-700/50 to-ink-800',
+  Marketing: 'from-amber-300/40 via-amber-700/50 to-ink-800',
+};
+
 export default function Firm() {
   return (
-    <section id="firm" className="relative py-28 sm:py-36 border-t border-white/[0.06] bg-gradient-to-b from-ink-950 to-ink-900/40">
+    <section
+      id="firm"
+      className="relative py-28 sm:py-36 border-t border-white/[0.06] bg-gradient-to-b from-ink-950 to-ink-900/40"
+    >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12">
           <div className="lg:col-span-5">
@@ -25,10 +76,10 @@ export default function Firm() {
               Built for the long arc.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-white/70">
-              Solaria is a privately held investment partnership. We operate three desks under one
-              roof — Capital, which runs the Medallion Fund; Ventures, which writes pre-seed and
-              seed checks; and Research, which publishes the quantitative work that informs both.
-              Same team, same priors, three surfaces.
+              Solaria is a privately held investment partnership. We operate three desks under
+              one roof — Capital, which runs the Medallion Fund; Ventures, which writes
+              pre-seed and seed checks; and Research, which publishes the quantitative work
+              that informs both. Same team, same priors, three surfaces.
             </p>
 
             <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
@@ -42,33 +93,62 @@ export default function Firm() {
           </div>
 
           <div className="lg:col-span-7">
-            <Spotlight intensity={0.1}>
-            <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink-900/40">
-              <div className="grid grid-cols-12 border-b border-white/[0.06] bg-white/[0.02] px-6 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
-                <div className="col-span-5">Partner</div>
-                <div className="col-span-4">Role</div>
-                <div className="col-span-3 text-right">Focus</div>
+            <div className="flex items-end justify-between gap-4 mb-6">
+              <div className="label">The Team</div>
+              <div className="num text-[11px] text-white/40">
+                {team.length} partners · 3 departments
               </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {team.map((m, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-12 items-center border-b border-white/[0.04] px-6 py-5 transition-colors hover:bg-white/[0.025] last:border-b-0"
-                >
-                  <div className="col-span-5 flex items-center gap-3.5">
-                    <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-md bg-gradient-to-br from-moss-400/30 via-moss-700/30 to-ink-800 ring-moss font-display text-sm text-moss-100/85">
-                      {m.name === 'Open Seat' ? '+' : m.name.split(' ').map((p) => p[0]).slice(0, 2).join('')}
-                    </div>
-                    <span className="font-display text-lg">{m.name}</span>
-                  </div>
-                  <div className="col-span-4 text-sm text-white/65">{m.role}</div>
-                  <div className="col-span-3 text-right text-sm text-white/45">{m.focus}</div>
-                </div>
+                <MemberCard key={m.name} m={m} delay={i * 60} />
               ))}
             </div>
-            </Spotlight>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function MemberCard({ m, delay }: { m: Member; delay: number }) {
+  const initials = m.name
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('');
+
+  return (
+    <Spotlight intensity={0.14} className="rounded-xl">
+      <article
+        className="relative h-full rounded-xl border border-white/10 bg-ink-900/55 p-5 transition-all hover:border-moss-500/30 hover:translate-y-[-2px] animate-rise"
+        style={{ animationDelay: `${delay}ms` }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div
+            className={`grid h-12 w-12 flex-shrink-0 place-items-center rounded-full bg-gradient-to-br ring-moss font-display text-base text-moss-100/90 ${avatarGradient[m.dept]}`}
+          >
+            {initials}
+          </div>
+          <span
+            className={`num inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] ring-1 ${deptStyles[m.dept]}`}
+          >
+            {m.dept}
+          </span>
+        </div>
+        <h3 className="mt-4 font-display text-lg leading-tight tracking-tight">
+          {m.name}
+        </h3>
+        <div className="mt-1 text-[12.5px] text-moss-300/85">{m.role}</div>
+        <div className="mt-4 border-t border-white/[0.06] pt-3 text-[11px] text-white/50 leading-relaxed">
+          {m.focus}
+        </div>
+        {m.founder && (
+          <span className="absolute right-3 bottom-3 text-[9px] uppercase tracking-[0.2em] text-white/30">
+            Founder
+          </span>
+        )}
+      </article>
+    </Spotlight>
   );
 }

@@ -82,9 +82,9 @@ export default function Hero() {
             className="mt-16 grid max-w-3xl grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-4 animate-rise"
             style={{ animationDelay: '380ms' }}
           >
-            <Stat label="Fund vintage" value="2026" />
-            <Stat label="Capital deployed" value="$2.5M" />
-            <Stat label="Companies backed" value="08" />
+            <StatGrowing label="AUM" value="$50K" delta="growing" />
+            <Stat label="Vintage" value="2026" />
+            <Stat label="Companies" value="08" />
             <Stat label="Research notes" value="12+" />
           </dl>
         </div>
@@ -99,6 +99,69 @@ function Stat({ label, value }: { label: string; value: string }) {
       <dt className="label">{label}</dt>
       <dd className="num mt-1.5 text-2xl text-white sm:text-3xl">{value}</dd>
     </div>
+  );
+}
+
+function StatGrowing({
+  label,
+  value,
+  delta,
+}: {
+  label: string;
+  value: string;
+  delta: string;
+}) {
+  return (
+    <div className="border-l border-moss-500/40 pl-4 transition-colors hover:border-moss-500">
+      <dt className="label !text-moss-300/90">{label}</dt>
+      <dd className="num mt-1.5">
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl text-white sm:text-3xl">{value}</span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-moss-300">
+            <UpArrow />
+            {delta}
+          </span>
+        </div>
+        <Sparkline className="mt-1.5 h-3 w-20" />
+      </dd>
+    </div>
+  );
+}
+
+function UpArrow() {
+  return (
+    <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden>
+      <path d="M5 1 L9 7 L1 7 Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function Sparkline({ className = '' }: { className?: string }) {
+  // small upward-trending sparkline for the AUM stat
+  const pts = [10, 9, 11, 8, 7, 9, 6, 7, 5, 6, 3, 4, 2];
+  const w = 80;
+  const h = 14;
+  const stepX = w / (pts.length - 1);
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  const span = max - min || 1;
+  const ys = pts.map((v) => 1 + ((v - min) / span) * (h - 2));
+  let d = `M 0 ${ys[0].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    d += ` L ${(i * stepX).toFixed(1)} ${ys[i].toFixed(1)}`;
+  }
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className={className} preserveAspectRatio="none" aria-hidden>
+      <defs>
+        <linearGradient id="sparkfill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#34d399" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${d} L ${w} ${h} L 0 ${h} Z`} fill="url(#sparkfill)" />
+      <path d={d} fill="none" stroke="#34d399" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={w} cy={ys[ys.length - 1]} r="1.6" fill="#a7f3d0" />
+    </svg>
   );
 }
 

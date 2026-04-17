@@ -11,10 +11,10 @@ const allocation = [
 const terms = [
   { k: 'Structure', v: 'Closed-end LLC' },
   { k: 'Vintage', v: '2026' },
-  { k: 'Min. commitment', v: '$25,000' },
-  { k: 'Lock-up', v: '24 months' },
-  { k: 'Mgmt / Perf', v: '1.5 / 20' },
-  { k: 'Domicile', v: 'Delaware, USA' },
+  { k: 'AUM', v: '$50K · growing' },
+  { k: 'Min. commitment', v: '$1,000' },
+  { k: 'Lock-up', v: '12 months' },
+  { k: 'Mgmt / Perf', v: '0 / 20' },
 ];
 
 export default function MedallionFund() {

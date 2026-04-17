@@ -80,9 +80,9 @@ const companies: Company[] = [
 const sectors = ['All', ...Array.from(new Set(companies.map((c) => c.sector)))];
 
 const stats = [
-  { k: 'Companies', v: String(companies.length).padStart(2, '0') },
+  { k: 'Tracked', v: String(companies.length).padStart(2, '0') },
   { k: 'Sectors', v: String(sectors.length - 1) },
-  { k: 'Deployed', v: '$680K' },
+  { k: 'Deployed', v: '$13K' },
   { k: 'Vintages', v: "'25–'26" },
 ];
 
