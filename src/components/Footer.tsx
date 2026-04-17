@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { SOLARIA_EMAIL } from './EmailButton';
-
 export default function Footer() {
   const year = new Date().getFullYear();
   return (
@@ -16,12 +13,17 @@ export default function Footer() {
               Solaria Capital, LLC. A privately held investment partnership operating the Medallion
               Fund, Solaria Ventures, and Solaria Research.
             </p>
-            <div className="mt-6 space-y-2">
-              <div className="flex items-center gap-2 text-xs text-white/55">
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/55">
+              <span className="inline-flex items-center gap-2">
                 <PinIcon />
                 San Diego, California
-              </div>
-              <FooterEmail />
+              </span>
+              <a
+                href="#contact"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 transition-colors hover:text-moss-200 hover:border-moss-500/40 hover:bg-moss-500/10"
+              >
+                Get in touch <span aria-hidden>→</span>
+              </a>
             </div>
           </div>
 
@@ -75,54 +77,6 @@ export default function Footer() {
   );
 }
 
-function FooterEmail() {
-  const [copied, setCopied] = useState(false);
-  const onClick = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    try {
-      await navigator.clipboard?.writeText(SOLARIA_EMAIL);
-    } catch {
-      /* ignore */
-    }
-    window.location.href = `mailto:${SOLARIA_EMAIL}`;
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2400);
-  };
-  return (
-    <a
-      href={`mailto:${SOLARIA_EMAIL}`}
-      onClick={onClick}
-      className="inline-flex items-center gap-2 text-xs text-white/55 transition-colors hover:text-moss-300"
-    >
-      <MailIcon />
-      <span className="num">{SOLARIA_EMAIL}</span>
-      <span className="text-[10px] text-white/35">
-        {copied ? '✓ copied' : '(click to copy)'}
-      </span>
-    </a>
-  );
-}
-
-function MailIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-moss-400/80"
-      aria-hidden
-    >
-      <rect x="1.5" y="3" width="13" height="10" rx="1.5" />
-      <path d="M2 4l6 5 6-5" />
-    </svg>
-  );
-}
-
 function PinIcon() {
   return (
     <svg
@@ -143,7 +97,13 @@ function PinIcon() {
   );
 }
 
-function FooterCol({ title, items }: { title: string; items: { label: string; href: string }[] }) {
+function FooterCol({
+  title,
+  items,
+}: {
+  title: string;
+  items: { label: string; href: string }[];
+}) {
   return (
     <div>
       <div className="label !text-white/45">{title}</div>

@@ -57,7 +57,29 @@ docker run --rm -p 8080:8080 -e PORT=8080 solaria-vc
   - Proxies `/api/quotes` to Stooq (with Yahoo Finance fallback) for real
     equity + index prices
   - Proxies `/api/crypto` to CoinGecko for BTC/ETH
+  - Handles `POST /api/contact` — validates, honeypots, rate-limits,
+    and emails the partner inbox via Resend
   - Caches responses in-memory (15–60s TTL)
+
+## Enabling the contact form (one-time, ~2 minutes)
+
+The form works immediately — without any setup, submissions are logged
+to Cloud Run stdout (viewable in the GCP console). To turn that into
+real email delivery:
+
+1. Sign up at https://resend.com (free, no domain required).
+2. Create an API key (Dashboard → API Keys → Create).
+3. In Google Cloud Console → your Cloud Run service → **Edit & deploy new
+   revision** → **Variables & Secrets**, add:
+   - `RESEND_API_KEY` = `re_xxxxxxxxxxxx` (the key from step 2)
+   - optional: `CONTACT_TO_EMAIL` = `joj059@ucsd.edu` (default already)
+4. Deploy. New submissions now land in your inbox as formatted email
+   with a reply-to header set to the sender, so hitting Reply writes
+   back to them directly.
+
+Resend's free tier includes 3,000 emails/month and uses
+`onboarding@resend.dev` as the sender by default — no domain
+verification needed.
 
 ## Structure
 

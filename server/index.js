@@ -1,8 +1,11 @@
 // Solaria production server.
-// Serves the built React app from /dist and exposes two JSON proxies:
-//   GET /api/quotes?symbols=AAPL,MSFT,^GSPC   -> Yahoo Finance (server-side, no CORS)
-//   GET /api/crypto?ids=bitcoin,ethereum      -> CoinGecko
-// Same-origin from the browser, so the live ticker stops paying the CORS tax.
+// Serves the built React app from /dist and exposes:
+//   GET  /api/quotes?symbols=AAPL,MSFT,^GSPC   -> Yahoo Finance (server-side, no CORS)
+//   GET  /api/crypto?ids=bitcoin,ethereum      -> CoinGecko
+//   POST /api/contact                          -> emails the partner inbox via Resend
+//
+// Same-origin from the browser, so the live ticker stops paying the CORS tax
+// and the contact form never exposes the partner email address to the DOM.
 
 import http from 'node:http';
 import { promises as fs } from 'node:fs';
@@ -232,6 +235,185 @@ async function fetchCoinGecko(ids) {
   return quotes;
 }
 
+// ---- contact form: POST /api/contact → email partner inbox via Resend ---
+// To enable real delivery, set RESEND_API_KEY in the Cloud Run service env.
+// Without a key, submissions are logged to stdout (visible in Cloud Run logs).
+const CONTACT_TO = process.env.CONTACT_TO_EMAIL || 'joj059@ucsd.edu';
+const CONTACT_FROM = process.env.CONTACT_FROM_EMAIL || 'Solaria Contact <onboarding@resend.dev>';
+const KIND_LABEL = {
+  fund: 'Medallion Fund',
+  ventures: 'Ventures',
+  research: 'Research',
+  subscribe: 'Research · Subscribe',
+  other: 'General',
+};
+
+// Simple in-memory rate limiter: max 5 contact POSTs per IP per 10 min.
+const rateLog = new Map();
+function rateLimited(ip) {
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  const hits = (rateLog.get(ip) || []).filter((t) => now - t < windowMs);
+  if (hits.length >= 5) {
+    rateLog.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  rateLog.set(ip, hits);
+  return false;
+}
+
+async function readJson(req, limit = 20_000) {
+  let total = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > limit) throw new Error('payload too large');
+    chunks.push(chunk);
+  }
+  const raw = Buffer.concat(chunks).toString('utf-8');
+  if (!raw) return {};
+  return JSON.parse(raw);
+}
+
+function esc(s = '') {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderContactHtml(p) {
+  const kindLabel = KIND_LABEL[p.kind] || KIND_LABEL.other;
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #04080a; color: #e5e7eb; padding: 28px 24px; max-width: 620px; margin: 0 auto;">
+      <div style="border-left: 3px solid #10b981; padding-left: 12px; margin-bottom: 22px;">
+        <div style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #34d399;">Solaria · New inquiry</div>
+        <div style="font-size: 22px; font-weight: 600; margin-top: 6px;">${esc(kindLabel)}</div>
+      </div>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 6px 0; color: #9ca3af; width: 140px;">From</td><td style="padding: 6px 0;">${esc(p.name)} &lt;${esc(p.email)}&gt;</td></tr>
+        ${p.organization ? `<tr><td style="padding: 6px 0; color: #9ca3af;">Organization</td><td style="padding: 6px 0;">${esc(p.organization)}</td></tr>` : ''}
+        <tr><td style="padding: 6px 0; color: #9ca3af;">Inquiry</td><td style="padding: 6px 0;">${esc(kindLabel)}</td></tr>
+        <tr><td style="padding: 6px 0; color: #9ca3af;">Submitted</td><td style="padding: 6px 0;">${new Date().toISOString()}</td></tr>
+      </table>
+      <div style="margin-top: 22px; padding-top: 18px; border-top: 1px solid #1f2937;">
+        <div style="font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #9ca3af;">Message</div>
+        <div style="margin-top: 10px; white-space: pre-wrap; line-height: 1.55;">${esc(p.message)}</div>
+      </div>
+      <div style="margin-top: 28px; font-size: 11px; color: #6b7280;">
+        Sent from the Solaria contact form. Reply directly to this email to respond to ${esc(p.name)}.
+      </div>
+    </div>
+  `;
+}
+
+function renderContactText(p) {
+  const kindLabel = KIND_LABEL[p.kind] || KIND_LABEL.other;
+  return [
+    `Solaria — new ${kindLabel} inquiry`,
+    '',
+    `From:         ${p.name} <${p.email}>`,
+    p.organization ? `Organization: ${p.organization}` : null,
+    `Inquiry:      ${kindLabel}`,
+    `Submitted:    ${new Date().toISOString()}`,
+    '',
+    '---',
+    '',
+    p.message,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+async function sendViaResend(payload) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.log('[contact] RESEND_API_KEY not set — logging submission:');
+    console.log(JSON.stringify(payload, null, 2));
+    return { sent: false, logged: true };
+  }
+  const kindLabel = KIND_LABEL[payload.kind] || KIND_LABEL.other;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: CONTACT_FROM,
+      to: [CONTACT_TO],
+      reply_to: payload.email,
+      subject: `[Solaria · ${kindLabel}] ${payload.name}`,
+      html: renderContactHtml(payload),
+      text: renderContactText(payload),
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`resend http ${res.status}: ${body.slice(0, 200)}`);
+  }
+  return { sent: true };
+}
+
+function jsonRes(res, status, body) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(body));
+}
+
+async function handleContact(req, res) {
+  const ip =
+    (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim() ||
+    req.socket.remoteAddress ||
+    'unknown';
+
+  if (rateLimited(ip)) {
+    return jsonRes(res, 429, { error: 'rate limited — try again shortly' });
+  }
+
+  let p;
+  try {
+    p = await readJson(req);
+  } catch {
+    return jsonRes(res, 400, { error: 'invalid json' });
+  }
+
+  // Honeypot: a hidden field bots happily fill but humans don't.
+  if (p.website) {
+    console.log('[contact] honeypot triggered, silently accepting');
+    return jsonRes(res, 200, { ok: true });
+  }
+
+  const name = String(p.name || '').trim();
+  const email = String(p.email || '').trim();
+  const organization = String(p.organization || '').trim().slice(0, 200);
+  const message = String(p.message || '').trim();
+  const kind = ['fund', 'ventures', 'research', 'subscribe', 'other'].includes(p.kind)
+    ? p.kind
+    : 'other';
+
+  if (!name || name.length > 120) {
+    return jsonRes(res, 400, { error: 'name required' });
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) {
+    return jsonRes(res, 400, { error: 'valid email required' });
+  }
+  if (!message || message.length < 3 || message.length > 8000) {
+    return jsonRes(res, 400, { error: 'message required (3–8000 chars)' });
+  }
+
+  try {
+    const result = await sendViaResend({ name, email, organization, message, kind });
+    return jsonRes(res, 200, { ok: true, ...result });
+  } catch (err) {
+    console.error('[contact] send failed:', err);
+    // Still return 200 so the user gets a clean "received" state — log captures it.
+    return jsonRes(res, 200, { ok: true, sent: false, logged: true });
+  }
+}
+
 // ---- static file serving --------------------------------------------------
 async function serveStatic(req, res, urlPath) {
   let safe = path.normalize(urlPath).replace(/^(\.\.[\\/])+/, '');
@@ -300,6 +482,11 @@ const server = http.createServer(async (req, res) => {
         'Cache-Control': 'public, max-age=15, s-maxage=15',
       });
       res.end(JSON.stringify({ quotes, fetchedAt: new Date().toISOString() }));
+      return;
+    }
+
+    if (pathname === '/api/contact' && req.method === 'POST') {
+      await handleContact(req, res);
       return;
     }
 

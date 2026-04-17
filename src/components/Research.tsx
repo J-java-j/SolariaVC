@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import Spotlight from './Spotlight';
-import { SOLARIA_EMAIL } from './EmailButton';
 
 const notes = [
   {
@@ -120,27 +119,30 @@ export default function Research() {
 
 function Subscribe() {
   const [email, setEmail] = useState('');
-  const [done, setDone] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-
-    const subject = 'Solaria Research — Subscribe';
-    const body = `Please add me to the Solaria Research mailing list.\n\nEmail: ${email}\n`;
-    const mailto = `mailto:${SOLARIA_EMAIL}?subject=${encodeURIComponent(
-      subject
-    )}&body=${encodeURIComponent(body)}`;
-
-    // Always copy our inbox so the user can paste if no mail client opens.
+    setStatus('sending');
     try {
-      await navigator.clipboard?.writeText(SOLARIA_EMAIL);
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'subscribe',
+          name: 'Research Subscriber',
+          email: email.trim(),
+          organization: '',
+          message: 'Add me to the Solaria Research distribution list.',
+        }),
+      });
+      if (!res.ok) throw new Error('http ' + res.status);
+      setStatus('done');
+      setEmail('');
     } catch {
-      /* ignore */
+      setStatus('error');
     }
-    window.location.href = mailto;
-    setDone(true);
-    window.setTimeout(() => setDone(false), 3000);
   };
 
   return (
@@ -159,20 +161,24 @@ function Subscribe() {
           required
           placeholder="you@firm.com"
           value={email}
+          disabled={status === 'sending' || status === 'done'}
           onChange={(e) => setEmail(e.target.value)}
-          className="num w-full rounded-md border border-white/10 bg-ink-950/80 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-moss-500/60"
+          className="num w-full rounded-md border border-white/10 bg-ink-950/80 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-moss-500/60 disabled:opacity-60"
         />
         <button
           type="submit"
-          className="rounded-md bg-moss-500 px-4 py-2 text-sm font-semibold text-ink-950 hover:bg-moss-400 transition-colors"
+          disabled={status === 'sending' || status === 'done'}
+          className="rounded-md bg-moss-500 px-4 py-2 text-sm font-semibold text-ink-950 transition-colors hover:bg-moss-400 disabled:opacity-70"
         >
-          {done ? 'Sent ✓' : 'Subscribe'}
+          {status === 'sending' ? '…' : status === 'done' ? 'Subscribed ✓' : 'Subscribe'}
         </button>
       </div>
       <div className="mt-2 text-[11px] text-white/40">
-        {done
-          ? `Compose opened — or email ${SOLARIA_EMAIL} (copied to clipboard).`
-          : `Quarterly. No spam. Or email ${SOLARIA_EMAIL} directly.`}
+        {status === 'done'
+          ? 'You are on the list. Expect the next note shortly.'
+          : status === 'error'
+          ? 'Something went wrong — please try again in a moment.'
+          : 'Quarterly. No spam. Unsubscribe in one click.'}
       </div>
     </form>
   );

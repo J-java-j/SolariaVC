@@ -1,75 +1,56 @@
 import Spotlight from './Spotlight';
-import EmailButton, { SOLARIA_EMAIL } from './EmailButton';
+import ContactForm from './ContactForm';
+
+const facts = [
+  { k: 'Response', v: '≤ 2 business days' },
+  { k: 'Headquarters', v: 'San Diego, CA' },
+  { k: 'Domicile', v: 'Delaware, USA' },
+  { k: 'Privacy', v: 'Never shared' },
+];
 
 export default function Contact() {
   return (
-    <section id="contact" className="relative py-28 sm:py-36 border-t border-white/[0.06]">
+    <section
+      id="contact"
+      className="relative py-28 sm:py-36 border-t border-white/[0.06] bg-gradient-to-b from-ink-950 via-ink-900/40 to-ink-950"
+    >
       <div className="container-x">
-        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-ink-900 via-ink-900 to-ink-800 p-8 sm:p-14">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-moss-500/25 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -left-24 -bottom-24 h-72 w-72 rounded-full bg-moss-700/20 blur-3xl" aria-hidden />
+        <div className="grid gap-12 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <div className="label">Contact</div>
+            <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
+              Tell us about <br className="hidden sm:block" />
+              yourself.
+            </h2>
+            <p className="mt-6 text-lg leading-relaxed text-white/70">
+              Investor inquiries, founder pitches, and research collaborations all land in the
+              same partner inbox. Short notes are welcome — we'd rather reply to a paragraph
+              than skim a deck.
+            </p>
 
-          <div className="relative grid gap-10 lg:grid-cols-2">
-            <Card
-              variant="primary"
-              label="Investor inquiries"
-              title="Request the Medallion Fund prospectus."
-              body="For accredited investors and institutional allocators. We respond to all inquiries within two business days."
-              cta="Request prospectus"
-              subject="Solaria · Medallion Fund — Prospectus request"
-              emailBody={
-                'Name:\nFirm/Affiliation:\nAccredited status:\nIndicative commitment:\nNotes:\n'
-              }
-            />
-            <Card
-              variant="secondary"
-              label="Founders & Research"
-              title="Pitch us — or collaborate on a model."
-              body="Pre-seed and seed founders, send a deck. Researchers and quants, send a hypothesis. We read everything."
-              cta="Get in touch"
-              subject="Solaria · Inquiry"
-              emailBody="Tell us about your company or model, and what you're looking for from Solaria."
-            />
+            <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+              {facts.map((f) => (
+                <div key={f.k} className="bg-ink-900/60 px-5 py-4">
+                  <dt className="label !text-white/40 !text-[10px]">{f.k}</dt>
+                  <dd className="num mt-1.5 text-sm text-white">{f.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="lg:col-span-7">
+            <Spotlight intensity={0.14} className="rounded-2xl">
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-ink-900/80 via-ink-900/60 to-ink-800/60 p-6 sm:p-8 backdrop-blur-sm">
+                <div
+                  className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-moss-500/15 blur-3xl"
+                  aria-hidden
+                />
+                <ContactForm />
+              </div>
+            </Spotlight>
           </div>
         </div>
       </div>
     </section>
-  );
-}
-
-function Card({
-  variant,
-  label,
-  title,
-  body,
-  cta,
-  subject,
-  emailBody,
-}: {
-  variant: 'primary' | 'secondary';
-  label: string;
-  title: string;
-  body: string;
-  cta: string;
-  subject: string;
-  emailBody: string;
-}) {
-  return (
-    <Spotlight intensity={0.18} className="rounded-2xl">
-      <div className="rounded-2xl border border-white/10 bg-ink-950/60 p-7 sm:p-9 backdrop-blur-sm transition-transform hover:translate-y-[-2px]">
-        <div className="label">{label}</div>
-        <h3 className="mt-4 font-display text-3xl leading-tight">{title}</h3>
-        <p className="mt-4 text-white/70 leading-relaxed">{body}</p>
-        <EmailButton
-          className="mt-7"
-          email={SOLARIA_EMAIL}
-          subject={subject}
-          body={emailBody}
-          variant={variant}
-        >
-          {cta}
-        </EmailButton>
-      </div>
-    </Spotlight>
   );
 }
