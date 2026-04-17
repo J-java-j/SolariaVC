@@ -1,42 +1,34 @@
 const items = [
-  'Frontier AI',
-  'Energy & Climate',
-  'Robotics',
-  'Defense Tech',
-  'Bio × Compute',
-  'Spatial & Devices',
-  'Next-Gen Infra',
-  'Crypto Primitives',
+  { sym: 'SOL.MED', label: 'Medallion Fund · NAV', value: '102.74', delta: '+2.74%' },
+  { sym: 'STAT.ARB', label: 'Statistical Arbitrage', value: '+1.82%', delta: 'MTD' },
+  { sym: 'EQ.MOM', label: 'Equity Momentum', value: '+0.94%', delta: 'MTD' },
+  { sym: 'VENT.SCORE', label: 'Venture Quant Score', value: '0.71', delta: 'σ' },
+  { sym: 'VOL.HRZ', label: 'Vol Horizon · 30d', value: '14.6', delta: 'pts' },
+  { sym: 'RES.NOTES', label: 'Research Notes · YTD', value: '12', delta: 'pub' },
+  { sym: 'AUM', label: 'Capital Committed', value: '$2.51M', delta: 'AUM' },
 ];
 
 export default function Marquee() {
   return (
-    <section className="relative border-y border-white/5 bg-ink-900/40 py-6 overflow-hidden">
-      <div className="flex whitespace-nowrap gap-12 animate-[marquee_40s_linear_infinite]">
+    <section className="relative border-y border-white/[0.06] bg-ink-900/60 py-3 overflow-hidden">
+      <div className="flex whitespace-nowrap animate-ticker">
         {[...items, ...items, ...items].map((it, i) => (
-          <div key={i} className="flex items-center gap-12 text-white/40">
-            <span className="font-display text-2xl tracking-tight">{it}</span>
-            <Star />
-          </div>
+          <Item key={i} {...it} />
         ))}
       </div>
-      <style>{`
-        @keyframes marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
-      `}</style>
     </section>
   );
 }
 
-function Star() {
+function Item({ sym, label, value, delta }: { sym: string; label: string; value: string; delta: string }) {
+  const positive = delta.startsWith('+');
   return (
-    <svg width="14" height="14" viewBox="0 0 14 14" className="text-sun-500/70" aria-hidden>
-      <path
-        d="M7 0 L8.4 5.6 L14 7 L8.4 8.4 L7 14 L5.6 8.4 L0 7 L5.6 5.6 Z"
-        fill="currentColor"
-      />
-    </svg>
+    <div className="flex items-center gap-3 px-8 text-xs">
+      <span className="num text-white/40">{sym}</span>
+      <span className="text-white/55">{label}</span>
+      <span className="num text-white">{value}</span>
+      <span className={`num ${positive ? 'text-moss-300' : 'text-white/45'}`}>{delta}</span>
+      <span className="text-white/15">•</span>
+    </div>
   );
 }

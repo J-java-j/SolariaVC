@@ -1,85 +1,132 @@
 export default function Hero() {
   return (
-    <section id="top" className="relative isolate pt-32 pb-24 sm:pt-40 sm:pb-32 lg:pt-48 lg:pb-40">
+    <section id="top" className="relative isolate pt-32 pb-20 sm:pt-40 sm:pb-28 lg:pt-44 lg:pb-32 overflow-hidden">
       <div className="absolute inset-0 -z-10 grid-bg" aria-hidden />
+      <NavChartBackdrop className="absolute inset-x-0 bottom-0 -z-10 h-[420px] w-full opacity-60" />
       <div
-        className="absolute left-1/2 top-[18%] -z-10 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-gradient-to-br from-sun-300/20 via-sun-500/10 to-transparent blur-3xl animate-pulse-slow"
+        className="absolute -top-32 left-1/2 -z-10 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-gradient-to-br from-moss-500/20 via-moss-700/10 to-transparent blur-3xl"
         aria-hidden
       />
-      <SunDisc className="absolute left-1/2 top-12 -z-10 h-[460px] w-[460px] -translate-x-1/2 opacity-90" />
 
       <div className="container-x relative">
-        <div className="mx-auto max-w-4xl text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs font-medium uppercase tracking-[0.18em] text-white/70">
-            <span className="h-1.5 w-1.5 rounded-full bg-sun-400 animate-pulse" />
-            Now investing — Cohort 01
+        <div className="max-w-4xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-moss-400 animate-pulse" />
+            <span className="label !text-white/65">Q2 2026 · Subscriptions open</span>
           </div>
-          <h1 className="mt-8 font-display text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-            Backing the founders <br className="hidden sm:block" />
-            <span className="text-gradient-sun">building what's next.</span>
+
+          <h1 className="mt-7 font-display text-5xl font-semibold leading-[1.04] tracking-tight sm:text-6xl lg:text-[5.5rem]">
+            Quantitative conviction <br className="hidden sm:block" />
+            for the <span className="text-gradient-moss">next era of capital.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/70 sm:text-xl">
-            Solaria VC is a student-led venture club and LLC investing at the frontier —
-            partnering with technical founders building durable companies in AI, energy, and the next computing platform.
+
+          <p className="mt-7 max-w-2xl text-lg leading-relaxed text-white/70 sm:text-xl">
+            Solaria is an investment firm built around two products: <span className="text-white">the Medallion Fund</span>,
+            a closed-end portfolio running systematic strategies — and <span className="text-white">Solaria Research</span>,
+            applying quantitative models to venture and private markets.
           </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+
+          <div className="mt-10 flex flex-wrap items-center gap-3">
             <a
-              href="#apply"
-              className="inline-flex items-center gap-2 rounded-full bg-sun-500 px-6 py-3 text-sm font-semibold text-ink-950 hover:bg-sun-400 transition-colors glow-sun"
+              href="#fund"
+              className="inline-flex items-center gap-2 rounded-md bg-moss-500 px-5 py-3 text-sm font-semibold text-ink-950 hover:bg-moss-400 transition-colors glow-moss"
             >
-              Pitch us
+              View the Fund
               <span aria-hidden>→</span>
             </a>
             <a
-              href="#thesis"
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-6 py-3 text-sm font-medium text-white/90 hover:bg-white/[0.06] hover:border-white/25 transition-colors"
+              href="#research"
+              className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.03] px-5 py-3 text-sm font-medium text-white/90 hover:bg-white/[0.06] hover:border-white/25 transition-colors"
             >
-              Read the thesis
+              Read the research
             </a>
           </div>
+
+          <dl className="mt-16 grid max-w-3xl grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-4">
+            <Stat label="Fund vintage" value="2026" />
+            <Stat label="Target NAV" value="$2.5M" />
+            <Stat label="Strategies" value="04" />
+            <Stat label="Research notes" value="12+" />
+          </dl>
         </div>
       </div>
     </section>
   );
 }
 
-function SunDisc({ className = '' }: { className?: string }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <svg viewBox="0 0 600 600" className={className} aria-hidden>
+    <div className="border-l border-white/10 pl-4">
+      <dt className="label">{label}</dt>
+      <dd className="num mt-1.5 text-2xl text-white sm:text-3xl">{value}</dd>
+    </div>
+  );
+}
+
+function NavChartBackdrop({ className = '' }: { className?: string }) {
+  // Generate a smooth, generally-up-and-to-the-right curve in SVG path form.
+  const points = generateSeries(64);
+  const path = pathFromPoints(points, 1200, 380, 8);
+  const area = `${path} L 1200 380 L 0 380 Z`;
+  return (
+    <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className={className} aria-hidden>
       <defs>
-        <radialGradient id="sundisc" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#fff0c4" stopOpacity="1" />
-          <stop offset="40%" stopColor="#ffb947" stopOpacity="0.9" />
-          <stop offset="75%" stopColor="#f57f0c" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#762f10" stopOpacity="0" />
-        </radialGradient>
-        <radialGradient id="suncore" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#fff8eb" />
-          <stop offset="60%" stopColor="#ffd485" />
-          <stop offset="100%" stopColor="#f57f0c" />
-        </radialGradient>
+        <linearGradient id="navarea" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="navline" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="#34d399" stopOpacity="0.3" />
+          <stop offset="50%" stopColor="#34d399" stopOpacity="0.95" />
+          <stop offset="100%" stopColor="#a7f3d0" stopOpacity="1" />
+        </linearGradient>
       </defs>
-      <circle cx="300" cy="300" r="280" fill="url(#sundisc)" />
-      <circle cx="300" cy="300" r="120" fill="url(#suncore)" />
-      <g className="animate-spin-slow" style={{ transformOrigin: '300px 300px' }}>
-        {Array.from({ length: 36 }).map((_, i) => {
-          const angle = (i * 360) / 36;
-          return (
-            <line
-              key={i}
-              x1="300"
-              y1="60"
-              x2="300"
-              y2="100"
-              stroke="#ffd485"
-              strokeOpacity={i % 3 === 0 ? 0.6 : 0.25}
-              strokeWidth="1.2"
-              strokeLinecap="round"
-              transform={`rotate(${angle} 300 300)`}
-            />
-          );
-        })}
-      </g>
+      {/* horizontal grid */}
+      {[0.25, 0.5, 0.75].map((y) => (
+        <line key={y} x1="0" x2="1200" y1={380 * y} y2={380 * y} stroke="#34d39920" strokeDasharray="2 6" />
+      ))}
+      <path d={area} fill="url(#navarea)" />
+      <path
+        d={path}
+        fill="none"
+        stroke="url(#navline)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray="3500"
+        strokeDashoffset="3500"
+        className="animate-draw"
+      />
     </svg>
   );
+}
+
+function generateSeries(n: number): number[] {
+  // deterministic-ish gentle uptrend with noise; runs at module load
+  const out: number[] = [];
+  let v = 0.55;
+  for (let i = 0; i < n; i++) {
+    const drift = 0.006;
+    const wobble = Math.sin(i * 0.45) * 0.04 + Math.sin(i * 0.13) * 0.025;
+    const shock = i === 18 || i === 41 ? -0.06 : 0;
+    v = Math.max(0.15, Math.min(0.95, v + drift + wobble * 0.4 + shock));
+    out.push(v);
+  }
+  return out;
+}
+
+function pathFromPoints(values: number[], w: number, h: number, padTop: number): string {
+  const n = values.length;
+  const stepX = w / (n - 1);
+  const usableH = h - padTop;
+  const ys = values.map((v) => padTop + (1 - v) * usableH);
+  let d = `M 0 ${ys[0].toFixed(1)}`;
+  for (let i = 1; i < n; i++) {
+    const x0 = (i - 1) * stepX;
+    const x1 = i * stepX;
+    const cpx0 = x0 + stepX / 2;
+    const cpx1 = x1 - stepX / 2;
+    d += ` C ${cpx0.toFixed(1)} ${ys[i - 1].toFixed(1)}, ${cpx1.toFixed(1)} ${ys[i].toFixed(1)}, ${x1.toFixed(1)} ${ys[i].toFixed(1)}`;
+  }
+  return d;
 }

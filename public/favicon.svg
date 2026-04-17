@@ -1,21 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <radialGradient id="g" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffd485"/>
-      <stop offset="60%" stop-color="#f57f0c"/>
-      <stop offset="100%" stop-color="#762f10"/>
-    </radialGradient>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="60%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#064e3b"/>
+    </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="14" fill="#070605"/>
-  <circle cx="32" cy="32" r="14" fill="url(#g)"/>
-  <g stroke="#ffb947" stroke-width="2" stroke-linecap="round">
-    <line x1="32" y1="6" x2="32" y2="12"/>
-    <line x1="32" y1="52" x2="32" y2="58"/>
-    <line x1="6" y1="32" x2="12" y2="32"/>
-    <line x1="52" y1="32" x2="58" y2="32"/>
-    <line x1="13" y1="13" x2="17" y2="17"/>
-    <line x1="47" y1="47" x2="51" y2="51"/>
-    <line x1="51" y1="13" x2="47" y2="17"/>
-    <line x1="17" y1="47" x2="13" y2="51"/>
-  </g>
+  <rect width="64" height="64" rx="14" fill="#04080a"/>
+  <path d="M42 18 C 38 14, 28 14, 24 20 C 20 26, 28 30, 36 32 C 44 34, 46 40, 42 46 C 38 50, 28 50, 22 46"
+    fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22 42 L 46 18 M 38 18 L 46 18 L 46 26"
+    fill="none" stroke="#34d399" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

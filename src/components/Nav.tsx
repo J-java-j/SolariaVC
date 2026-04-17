@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 
 const links = [
-  { href: '#about', label: 'About' },
-  { href: '#thesis', label: 'Thesis' },
-  { href: '#portfolio', label: 'Portfolio' },
-  { href: '#team', label: 'Team' },
+  { href: '#fund', label: 'Medallion Fund' },
+  { href: '#research', label: 'Research' },
+  { href: '#approach', label: 'Approach' },
+  { href: '#firm', label: 'Firm' },
 ];
 
 export default function Nav() {
@@ -22,18 +22,26 @@ export default function Nav() {
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? 'backdrop-blur-md bg-ink-950/70 border-b border-white/5'
+          ? 'backdrop-blur-md bg-ink-950/80 border-b border-white/[0.06]'
           : 'bg-transparent'
       }`}
     >
       <div className="container-x flex h-16 items-center justify-between">
-        <a href="#top" className="flex items-center gap-2.5 group">
-          <SunMark className="h-7 w-7 transition-transform duration-500 group-hover:rotate-90" />
+        <a href="#top" className="flex items-center gap-3 group">
+          <img
+            src="/logo.png"
+            alt="Solaria"
+            className="h-8 w-8 object-contain transition-transform duration-500 group-hover:scale-105"
+          />
           <span className="font-display text-lg tracking-tight">
-            Solaria<span className="text-sun-400"> VC</span>
+            Solaria
+          </span>
+          <span className="hidden sm:inline-block h-3 w-px bg-white/15" />
+          <span className="hidden sm:inline-block label !tracking-[0.18em] !text-white/45">
+            Capital · Research
           </span>
         </a>
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-8">
           {links.map((l) => (
             <a
               key={l.href}
@@ -44,17 +52,22 @@ export default function Nav() {
             </a>
           ))}
         </nav>
-        <div className="hidden md:flex">
+        <div className="hidden lg:flex items-center gap-3">
           <a
-            href="#apply"
-            className="inline-flex items-center gap-1.5 rounded-full bg-sun-500 px-4 py-2 text-sm font-medium text-ink-950 hover:bg-sun-400 transition-colors"
+            href="#contact"
+            className="text-sm text-white/70 hover:text-white transition-colors"
           >
-            Apply
-            <span aria-hidden>→</span>
+            Contact
+          </a>
+          <a
+            href="#contact"
+            className="inline-flex items-center gap-1.5 rounded-md bg-moss-500 px-4 py-2 text-sm font-medium text-ink-950 hover:bg-moss-400 transition-colors"
+          >
+            Investor inquiry
           </a>
         </div>
         <button
-          className="md:hidden text-white/80 p-2"
+          className="lg:hidden text-white/80 p-2"
           onClick={() => setOpen((v) => !v)}
           aria-label="Toggle menu"
         >
@@ -68,7 +81,7 @@ export default function Nav() {
         </button>
       </div>
       {open && (
-        <div className="md:hidden border-t border-white/5 bg-ink-950/95 backdrop-blur-md">
+        <div className="lg:hidden border-t border-white/[0.06] bg-ink-950/95 backdrop-blur-md">
           <div className="container-x py-4 flex flex-col gap-3">
             {links.map((l) => (
               <a
@@ -81,40 +94,22 @@ export default function Nav() {
               </a>
             ))}
             <a
-              href="#apply"
+              href="#contact"
               onClick={() => setOpen(false)}
-              className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-sun-500 px-4 py-2 text-sm font-medium text-ink-950"
+              className="text-base text-white/80 py-1"
             >
-              Apply →
+              Contact
+            </a>
+            <a
+              href="#contact"
+              onClick={() => setOpen(false)}
+              className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-md bg-moss-500 px-4 py-2 text-sm font-medium text-ink-950"
+            >
+              Investor inquiry
             </a>
           </div>
         </div>
       )}
     </header>
-  );
-}
-
-function SunMark({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" className={className} aria-hidden>
-      <defs>
-        <radialGradient id="navg" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#ffd485" />
-          <stop offset="60%" stopColor="#f57f0c" />
-          <stop offset="100%" stopColor="#762f10" />
-        </radialGradient>
-      </defs>
-      <circle cx="32" cy="32" r="14" fill="url(#navg)" />
-      <g stroke="#ffb947" strokeWidth="2.5" strokeLinecap="round">
-        <line x1="32" y1="6" x2="32" y2="12" />
-        <line x1="32" y1="52" x2="32" y2="58" />
-        <line x1="6" y1="32" x2="12" y2="32" />
-        <line x1="52" y1="32" x2="58" y2="32" />
-        <line x1="13" y1="13" x2="17" y2="17" />
-        <line x1="47" y1="47" x2="51" y2="51" />
-        <line x1="51" y1="13" x2="47" y2="17" />
-        <line x1="17" y1="47" x2="13" y2="51" />
-      </g>
-    </svg>
   );
 }

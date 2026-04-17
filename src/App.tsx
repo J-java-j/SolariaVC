@@ -1,26 +1,26 @@
 import Nav from './components/Nav';
 import Hero from './components/Hero';
 import Marquee from './components/Marquee';
-import About from './components/About';
-import Thesis from './components/Thesis';
-import Portfolio from './components/Portfolio';
-import Team from './components/Team';
-import Apply from './components/Apply';
+import MedallionFund from './components/MedallionFund';
+import Research from './components/Research';
+import Approach from './components/Approach';
+import Firm from './components/Firm';
+import Contact from './components/Contact';
 import Footer from './components/Footer';
 
 export default function App() {
   return (
     <div className="relative min-h-screen overflow-x-hidden">
-      <div className="pointer-events-none absolute inset-0 noise opacity-40" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 noise opacity-30" aria-hidden />
       <Nav />
       <main>
         <Hero />
         <Marquee />
-        <About />
-        <Thesis />
-        <Portfolio />
-        <Team />
-        <Apply />
+        <MedallionFund />
+        <Research />
+        <Approach />
+        <Firm />
+        <Contact />
       </main>
       <Footer />
     </div>

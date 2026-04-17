@@ -1,30 +1,86 @@
 export default function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer className="relative border-t border-white/5 bg-ink-950">
-      <div className="container-x py-12">
-        <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="font-display text-2xl tracking-tight">
-              Solaria<span className="text-sun-400"> VC</span>
+    <footer className="relative border-t border-white/[0.06] bg-ink-950">
+      <div className="container-x py-14">
+        <div className="grid gap-10 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="Solaria" className="h-9 w-9 object-contain" />
+              <div className="font-display text-2xl tracking-tight">Solaria</div>
             </div>
-            <p className="mt-2 max-w-md text-sm text-white/55">
-              A student-led venture club and LLC. Backing the founders building what's next.
+            <p className="mt-4 max-w-md text-sm text-white/55 leading-relaxed">
+              Solaria Capital, LLC. A privately held investment partnership operating the Medallion Fund and
+              publishing Solaria Research.
             </p>
+            <div className="num mt-6 text-xs text-white/40">
+              johnsonj198207@gmail.com
+            </div>
           </div>
-          <div className="flex flex-wrap gap-6 text-sm text-white/60">
-            <a href="#about" className="hover:text-white">About</a>
-            <a href="#thesis" className="hover:text-white">Thesis</a>
-            <a href="#portfolio" className="hover:text-white">Portfolio</a>
-            <a href="#team" className="hover:text-white">Team</a>
-            <a href="mailto:johnsonj198207@gmail.com" className="hover:text-white">Contact</a>
+
+          <div className="md:col-span-7 grid grid-cols-2 gap-8 sm:grid-cols-4">
+            <FooterCol
+              title="Capital"
+              items={[
+                { label: 'Medallion Fund', href: '#fund' },
+                { label: 'Investor inquiries', href: '#contact' },
+              ]}
+            />
+            <FooterCol
+              title="Research"
+              items={[
+                { label: 'Notes', href: '#research' },
+                { label: 'Subscribe', href: '#research' },
+              ]}
+            />
+            <FooterCol
+              title="Firm"
+              items={[
+                { label: 'Approach', href: '#approach' },
+                { label: 'Team', href: '#firm' },
+                { label: 'Contact', href: '#contact' },
+              ]}
+            />
+            <FooterCol
+              title="Legal"
+              items={[
+                { label: 'Disclosures', href: '#contact' },
+                { label: 'Privacy', href: '#contact' },
+              ]}
+            />
           </div>
         </div>
-        <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-white/5 pt-6 text-xs text-white/40 sm:flex-row sm:items-center">
-          <div>© {year} Solaria VC, LLC. All rights reserved.</div>
-          <div>Investments are speculative and not for everyone. Not investment advice.</div>
+
+        <div className="mt-14 border-t border-white/[0.06] pt-6 text-[11px] text-white/40 leading-relaxed">
+          <p>
+            © {year} Solaria Capital, LLC. All rights reserved. Solaria, the Medallion Fund, and Solaria
+            Research are marks of Solaria Capital, LLC.
+          </p>
+          <p className="mt-3 max-w-4xl">
+            This material is for informational purposes only and does not constitute an offer to sell or a
+            solicitation to buy any security. The Medallion Fund is offered only to accredited investors via
+            a private placement memorandum. Past performance is not indicative of future results. Investments
+            in the Fund involve substantial risk, including loss of principal.
+          </p>
         </div>
       </div>
     </footer>
+  );
+}
+
+function FooterCol({ title, items }: { title: string; items: { label: string; href: string }[] }) {
+  return (
+    <div>
+      <div className="label !text-white/45">{title}</div>
+      <ul className="mt-4 space-y-2.5">
+        {items.map((it) => (
+          <li key={it.label}>
+            <a href={it.href} className="text-sm text-white/65 hover:text-white">
+              {it.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
