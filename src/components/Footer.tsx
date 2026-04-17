@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { SOLARIA_EMAIL } from './EmailButton';
+
 export default function Footer() {
   const year = new Date().getFullYear();
   return (
@@ -13,14 +16,12 @@ export default function Footer() {
               Solaria Capital, LLC. A privately held investment partnership operating the Medallion
               Fund, Solaria Ventures, and Solaria Research.
             </p>
-            <div className="mt-6 space-y-1.5">
+            <div className="mt-6 space-y-2">
               <div className="flex items-center gap-2 text-xs text-white/55">
                 <PinIcon />
                 San Diego, California
               </div>
-              <div className="num text-xs text-white/40">
-                johnsonj198207@gmail.com
-              </div>
+              <FooterEmail />
             </div>
           </div>
 
@@ -71,6 +72,54 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+function FooterEmail() {
+  const [copied, setCopied] = useState(false);
+  const onClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    try {
+      await navigator.clipboard?.writeText(SOLARIA_EMAIL);
+    } catch {
+      /* ignore */
+    }
+    window.location.href = `mailto:${SOLARIA_EMAIL}`;
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2400);
+  };
+  return (
+    <a
+      href={`mailto:${SOLARIA_EMAIL}`}
+      onClick={onClick}
+      className="inline-flex items-center gap-2 text-xs text-white/55 transition-colors hover:text-moss-300"
+    >
+      <MailIcon />
+      <span className="num">{SOLARIA_EMAIL}</span>
+      <span className="text-[10px] text-white/35">
+        {copied ? '✓ copied' : '(click to copy)'}
+      </span>
+    </a>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-moss-400/80"
+      aria-hidden
+    >
+      <rect x="1.5" y="3" width="13" height="10" rx="1.5" />
+      <path d="M2 4l6 5 6-5" />
+    </svg>
   );
 }
 

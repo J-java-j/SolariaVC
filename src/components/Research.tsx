@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import Spotlight from './Spotlight';
+import { SOLARIA_EMAIL } from './EmailButton';
 
 const notes = [
   {
@@ -117,11 +119,33 @@ export default function Research() {
 }
 
 function Subscribe() {
+  const [email, setEmail] = useState('');
+  const [done, setDone] = useState(false);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    const subject = 'Solaria Research — Subscribe';
+    const body = `Please add me to the Solaria Research mailing list.\n\nEmail: ${email}\n`;
+    const mailto = `mailto:${SOLARIA_EMAIL}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`;
+
+    // Always copy our inbox so the user can paste if no mail client opens.
+    try {
+      await navigator.clipboard?.writeText(SOLARIA_EMAIL);
+    } catch {
+      /* ignore */
+    }
+    window.location.href = mailto;
+    setDone(true);
+    window.setTimeout(() => setDone(false), 3000);
+  };
+
   return (
     <form
-      action="mailto:johnsonj198207@gmail.com"
-      method="post"
-      encType="text/plain"
+      onSubmit={onSubmit}
       className="rounded-xl border border-white/10 bg-ink-900/60 p-4"
     >
       <label htmlFor="rs-email" className="label">
@@ -134,16 +158,22 @@ function Subscribe() {
           type="email"
           required
           placeholder="you@firm.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           className="num w-full rounded-md border border-white/10 bg-ink-950/80 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:border-moss-500/60"
         />
         <button
           type="submit"
           className="rounded-md bg-moss-500 px-4 py-2 text-sm font-semibold text-ink-950 hover:bg-moss-400 transition-colors"
         >
-          Subscribe
+          {done ? 'Sent ✓' : 'Subscribe'}
         </button>
       </div>
-      <div className="mt-2 text-[11px] text-white/40">Quarterly. No spam. Unsubscribe in one click.</div>
+      <div className="mt-2 text-[11px] text-white/40">
+        {done
+          ? `Compose opened — or email ${SOLARIA_EMAIL} (copied to clipboard).`
+          : `Quarterly. No spam. Or email ${SOLARIA_EMAIL} directly.`}
+      </div>
     </form>
   );
 }
