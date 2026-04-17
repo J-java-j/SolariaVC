@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import AnimatedNumber from './AnimatedNumber';
 
 export default function Hero() {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -82,10 +83,10 @@ export default function Hero() {
             className="mt-16 grid max-w-3xl grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-4 animate-rise"
             style={{ animationDelay: '380ms' }}
           >
-            <StatGrowing label="AUM" value="$50K" delta="growing" />
+            <StatGrowingAUM />
             <Stat label="Vintage" value="2026" />
-            <Stat label="Companies" value="08" />
-            <Stat label="Research notes" value="12+" />
+            <StatNum label="Companies" value={8} pad={2} />
+            <StatNum label="Research notes" value={12} suffix="+" />
           </dl>
         </div>
       </div>
@@ -102,24 +103,52 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatGrowing({
+function StatNum({
   label,
   value,
-  delta,
+  suffix = '',
+  pad,
 }: {
   label: string;
-  value: string;
-  delta: string;
+  value: number;
+  suffix?: string;
+  pad?: number;
 }) {
   return (
+    <div className="border-l border-white/10 pl-4 transition-colors hover:border-moss-500/60">
+      <dt className="label">{label}</dt>
+      <dd className="num mt-1.5 text-2xl text-white sm:text-3xl">
+        {pad ? (
+          <PaddedAnimated value={value} pad={pad} />
+        ) : (
+          <AnimatedNumber value={value} suffix={suffix} />
+        )}
+      </dd>
+    </div>
+  );
+}
+
+function PaddedAnimated({ value, pad }: { value: number; pad: number }) {
+  // Show "08" instead of "8". Animate up to value, then format with leading zero.
+  return (
+    <span>
+      <AnimatedNumber value={value} prefix={'0'.repeat(Math.max(0, pad - String(value).length))} />
+    </span>
+  );
+}
+
+function StatGrowingAUM() {
+  return (
     <div className="border-l border-moss-500/40 pl-4 transition-colors hover:border-moss-500">
-      <dt className="label !text-moss-300/90">{label}</dt>
+      <dt className="label !text-moss-300/90">AUM</dt>
       <dd className="num mt-1.5">
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl text-white sm:text-3xl">{value}</span>
+          <span className="text-2xl text-white sm:text-3xl">
+            <AnimatedNumber value={50000} format="k" prefix="$" duration={1800} />
+          </span>
           <span className="inline-flex items-center gap-1 text-[11px] text-moss-300">
             <UpArrow />
-            {delta}
+            growing
           </span>
         </div>
         <Sparkline className="mt-1.5 h-3 w-20" />

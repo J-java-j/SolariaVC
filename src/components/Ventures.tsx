@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Spotlight from './Spotlight';
+import AnimatedNumber from './AnimatedNumber';
 
 type Company = {
   name: string;
@@ -79,10 +80,14 @@ const companies: Company[] = [
 
 const sectors = ['All', ...Array.from(new Set(companies.map((c) => c.sector)))];
 
-const stats = [
-  { k: 'Tracked', v: String(companies.length).padStart(2, '0') },
-  { k: 'Sectors', v: String(sectors.length - 1) },
-  { k: 'Deployed', v: '$13K' },
+type Stat =
+  | { k: string; v: string }
+  | { k: string; n: number; prefix?: string; suffix?: string; pad?: number; format?: 'plain' | 'k' };
+
+const stats: Stat[] = [
+  { k: 'Tracked', n: companies.length, pad: 2 },
+  { k: 'Sectors', n: sectors.length - 1 },
+  { k: 'Deployed', n: 13_000, prefix: '$', format: 'k' },
   { k: 'Vintages', v: "'25–'26" },
 ];
 
@@ -122,7 +127,18 @@ export default function Ventures() {
                   className="bg-ink-900/60 px-5 py-4 transition-colors hover:bg-ink-800/80"
                 >
                   <dt className="label !text-white/40 !text-[10px]">{s.k}</dt>
-                  <dd className="num mt-1.5 text-lg text-white">{s.v}</dd>
+                  <dd className="num mt-1.5 text-lg text-white">
+                    {'v' in s ? (
+                      s.v
+                    ) : (
+                      <AnimatedNumber
+                        value={s.n}
+                        prefix={s.prefix}
+                        suffix={s.suffix}
+                        format={s.format}
+                      />
+                    )}
+                  </dd>
                 </div>
               ))}
             </dl>

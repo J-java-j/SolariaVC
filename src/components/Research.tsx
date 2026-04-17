@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Spotlight from './Spotlight';
+import Reveal from './Reveal';
 
 const notes = [
   {
@@ -45,7 +46,7 @@ export default function Research() {
     <section id="research" className="relative py-28 sm:py-36 border-t border-white/[0.06] bg-gradient-to-b from-ink-950 via-ink-900/50 to-ink-950">
       <div className="container-x">
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-12">
-          <div className="lg:col-span-4">
+          <Reveal className="lg:col-span-4">
             <div className="label">Solaria Research</div>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
               Quant models, applied to venture.
@@ -69,9 +70,9 @@ export default function Research() {
                 )
               )}
             </div>
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-8">
+          <Reveal delay={120} className="lg:col-span-8">
             <Spotlight intensity={0.1}>
             <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-2xl border border-white/10 bg-ink-900/40">
               {notes.map((n) => (
@@ -110,7 +111,7 @@ export default function Research() {
               ))}
             </ul>
             </Spotlight>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

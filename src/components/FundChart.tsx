@@ -1,28 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-
-type Timeframe = '1M' | '3M' | 'YTD' | '1Y' | 'ITD';
-
-const TFS: Timeframe[] = ['1M', '3M', 'YTD', '1Y', 'ITD'];
-
-// Trading-day-ish bucket counts
-const TF_DAYS: Record<Timeframe, number> = {
-  '1M': 22,
-  '3M': 66,
-  'YTD': 78,   // ~Q1 + part of Q2 by mid-April
-  '1Y': 252,
-  'ITD': 320,  // since inception
-};
-
-type Series = { fund: number[]; spx: number[] };
+import {
+  TIMEFRAMES,
+  type Timeframe,
+  getMaster,
+  sliceWindow,
+  timeframeDays,
+  totalReturn,
+  sharpe,
+  annualizedVol,
+  maxDrawdown,
+  type FundSeries,
+} from '../lib/fundData';
 
 export default function FundChart() {
   const [tf, setTf] = useState<Timeframe>('YTD');
-  const master = useMemo(() => generateMaster(TF_DAYS.ITD), []);
-  const series = useMemo(() => sliceSeries(master, TF_DAYS[tf]), [master, tf]);
+  const master = useMemo(() => getMaster(), []);
+  const series = useMemo(
+    () => sliceWindow(master, timeframeDays(tf)),
+    [master, tf]
+  );
 
-  const fundReturn = pct(series.fund);
-  const spxReturn = pct(series.spx);
+  const fundReturn = totalReturn(series.fund);
+  const spxReturn = totalReturn(series.spx);
   const spread = fundReturn - spxReturn;
+
+  // ITD risk metrics for the legend
+  const sr = useMemo(() => sharpe(master.fund), [master]);
+  const vol = useMemo(() => annualizedVol(master.fund), [master]);
+  const mdd = useMemo(() => maxDrawdown(master.fund), [master]);
 
   return (
     <div className="rounded-2xl border border-white/10 bg-ink-900/55 p-5 sm:p-7 hairline">
@@ -39,8 +44,7 @@ export default function FundChart() {
               }`}
             >
               {fundReturn >= 0 ? '+' : ''}
-              {fundReturn.toFixed(2)}%{' '}
-              <span className="text-white/45">{tf}</span>
+              {fundReturn.toFixed(2)}% <span className="text-white/45">{tf}</span>
             </div>
           </div>
           <div className="mt-1 text-xs text-white/40">
@@ -53,7 +57,7 @@ export default function FundChart() {
           aria-label="Timeframe"
           className="flex items-center gap-1 rounded-lg border border-white/10 bg-ink-950/60 p-1 text-[11px]"
         >
-          {TFS.map((t) => (
+          {TIMEFRAMES.map((t) => (
             <button
               key={t}
               role="tab"
@@ -76,17 +80,21 @@ export default function FundChart() {
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
-        <Pill label="Fund" value={`${fundReturn >= 0 ? '+' : ''}${fundReturn.toFixed(2)}%`} tone="moss" />
-        <Pill label="S&P 500" value={`${spxReturn >= 0 ? '+' : ''}${spxReturn.toFixed(2)}%`} tone="muted" />
-        <Pill
-          label="Alpha"
-          value={`${spread >= 0 ? '+' : ''}${spread.toFixed(2)}%`}
-          tone={spread >= 0 ? 'moss' : 'rose'}
-        />
-        <Pill label="Sharpe · ITD" value="2.14" tone="muted" />
+        <Pill label="Fund" value={`${fmt(fundReturn)}%`} tone="moss" />
+        <Pill label="S&P 500" value={`${fmt(spxReturn)}%`} tone="muted" />
+        <Pill label="Alpha" value={`${fmt(spread)}%`} tone={spread >= 0 ? 'moss' : 'rose'} />
+        <Pill label={`Sharpe · ITD`} value={sr.toFixed(2)} tone="muted" />
+      </div>
+
+      <div className="mt-3 text-[10.5px] text-white/35">
+        Vol {vol.toFixed(1)}% · Max DD {mdd.toFixed(1)}% · ITD since Q1 2026.
       </div>
     </div>
   );
+}
+
+function fmt(n: number): string {
+  return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
 }
 
 function Pill({
@@ -116,7 +124,7 @@ function InteractiveChart({
   series,
   timeframe,
 }: {
-  series: Series;
+  series: FundSeries;
   timeframe: Timeframe;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -137,23 +145,21 @@ function InteractiveChart({
 
   const padTop = 14;
   const padBottom = 24;
-  const padLeft = 0;
-  const padRight = 0;
 
-  // Combined min/max across both series for shared y-axis
   const all = [...series.fund, ...series.spx];
   const min = Math.min(...all);
   const max = Math.max(...all);
   const span = max - min || 1;
 
-  const xs = (i: number) =>
-    padLeft + (i * (size.w - padLeft - padRight)) / (series.fund.length - 1);
+  const xs = (i: number) => (i * (size.w - 0)) / (series.fund.length - 1);
   const ys = (v: number) =>
     padTop + (1 - (v - min) / span) * (size.h - padTop - padBottom);
 
   const fundPath = smoothPath(series.fund.map((v, i) => [xs(i), ys(v)]));
   const spxPath = smoothPath(series.spx.map((v, i) => [xs(i), ys(v)]));
-  const fundArea = `${fundPath} L ${xs(series.fund.length - 1)} ${size.h - padBottom} L ${xs(0)} ${size.h - padBottom} Z`;
+  const fundArea = `${fundPath} L ${xs(series.fund.length - 1)} ${
+    size.h - padBottom
+  } L ${xs(0)} ${size.h - padBottom} Z`;
 
   const fundLast = series.fund[series.fund.length - 1];
   const fundLastY = ys(fundLast);
@@ -161,9 +167,8 @@ function InteractiveChart({
   const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, (x - padLeft) / (size.w - padLeft - padRight)));
-    const idx = Math.round(ratio * (series.fund.length - 1));
-    setHoverIdx(idx);
+    const ratio = Math.max(0, Math.min(1, x / size.w));
+    setHoverIdx(Math.round(ratio * (series.fund.length - 1)));
   };
 
   const dateLabels = useMemo(
@@ -183,15 +188,17 @@ function InteractiveChart({
           const t = e.touches[0];
           const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
           const x = t.clientX - rect.left;
-          const ratio = Math.max(0, Math.min(1, x / size.w));
-          setHoverIdx(Math.round(ratio * (series.fund.length - 1)));
+          setHoverIdx(
+            Math.round(Math.max(0, Math.min(1, x / size.w)) * (series.fund.length - 1))
+          );
         }}
         onTouchMove={(e) => {
           const t = e.touches[0];
           const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
           const x = t.clientX - rect.left;
-          const ratio = Math.max(0, Math.min(1, x / size.w));
-          setHoverIdx(Math.round(ratio * (series.fund.length - 1)));
+          setHoverIdx(
+            Math.round(Math.max(0, Math.min(1, x / size.w)) * (series.fund.length - 1))
+          );
         }}
         onTouchEnd={() => setHoverIdx(null)}
       >
@@ -207,12 +214,11 @@ function InteractiveChart({
           </linearGradient>
         </defs>
 
-        {/* horizontal grid */}
         {[0.25, 0.5, 0.75].map((y) => (
           <line
             key={y}
-            x1={padLeft}
-            x2={size.w - padRight}
+            x1={0}
+            x2={size.w}
             y1={padTop + (size.h - padTop - padBottom) * y}
             y2={padTop + (size.h - padTop - padBottom) * y}
             stroke="#34d39922"
@@ -220,16 +226,8 @@ function InteractiveChart({
           />
         ))}
 
-        {/* baseline at index 0 (= 100) */}
-        <line
-          x1={padLeft}
-          x2={size.w - padRight}
-          y1={ys(100)}
-          y2={ys(100)}
-          stroke="#ffffff20"
-        />
+        <line x1={0} x2={size.w} y1={ys(100)} y2={ys(100)} stroke="#ffffff20" />
 
-        {/* SPX line */}
         <path
           d={spxPath}
           fill="none"
@@ -239,8 +237,6 @@ function InteractiveChart({
           strokeLinecap="round"
           className="transition-all duration-500"
         />
-
-        {/* Fund area + line */}
         <path d={fundArea} fill="url(#fundarea)" className="transition-all duration-500" />
         <path
           d={fundPath}
@@ -252,11 +248,9 @@ function InteractiveChart({
           className="transition-all duration-500"
         />
 
-        {/* terminal dot */}
         <circle cx={xs(series.fund.length - 1)} cy={fundLastY} r="4" fill="#34d399" />
         <circle cx={xs(series.fund.length - 1)} cy={fundLastY} r="9" fill="#34d399" opacity="0.18" />
 
-        {/* hover crosshair */}
         {hoverIdx !== null && (
           <g pointerEvents="none">
             <line
@@ -279,7 +273,6 @@ function InteractiveChart({
           </g>
         )}
 
-        {/* x axis labels (sparse) */}
         {dateLabels.map((d, i) => (
           <text
             key={i}
@@ -295,7 +288,6 @@ function InteractiveChart({
         ))}
       </svg>
 
-      {/* tooltip */}
       {hoverIdx !== null && (
         <Tooltip
           x={xs(hoverIdx)}
@@ -306,14 +298,12 @@ function InteractiveChart({
         />
       )}
 
-      {/* legend */}
       <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
         <Legend swatch={<span className="inline-block h-1 w-3 rounded bg-moss-400" />} label="Medallion Fund" />
         <Legend
           swatch={<span className="inline-block h-px w-3 border-t border-dashed border-white/50" />}
           label="S&P 500"
         />
-        <span className="ml-auto text-white/40">Sharpe 2.14 · Vol 8.6 · MaxDD −3.1%</span>
       </div>
     </div>
   );
@@ -340,9 +330,7 @@ function Tooltip({
   spxVal: number;
   dateLabel: string;
 }) {
-  // x is in viewBox units; scale to %.
   const left = (x / width) * 100;
-  // shift if near edge
   const transform =
     left > 75 ? 'translateX(-100%)' : left < 25 ? 'translateX(0)' : 'translateX(-50%)';
   const fundDelta = fundVal - 100;
@@ -377,15 +365,6 @@ function Tooltip({
   );
 }
 
-// ----- math helpers -----
-
-function pct(series: number[]): number {
-  if (series.length < 2) return 0;
-  const a = series[0];
-  const b = series[series.length - 1];
-  return ((b - a) / a) * 100;
-}
-
 function smoothPath(points: [number, number][]): string {
   if (points.length === 0) return '';
   let d = `M ${points[0][0].toFixed(2)} ${points[0][1].toFixed(2)}`;
@@ -399,65 +378,10 @@ function smoothPath(points: [number, number][]): string {
   return d;
 }
 
-function sliceSeries(master: Series, days: number): Series {
-  const fund = master.fund.slice(-days);
-  const spx = master.spx.slice(-days);
-  // re-base the slice to start at 100 so the chart shows return-from-window-start
-  const fa = fund[0] || 1;
-  const sa = spx[0] || 1;
-  return {
-    fund: fund.map((v) => (v / fa) * 100),
-    spx: spx.map((v) => (v / sa) * 100),
-  };
-}
-
-// generate a master series of daily NAVs starting at 100. Fund tracks SPX with alpha.
-function generateMaster(days: number): Series {
-  // Use a deterministic seed-ish RNG so the chart is consistent across renders
-  let seed = 42;
-  const rand = () => {
-    seed = (seed * 1664525 + 1013904223) % 0x100000000;
-    return seed / 0x100000000;
-  };
-  const gauss = () => {
-    const u = 1 - rand();
-    const v = rand();
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-  };
-
-  const dailyVolFund = 0.0055;
-  const dailyVolSpx = 0.009;
-  const annualAlphaFund = 0.18;  // ~18% annual return
-  const annualAlphaSpx = 0.08;   // ~8% annual return
-  const driftFund = annualAlphaFund / 252;
-  const driftSpx = annualAlphaSpx / 252;
-
-  const fund: number[] = [100];
-  const spx: number[] = [100];
-
-  for (let i = 1; i < days; i++) {
-    // shared market shock + idiosyncratic
-    const market = gauss();
-    const idiosyncratic = gauss();
-
-    const spxRet = driftSpx + dailyVolSpx * market;
-    // fund has lower beta (~0.4) plus its own alpha process
-    const fundRet =
-      driftFund + 0.4 * dailyVolSpx * market + dailyVolFund * idiosyncratic;
-
-    spx.push(spx[i - 1] * (1 + spxRet));
-    fund.push(fund[i - 1] * (1 + fundRet));
-  }
-
-  return { fund, spx };
-}
-
 function generateDateLabels(n: number, tf: Timeframe): { idx: number; label: string }[] {
   const today = new Date();
-  // approximate business-day to calendar-day
   const calDays = Math.round(n * 1.45);
-  const start = new Date(today.getTime() - calDays * 24 * 3600 * 1000);
-
+  const start = new Date(today.getTime() - calDays * 86_400_000);
   const ticks = tf === '1M' ? 4 : tf === '3M' ? 4 : tf === 'YTD' ? 5 : tf === '1Y' ? 5 : 4;
   const out: { idx: number; label: string }[] = [];
   for (let i = 0; i < ticks; i++) {
@@ -477,7 +401,7 @@ function generateDateLabels(n: number, tf: Timeframe): { idx: number; label: str
 function pointDateLabel(idx: number, n: number, tf: Timeframe): string {
   const today = new Date();
   const calDays = Math.round(n * 1.45);
-  const start = new Date(today.getTime() - calDays * 24 * 3600 * 1000);
+  const start = new Date(today.getTime() - calDays * 86_400_000);
   const ratio = idx / (n - 1);
   const ts = start.getTime() + ratio * (today.getTime() - start.getTime());
   const d = new Date(ts);

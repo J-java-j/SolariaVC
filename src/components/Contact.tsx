@@ -1,5 +1,6 @@
 import Spotlight from './Spotlight';
 import ContactForm from './ContactForm';
+import Reveal from './Reveal';
 
 const facts = [
   { k: 'Response', v: '≤ 2 business days' },
@@ -16,7 +17,7 @@ export default function Contact() {
     >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12">
-          <div className="lg:col-span-5">
+          <Reveal className="lg:col-span-5">
             <div className="label">Contact</div>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
               Tell us about <br className="hidden sm:block" />
@@ -36,9 +37,9 @@ export default function Contact() {
                 </div>
               ))}
             </dl>
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-7">
+          <Reveal delay={120} className="lg:col-span-7">
             <Spotlight intensity={0.14} className="rounded-2xl">
               <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-ink-900/80 via-ink-900/60 to-ink-800/60 p-6 sm:p-8 backdrop-blur-sm">
                 <div
@@ -48,7 +49,7 @@ export default function Contact() {
                 <ContactForm />
               </div>
             </Spotlight>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

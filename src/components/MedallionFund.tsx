@@ -1,5 +1,7 @@
 import FundChart from './FundChart';
 import Spotlight from './Spotlight';
+import Reveal from './Reveal';
+import AnimatedNumber from './AnimatedNumber';
 
 const allocation = [
   { strategy: 'Statistical Arbitrage', weight: 32, color: '#34d399' },
@@ -23,7 +25,7 @@ export default function MedallionFund() {
       <div className="absolute inset-0 -z-10 dot-bg opacity-50" aria-hidden />
       <div className="container-x">
         <div className="grid gap-8 lg:grid-cols-12 lg:gap-12">
-          <div className="lg:col-span-5">
+          <Reveal className="lg:col-span-5">
             <div className="label">The Medallion Fund</div>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
               A closed-end portfolio, run on systematic conviction.
@@ -53,16 +55,16 @@ export default function MedallionFund() {
               Request the prospectus
               <span aria-hidden>→</span>
             </a>
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-7 space-y-6">
+          <Reveal delay={120} className="lg:col-span-7 space-y-6">
             <Spotlight>
               <FundChart />
             </Spotlight>
             <Spotlight>
               <AllocationCard />
             </Spotlight>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>
@@ -85,7 +87,7 @@ function AllocationCard() {
                 {a.strategy}
               </span>
               <span className="num text-white/65 transition-colors group-hover:text-white">
-                {a.weight}%
+                <AnimatedNumber value={a.weight} suffix="%" duration={1200} />
               </span>
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.05]">

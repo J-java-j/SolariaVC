@@ -1,4 +1,5 @@
 import Spotlight from './Spotlight';
+import Reveal from './Reveal';
 
 type Member = {
   name: string;
@@ -70,7 +71,7 @@ export default function Firm() {
     >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12">
-          <div className="lg:col-span-5">
+          <Reveal className="lg:col-span-5">
             <div className="label">The Firm</div>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
               Built for the long arc.
@@ -90,9 +91,9 @@ export default function Firm() {
                 </div>
               ))}
             </dl>
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-7">
+          <Reveal delay={120} className="lg:col-span-7">
             <div className="flex items-end justify-between gap-4 mb-6">
               <div className="label">The Team</div>
               <div className="num text-[11px] text-white/40">
@@ -104,7 +105,7 @@ export default function Firm() {
                 <MemberCard key={m.name} m={m} delay={i * 60} />
               ))}
             </div>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>
