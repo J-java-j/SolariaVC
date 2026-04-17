@@ -69,4 +69,36 @@
   .label {
     @apply text-[11px] font-medium uppercase tracking-[0.22em] text-moss-300/80;
   }
+
+  .flash-up {
+    background-color: rgba(52, 211, 153, 0.18);
+    color: #d1fae5 !important;
+    transition: background-color 600ms ease, color 600ms ease;
+    border-radius: 3px;
+    padding: 0 2px;
+    margin: 0 -2px;
+  }
+  .flash-down {
+    background-color: rgba(244, 63, 94, 0.18);
+    color: #fecaca !important;
+    transition: background-color 600ms ease, color 600ms ease;
+    border-radius: 3px;
+    padding: 0 2px;
+    margin: 0 -2px;
+  }
+
+  .lift {
+    @apply transition-transform duration-200 ease-out hover:translate-y-[-2px];
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

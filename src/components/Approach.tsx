@@ -1,3 +1,5 @@
+import Spotlight from './Spotlight';
+
 const pillars = [
   {
     n: '01',
@@ -29,21 +31,32 @@ export default function Approach() {
             <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
               How we underwrite.
             </h2>
+            <p className="mt-6 text-lg leading-relaxed text-white/70">
+              Three principles, applied without exception. They guide every position the Fund takes
+              and every note the Research desk publishes.
+            </p>
           </div>
           <div className="lg:col-span-8">
-            <div className="grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-              {pillars.map((p) => (
-                <article key={p.n} className="relative bg-ink-900/60 p-7 sm:p-9 transition-colors hover:bg-ink-800/80">
-                  <div className="flex items-baseline gap-5">
-                    <div className="num text-sm text-moss-300/80">{p.n}</div>
-                    <div className="flex-1">
-                      <h3 className="font-display text-2xl leading-tight tracking-tight">{p.title}</h3>
-                      <p className="mt-3 max-w-2xl text-white/65 leading-relaxed">{p.body}</p>
+            <Spotlight intensity={0.12}>
+              <div className="grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                {pillars.map((p) => (
+                  <article
+                    key={p.n}
+                    className="relative bg-ink-900/60 p-7 sm:p-9 transition-colors hover:bg-ink-800/80"
+                  >
+                    <div className="flex items-baseline gap-5">
+                      <div className="num text-sm text-moss-300/80">{p.n}</div>
+                      <div className="flex-1">
+                        <h3 className="font-display text-2xl leading-tight tracking-tight">
+                          {p.title}
+                        </h3>
+                        <p className="mt-3 max-w-2xl text-white/65 leading-relaxed">{p.body}</p>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+            </Spotlight>
           </div>
         </div>
       </div>

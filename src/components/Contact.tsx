@@ -1,3 +1,5 @@
+import Spotlight from './Spotlight';
+
 export default function Contact() {
   return (
     <section id="contact" className="relative py-28 sm:py-36 border-t border-white/[0.06]">
@@ -46,21 +48,23 @@ function Card({
   href: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-ink-950/60 p-7 sm:p-9 backdrop-blur-sm">
+    <Spotlight intensity={0.18} className="rounded-2xl">
+    <div className="rounded-2xl border border-white/10 bg-ink-950/60 p-7 sm:p-9 backdrop-blur-sm transition-transform hover:translate-y-[-2px]">
       <div className="label">{label}</div>
       <h3 className="mt-4 font-display text-3xl leading-tight">{title}</h3>
       <p className="mt-4 text-white/70 leading-relaxed">{body}</p>
       <a
         href={href}
-        className={`mt-7 inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold transition-colors ${
+        className={`mt-7 inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold transition-all ${
           kind === 'primary'
-            ? 'bg-moss-500 text-ink-950 hover:bg-moss-400 glow-moss'
-            : 'border border-white/15 bg-white/[0.04] text-white hover:bg-white/[0.08] hover:border-white/25'
+            ? 'bg-moss-500 text-ink-950 hover:bg-moss-400 hover:translate-y-[-1px] glow-moss'
+            : 'border border-white/15 bg-white/[0.04] text-white hover:bg-white/[0.08] hover:border-white/25 hover:translate-y-[-1px]'
         }`}
       >
         {cta}
         <span aria-hidden>→</span>
       </a>
     </div>
+    </Spotlight>
   );
 }

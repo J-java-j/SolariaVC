@@ -1,6 +1,6 @@
 import Nav from './components/Nav';
 import Hero from './components/Hero';
-import Marquee from './components/Marquee';
+import LiveTicker from './components/LiveTicker';
 import MedallionFund from './components/MedallionFund';
 import Research from './components/Research';
 import Approach from './components/Approach';
@@ -15,7 +15,7 @@ export default function App() {
       <Nav />
       <main>
         <Hero />
-        <Marquee />
+        <LiveTicker />
         <MedallionFund />
         <Research />
         <Approach />

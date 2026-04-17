@@ -1,3 +1,5 @@
+import Spotlight from './Spotlight';
+
 const team = [
   { name: 'Johnson Jiang', role: 'Founder & Managing Partner', focus: 'Quant Research · Capital Markets' },
   { name: 'Open Seat', role: 'Partner — Quant Strategies', focus: 'Statistical Arb · Vol' },
@@ -39,6 +41,7 @@ export default function Firm() {
           </div>
 
           <div className="lg:col-span-7">
+            <Spotlight intensity={0.1}>
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink-900/40">
               <div className="grid grid-cols-12 border-b border-white/[0.06] bg-white/[0.02] px-6 py-3 text-[11px] font-medium uppercase tracking-[0.18em] text-white/45">
                 <div className="col-span-5">Partner</div>
@@ -61,6 +64,7 @@ export default function Firm() {
                 </div>
               ))}
             </div>
+            </Spotlight>
           </div>
         </div>
       </div>

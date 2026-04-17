@@ -1,3 +1,5 @@
+import Spotlight from './Spotlight';
+
 const notes = [
   {
     id: 'SR-026',
@@ -69,6 +71,7 @@ export default function Research() {
           </div>
 
           <div className="lg:col-span-8">
+            <Spotlight intensity={0.1}>
             <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-2xl border border-white/10 bg-ink-900/40">
               {notes.map((n) => (
                 <li key={n.id}>
@@ -105,6 +108,7 @@ export default function Research() {
                 </li>
               ))}
             </ul>
+            </Spotlight>
           </div>
         </div>
       </div>
