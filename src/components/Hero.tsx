@@ -35,29 +35,51 @@ export default function Hero() {
       />
 
       <div className="container-x relative">
-        <div className="max-w-4xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs animate-rise">
-            <span className="h-1.5 w-1.5 rounded-full bg-moss-400 animate-pulse" />
-            <span className="label !text-white/65">Q2 2026 · Subscriptions open</span>
+        <div className="max-w-5xl">
+          {/* trust strip */}
+          <div
+            className="flex flex-wrap items-center gap-2 animate-rise"
+          >
+            <div className="inline-flex items-center gap-2 rounded-full border border-moss-500/30 bg-moss-500/10 px-3 py-1 text-xs">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inset-0 animate-ping rounded-full bg-moss-400 opacity-75" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-moss-400" />
+              </span>
+              <span className="label !text-moss-200/90">Q2 2026 · Subscriptions open</span>
+            </div>
+            <span className="num text-[10px] uppercase tracking-[0.18em] text-white/35">
+              Solaria Capital, LLC
+            </span>
+            <span className="text-white/15">·</span>
+            <span className="num text-[10px] uppercase tracking-[0.18em] text-white/35">
+              La Jolla, CA
+            </span>
+            <span className="text-white/15">·</span>
+            <span className="num text-[10px] uppercase tracking-[0.18em] text-white/35">
+              Capital · Ventures · Research
+            </span>
           </div>
 
           <h1
-            className="mt-7 font-display text-5xl font-semibold leading-[1.04] tracking-tight sm:text-6xl lg:text-[5.5rem] animate-rise"
+            className="mt-8 font-display text-[3.4rem] font-semibold leading-[1.02] tracking-tight sm:text-7xl lg:text-[6.25rem] xl:text-[7rem] animate-rise"
             style={{ animationDelay: '60ms' }}
           >
-            Quantitative conviction <br className="hidden sm:block" />
-            for the <span className="text-gradient-moss">next era of capital.</span>
+            Quantitative conviction
+            <br className="hidden sm:block" /> for the{' '}
+            <span className="text-gradient-moss">next era of capital.</span>
           </h1>
 
           <p
-            className="mt-7 max-w-2xl text-lg leading-relaxed text-white/70 sm:text-xl animate-rise"
+            className="mt-8 max-w-2xl text-lg leading-relaxed text-white/70 sm:text-xl animate-rise"
             style={{ animationDelay: '160ms' }}
           >
             Solaria is an investment partnership with three products:{' '}
             <span className="text-white">the Medallion Fund</span>, a closed-end quantitative
-            portfolio; <span className="text-white">Solaria Ventures</span>, our pre-seed and
-            seed venture arm; and <span className="text-white">Solaria Research</span>, the
-            models that inform both.
+            portfolio backed by a 14-year backtest with{' '}
+            <span className="text-moss-300 num">20.53%</span> annualised return;{' '}
+            <span className="text-white">Solaria Ventures</span>, our pre-seed and seed
+            arm; and <span className="text-white">Solaria Research</span>, the models that
+            inform both.
           </p>
 
           <div
@@ -66,16 +88,22 @@ export default function Hero() {
           >
             <a
               href="#fund"
-              className="inline-flex items-center gap-2 rounded-md bg-moss-500 px-5 py-3 text-sm font-semibold text-ink-950 transition-all hover:bg-moss-400 hover:translate-y-[-1px] glow-moss"
+              className="inline-flex items-center gap-2 rounded-md bg-moss-500 px-6 py-3.5 text-sm font-semibold text-ink-950 transition-all hover:bg-moss-400 hover:translate-y-[-1px] glow-moss"
             >
               View the Fund
               <span aria-hidden>→</span>
             </a>
             <a
-              href="#research"
-              className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.03] px-5 py-3 text-sm font-medium text-white/90 transition-all hover:bg-white/[0.06] hover:border-white/25 hover:translate-y-[-1px]"
+              href="#performance"
+              className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.03] px-6 py-3.5 text-sm font-medium text-white/90 transition-all hover:bg-white/[0.06] hover:border-white/25 hover:translate-y-[-1px]"
             >
-              Read the research
+              Performance backtest
+            </a>
+            <a
+              href="#research"
+              className="inline-flex items-center gap-2 px-3 py-3.5 text-sm font-medium text-white/65 transition-colors hover:text-white"
+            >
+              Read the research →
             </a>
           </div>
 
@@ -88,6 +116,13 @@ export default function Hero() {
             <StatNum label="Backtest Sharpe" value={1.46} decimals={2} />
             <StatNum label="Companies" value={8} pad={2} />
           </dl>
+
+          <div
+            className="mt-4 max-w-3xl text-[10.5px] text-white/35 animate-rise"
+            style={{ animationDelay: '480ms' }}
+          >
+            Backtest figures are hypothetical. Past performance is not indicative of future results. Live fund inception Q1 2026.
+          </div>
         </div>
       </div>
     </section>

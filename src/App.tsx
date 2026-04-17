@@ -1,5 +1,6 @@
 import Nav from './components/Nav';
 import Hero from './components/Hero';
+import Achievements from './components/Achievements';
 import LiveTicker from './components/LiveTicker';
 import PerformanceDashboard from './components/PerformanceDashboard';
 import MedallionFund from './components/MedallionFund';
@@ -18,6 +19,7 @@ export default function App() {
       <Nav />
       <main>
         <Hero />
+        <Achievements />
         <LiveTicker />
         <PerformanceDashboard />
         <MedallionFund />
