@@ -5,7 +5,7 @@ import Reveal from './Reveal';
 const facts = [
   { k: 'Response', v: '≤ 2 business days' },
   { k: 'Headquarters', v: 'San Diego, CA' },
-  { k: 'Domicile', v: 'Delaware, USA' },
+  { k: 'Domicile', v: 'California, USA' },
   { k: 'Privacy', v: 'Never shared' },
 ];
 
