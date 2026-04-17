@@ -28,10 +28,7 @@ export default function LiveTicker() {
           </span>
         </div>
         <div className="relative flex-1 overflow-hidden">
-          <div
-            className="flex whitespace-nowrap py-3 will-change-transform"
-            style={{ animation: 'ticker 70s linear infinite' }}
-          >
+          <div className="ticker-track flex whitespace-nowrap py-3 will-change-transform">
             {[...quotes, ...quotes].map((q, i) => (
               <TickerItem key={`${q.symbol}-${i}`} q={q} />
             ))}
