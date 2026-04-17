@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: #070605;
+    color: #fff;
+  }
+  ::selection {
+    background: rgba(245, 127, 12, 0.35);
+    color: #fff;
+  }
+}
+
+@layer components {
+  .container-x {
+    @apply mx-auto w-full max-w-7xl px-6 sm:px-8 lg:px-12;
+  }
+
+  .text-gradient-sun {
+    background: linear-gradient(120deg, #fff8eb 0%, #ffd485 30%, #ff9d1f 60%, #f57f0c 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .ring-sun {
+    box-shadow: 0 0 0 1px rgba(255, 185, 71, 0.18), inset 0 0 0 1px rgba(255, 185, 71, 0.04);
+  }
+
+  .glow-sun {
+    box-shadow:
+      0 0 60px -10px rgba(245, 127, 12, 0.45),
+      0 0 200px -40px rgba(255, 185, 71, 0.4);
+  }
+
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, rgba(255, 185, 71, 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 185, 71, 0.06) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 80%);
+  }
+
+  .noise {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
+  }
+}
