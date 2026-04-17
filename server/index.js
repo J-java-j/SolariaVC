@@ -34,6 +34,8 @@ const MIME = {
   '.ttf':  'font/ttf',
   '.txt':  'text/plain; charset=utf-8',
   '.map':  'application/json; charset=utf-8',
+  '.xml':  'application/xml; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
 };
 
 // ---- tiny in-memory TTL cache --------------------------------------------
