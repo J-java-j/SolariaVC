@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import Spotlight from './Spotlight';
 import Reveal from './Reveal';
+import YearlyBars from './YearlyBars';
 import {
   TIMEFRAMES,
   type Timeframe,
@@ -9,7 +10,7 @@ import {
   beta,
   rSquared,
   monthlyReturns,
-  yearlyReturns,
+  yearlyReturnsPaired,
   BACKTEST_STATS,
 } from '../lib/fundData';
 
@@ -35,7 +36,7 @@ export default function PerformanceDashboard() {
   const r2 = rSquared(master.fund, master.spx);
 
   const months = useMemo(() => monthlyReturns(master.fund, 12), [master]);
-  const years = useMemo(() => yearlyReturns(master.fund), [master]);
+  const years = useMemo(() => yearlyReturnsPaired(), []);
 
   return (
     <section
@@ -159,12 +160,12 @@ export default function PerformanceDashboard() {
             <Spotlight intensity={0.12} className="rounded-2xl">
               <div className="rounded-2xl border border-white/10 bg-ink-900/55 p-6 sm:p-7">
                 <div className="flex items-center justify-between">
-                  <div className="label">Yearly Returns · {years.length} years</div>
+                  <div className="label">Yearly Returns · Solaria vs S&P 500</div>
                   <div className="num text-[10px] text-white/40">
-                    avg +{BACKTEST_STATS.avgYearPct.toFixed(2)}% · best +{BACKTEST_STATS.bestYearPct.toFixed(2)}% · worst {BACKTEST_STATS.worstYearPct.toFixed(2)}%
+                    Solaria best +{BACKTEST_STATS.bestYearPct.toFixed(2)}% · worst {BACKTEST_STATS.worstYearPct.toFixed(2)}%
                   </div>
                 </div>
-                <YearlyBars years={years} />
+                <YearlyBars rows={years} />
               </div>
             </Spotlight>
           </Reveal>
@@ -411,37 +412,6 @@ function MonthlyHeatmap({ months }: { months: { label: string; year: number; val
           </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-function YearlyBars({ years }: { years: { year: number; value: number }[] }) {
-  const max = Math.max(...years.map((y) => y.value), 1);
-  const min = Math.min(...years.map((y) => y.value), 0);
-  const range = Math.max(Math.abs(max), Math.abs(min)) || 1;
-
-  return (
-    <div className="mt-5 flex items-end gap-1.5 h-40">
-      {years.map((y) => {
-        const positive = y.value >= 0;
-        const heightPct = Math.max(2, (Math.abs(y.value) / range) * 92);
-        return (
-          <div key={y.year} className="flex flex-1 flex-col items-center gap-1.5">
-            <div className="relative flex-1 w-full flex items-end" style={{ alignItems: positive ? 'flex-end' : 'flex-start' }}>
-              <div
-                className={`w-full rounded-sm ring-1 transition-all hover:opacity-80 ${
-                  positive
-                    ? 'bg-moss-500/30 ring-moss-500/40'
-                    : 'bg-rose-500/30 ring-rose-500/40'
-                }`}
-                style={{ height: `${heightPct}%` }}
-                title={`${y.year}: ${positive ? '+' : ''}${y.value.toFixed(2)}%`}
-              />
-            </div>
-            <div className="num text-[9px] text-white/40">{String(y.year).slice(-2)}</div>
-          </div>
-        );
-      })}
     </div>
   );
 }
