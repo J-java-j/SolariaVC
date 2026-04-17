@@ -84,22 +84,13 @@ export default function Hero() {
             style={{ animationDelay: '380ms' }}
           >
             <StatGrowingAUM />
-            <Stat label="Vintage" value="2026" />
+            <StatNum label="Backtest CAGR" value={20.53} suffix="%" decimals={2} />
+            <StatNum label="Backtest Sharpe" value={1.46} decimals={2} />
             <StatNum label="Companies" value={8} pad={2} />
-            <StatNum label="Research notes" value={12} suffix="+" />
           </dl>
         </div>
       </div>
     </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-l border-white/10 pl-4 transition-colors hover:border-moss-500/60">
-      <dt className="label">{label}</dt>
-      <dd className="num mt-1.5 text-2xl text-white sm:text-3xl">{value}</dd>
-    </div>
   );
 }
 
@@ -108,11 +99,13 @@ function StatNum({
   value,
   suffix = '',
   pad,
+  decimals = 0,
 }: {
   label: string;
   value: number;
   suffix?: string;
   pad?: number;
+  decimals?: number;
 }) {
   return (
     <div className="border-l border-white/10 pl-4 transition-colors hover:border-moss-500/60">
@@ -121,7 +114,7 @@ function StatNum({
         {pad ? (
           <PaddedAnimated value={value} pad={pad} />
         ) : (
-          <AnimatedNumber value={value} suffix={suffix} />
+          <AnimatedNumber value={value} suffix={suffix} decimals={decimals} />
         )}
       </dd>
     </div>

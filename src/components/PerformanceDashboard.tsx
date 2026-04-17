@@ -6,14 +6,11 @@ import {
   type Timeframe,
   getMaster,
   rollingReturn,
-  sharpe,
-  sortino,
-  annualizedVol,
-  maxDrawdown,
   beta,
   rSquared,
-  hitRate,
   monthlyReturns,
+  yearlyReturns,
+  BACKTEST_STATS,
 } from '../lib/fundData';
 
 export default function PerformanceDashboard() {
@@ -34,17 +31,11 @@ export default function PerformanceDashboard() {
     [master]
   );
 
-  const sr = sharpe(master.fund);
-  const sn = sortino(master.fund);
-  const vol = annualizedVol(master.fund);
-  const mdd = maxDrawdown(master.fund);
   const bt = beta(master.fund, master.spx);
   const r2 = rSquared(master.fund, master.spx);
-  const hr = hitRate(master.fund);
 
   const months = useMemo(() => monthlyReturns(master.fund, 12), [master]);
-  const best = months.reduce((a, b) => (b.value > a.value ? b : a), months[0]);
-  const worst = months.reduce((a, b) => (b.value < a.value ? b : a), months[0]);
+  const years = useMemo(() => yearlyReturns(master.fund), [master]);
 
   return (
     <section
@@ -55,21 +46,57 @@ export default function PerformanceDashboard() {
         <Reveal>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-2xl">
-              <div className="label">Performance · Indicative</div>
+              <div className="label">Strategy Backtest</div>
               <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
-                The full picture.
+                14 years of conviction, in numbers.
               </h2>
               <p className="mt-5 text-lg text-white/70">
-                A real-time snapshot of how the Medallion Fund is performing — returns,
-                risk-adjusted statistics, drawdown, and the monthly distribution. Same data
-                that powers the chart below.
+                Solaria's flagship quantitative model — back-tested on the universe of
+                US equities from April 2012 through today, monthly rebalance, top-6
+                portfolio. Results below are hypothetical and for illustration of the
+                strategy, not live fund performance.
               </p>
             </div>
-            <LiveBadge />
+            <BacktestBadge />
           </div>
         </Reveal>
 
-        <Reveal delay={120} className="mt-12">
+        {/* Headline metrics from Esteban's run — exact values */}
+        <Reveal delay={80} className="mt-10">
+          <div className="grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] sm:grid-cols-2 lg:grid-cols-5">
+            <Headline
+              label="Total return"
+              value={`+${BACKTEST_STATS.totalReturnPct.toFixed(2)}%`}
+              tone="moss"
+              hint={BACKTEST_STATS.windowLabel}
+            />
+            <Headline
+              label="CAGR"
+              value={`${BACKTEST_STATS.cagrPct.toFixed(2)}%`}
+              tone="moss"
+              hint="annualised"
+            />
+            <Headline
+              label="Sharpe"
+              value={BACKTEST_STATS.sharpe.toFixed(2)}
+              tone="moss"
+              hint="risk-adj. return"
+            />
+            <Headline
+              label="Volatility"
+              value={`${BACKTEST_STATS.volAnnPct.toFixed(2)}%`}
+              hint="annualised"
+            />
+            <Headline
+              label="Max drawdown"
+              value={`${BACKTEST_STATS.maxDrawdownPct.toFixed(2)}%`}
+              tone="rose-soft"
+              hint="peak to trough"
+            />
+          </div>
+        </Reveal>
+
+        <Reveal delay={140} className="mt-6">
           <Spotlight intensity={0.12} className="rounded-2xl">
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-ink-900/55 backdrop-blur-sm">
               <ReturnsTable fundReturns={fundReturns} spxReturns={spxReturns} />
@@ -83,66 +110,126 @@ export default function PerformanceDashboard() {
               <div className="h-full rounded-2xl border border-white/10 bg-ink-900/55 p-6 sm:p-7">
                 <div className="flex items-center justify-between">
                   <div className="label">Risk &amp; Quality</div>
-                  <div className="num text-[10px] text-white/40">Annualized</div>
+                  <div className="num text-[10px] text-white/40">Annualised</div>
                 </div>
                 <dl className="mt-5 space-y-2.5">
-                  <Metric label="Sharpe ratio" value={sr.toFixed(2)} hint="≥ 2.0 is institutional" tone="moss" />
-                  <Metric label="Sortino ratio" value={sn.toFixed(2)} hint="downside-only Sharpe" tone="moss" />
-                  <Metric label="Volatility" value={`${vol.toFixed(1)}%`} hint="vs SPX ~16%" />
-                  <Metric label="Max drawdown" value={`${mdd.toFixed(2)}%`} hint="peak-to-trough" tone="rose-soft" />
-                  <Metric label="Beta vs SPX" value={bt.toFixed(2)} hint="market sensitivity" />
-                  <Metric label="R²" value={r2.toFixed(2)} hint="variance explained by SPX" />
-                  <Metric label="Hit rate" value={`${hr.toFixed(0)}%`} hint="positive trading days" />
+                  <Metric label="Sharpe ratio" value={BACKTEST_STATS.sharpe.toFixed(2)} hint="≥ 1.0 is institutional" tone="moss" />
+                  <Metric label="Volatility" value={`${BACKTEST_STATS.volAnnPct.toFixed(2)}%`} hint={`vs SPY ~${BACKTEST_STATS.spxVolAnnPct}%`} />
+                  <Metric label="Max drawdown" value={`${BACKTEST_STATS.maxDrawdownPct.toFixed(2)}%`} hint="peak-to-trough" tone="rose-soft" />
+                  <Metric label="Beta vs SPY" value={bt.toFixed(2)} hint="market sensitivity" />
+                  <Metric label="R² vs SPY" value={r2.toFixed(2)} hint="variance explained by SPY" />
+                  <Metric label="Monthly win rate" value={`${BACKTEST_STATS.monthlyWinRatePct.toFixed(1)}%`} hint="positive months" tone="moss" />
+                  <Metric label="Avg up month" value={`+${BACKTEST_STATS.avgMonthPct.toFixed(2)}%`} hint={`median ${BACKTEST_STATS.medianMonthPct.toFixed(2)}%`} />
                 </dl>
               </div>
             </Spotlight>
           </Reveal>
 
-          <Reveal delay={280} className="lg:col-span-7">
-            <Spotlight intensity={0.12} className="rounded-2xl h-full">
-              <div className="h-full rounded-2xl border border-white/10 bg-ink-900/55 p-6 sm:p-7">
+          <Reveal delay={280} className="lg:col-span-7 space-y-6">
+            <Spotlight intensity={0.12} className="rounded-2xl">
+              <div className="rounded-2xl border border-white/10 bg-ink-900/55 p-6 sm:p-7">
                 <div className="flex items-center justify-between">
                   <div className="label">Monthly Returns · last 12</div>
                   <div className="num text-[10px] text-white/40">% per month</div>
                 </div>
                 <MonthlyHeatmap months={months} />
                 <div className="mt-5 grid grid-cols-3 gap-3 text-xs">
-                  <DistStat label="Best month" value={`${best?.value.toFixed(2)}%`} sub={best?.label || '—'} tone="moss" />
                   <DistStat
-                    label="Worst month"
-                    value={`${worst?.value.toFixed(2)}%`}
-                    sub={worst?.label || '—'}
-                    tone={worst && worst.value < 0 ? 'rose' : 'muted'}
+                    label="Best month (ITD)"
+                    value={`+${BACKTEST_STATS.bestMonthPct.toFixed(2)}%`}
+                    sub="single month"
+                    tone="moss"
+                  />
+                  <DistStat
+                    label="Worst month (ITD)"
+                    value={`${BACKTEST_STATS.worstMonthPct.toFixed(2)}%`}
+                    sub="single month"
+                    tone="rose"
                   />
                   <DistStat
                     label="Win rate"
-                    value={`${((months.filter((m) => m.value > 0).length / months.length) * 100).toFixed(0)}%`}
-                    sub={`${months.filter((m) => m.value > 0).length} of ${months.length}`}
+                    value={`${BACKTEST_STATS.monthlyWinRatePct.toFixed(1)}%`}
+                    sub={`avg +${BACKTEST_STATS.avgMonthPct.toFixed(2)}%`}
+                    tone="moss"
                   />
                 </div>
+              </div>
+            </Spotlight>
+
+            <Spotlight intensity={0.12} className="rounded-2xl">
+              <div className="rounded-2xl border border-white/10 bg-ink-900/55 p-6 sm:p-7">
+                <div className="flex items-center justify-between">
+                  <div className="label">Yearly Returns · {years.length} years</div>
+                  <div className="num text-[10px] text-white/40">
+                    avg +{BACKTEST_STATS.avgYearPct.toFixed(2)}% · best +{BACKTEST_STATS.bestYearPct.toFixed(2)}% · worst {BACKTEST_STATS.worstYearPct.toFixed(2)}%
+                  </div>
+                </div>
+                <YearlyBars years={years} />
               </div>
             </Spotlight>
           </Reveal>
         </div>
 
-        <Reveal delay={360} className="mt-6 text-[11px] text-white/40">
-          Indicative figures derived from the fund's modeled NAV path. Not a prospectus,
-          not investment advice. Real performance reporting begins with the Q2 2026
-          investor letter.
+        <Reveal delay={360} className="mt-8 rounded-xl border border-white/[0.07] bg-ink-900/40 p-5">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid h-5 w-5 flex-shrink-0 place-items-center rounded-full border border-white/15 text-[10px] text-white/55">
+              i
+            </span>
+            <div className="space-y-2 text-[12px] leading-relaxed text-white/55">
+              <p>
+                <span className="text-white/80">Methodology.</span> {BACKTEST_STATS.strategy}.
+                Universe: liquid US equities. Rebalance: monthly close. Backtest run by
+                Solaria Research; alternative hold counts (1–20) and rebalance frequencies
+                (daily, weekly, biweekly, 3×/month, monthly) were tested — the Top 6
+                monthly configuration was selected for its combination of risk-adjusted
+                return (Sharpe {BACKTEST_STATS.sharpe.toFixed(2)}) and equity-curve smoothness.
+              </p>
+              <p>
+                <span className="text-white/80">Important.</span> Hypothetical backtested
+                performance is shown gross of fees and includes no transaction-cost
+                assumptions beyond standard slippage. Backtest results have inherent
+                limitations and do not represent actual trading. Past performance —
+                including hypothetical performance — is not indicative of future results.
+                The live Medallion Fund inception is Q1 2026 and is reported separately.
+              </p>
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>
   );
 }
 
-function LiveBadge() {
+function BacktestBadge() {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] text-white/70">
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inset-0 animate-ping rounded-full bg-moss-400 opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-moss-400" />
-      </span>
-      <span className="num uppercase tracking-[0.2em]">Live · updated continuously</span>
+    <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[11px] text-amber-200">
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+        <circle cx="8" cy="8" r="6.5" />
+        <path d="M8 4v4l2.5 1.5" strokeLinecap="round" />
+      </svg>
+      <span className="num uppercase tracking-[0.2em]">Backtest · Hypothetical</span>
+    </div>
+  );
+}
+
+function Headline({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: 'moss' | 'rose-soft';
+}) {
+  const color =
+    tone === 'moss' ? 'text-moss-300' : tone === 'rose-soft' ? 'text-rose-300' : 'text-white';
+  return (
+    <div className="bg-ink-900/60 p-5 transition-colors hover:bg-ink-800/80">
+      <div className="label !text-[10px] !tracking-[0.18em] !text-white/40">{label}</div>
+      <div className={`num mt-2 text-2xl ${color}`}>{value}</div>
+      {hint && <div className="mt-1 text-[10.5px] text-white/35">{hint}</div>}
     </div>
   );
 }
@@ -173,8 +260,8 @@ function ReturnsTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-white/[0.04]">
-          <Row label="Medallion Fund" values={fundReturns} accent />
-          <Row label="S&P 500" values={spxReturns} muted />
+          <Row label="Solaria · M4 V3" values={fundReturns} accent />
+          <Row label="S&P 500 (SPY)" values={spxReturns} muted />
           <AlphaRow fund={fundReturns} bench={spxReturns} />
         </tbody>
       </table>
@@ -195,11 +282,7 @@ function Row({
 }) {
   return (
     <tr className="hover:bg-white/[0.02]">
-      <td
-        className={`px-5 py-3.5 ${
-          accent ? 'text-white' : muted ? 'text-white/65' : 'text-white/85'
-        }`}
-      >
+      <td className={`px-5 py-3.5 ${accent ? 'text-white' : muted ? 'text-white/65' : 'text-white/85'}`}>
         <span className={accent ? 'font-display' : ''}>{label}</span>
       </td>
       {TIMEFRAMES.map((t) => {
@@ -209,15 +292,11 @@ function Row({
           <td
             key={t}
             className={`num px-4 py-3.5 text-right ${
-              accent
-                ? positive
-                  ? 'text-moss-300'
-                  : 'text-rose-400'
-                : 'text-white/55'
+              accent ? (positive ? 'text-moss-300' : 'text-rose-400') : 'text-white/55'
             }`}
           >
             {positive ? '+' : ''}
-            {v.toFixed(2)}%
+            {fmtPct(v)}
           </td>
         );
       })}
@@ -251,12 +330,17 @@ function AlphaRow({
             }`}
           >
             {positive ? '+' : ''}
-            {a.toFixed(2)}%
+            {fmtPct(a)}
           </td>
         );
       })}
     </tr>
   );
+}
+
+function fmtPct(v: number): string {
+  if (Math.abs(v) >= 100) return `${v.toFixed(1)}%`;
+  return `${v.toFixed(2)}%`;
 }
 
 function Metric({
@@ -284,16 +368,13 @@ function Metric({
 }
 
 function MonthlyHeatmap({ months }: { months: { label: string; year: number; value: number }[] }) {
-  // color scale: rose for negative, moss for positive, intensity by magnitude
   const maxAbs = Math.max(...months.map((m) => Math.abs(m.value)), 1);
-
   return (
     <div className="mt-5">
       <div className="grid grid-cols-12 gap-1.5">
         {months.map((m) => {
           const ratio = Math.min(1, Math.abs(m.value) / maxAbs);
           const positive = m.value >= 0;
-          // background opacity = ratio * 0.65 + 0.05
           const opacity = ratio * 0.6 + 0.08;
           const bg = positive
             ? `rgba(52, 211, 153, ${opacity})`
@@ -330,6 +411,37 @@ function MonthlyHeatmap({ months }: { months: { label: string; year: number; val
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function YearlyBars({ years }: { years: { year: number; value: number }[] }) {
+  const max = Math.max(...years.map((y) => y.value), 1);
+  const min = Math.min(...years.map((y) => y.value), 0);
+  const range = Math.max(Math.abs(max), Math.abs(min)) || 1;
+
+  return (
+    <div className="mt-5 flex items-end gap-1.5 h-40">
+      {years.map((y) => {
+        const positive = y.value >= 0;
+        const heightPct = Math.max(2, (Math.abs(y.value) / range) * 92);
+        return (
+          <div key={y.year} className="flex flex-1 flex-col items-center gap-1.5">
+            <div className="relative flex-1 w-full flex items-end" style={{ alignItems: positive ? 'flex-end' : 'flex-start' }}>
+              <div
+                className={`w-full rounded-sm ring-1 transition-all hover:opacity-80 ${
+                  positive
+                    ? 'bg-moss-500/30 ring-moss-500/40'
+                    : 'bg-rose-500/30 ring-rose-500/40'
+                }`}
+                style={{ height: `${heightPct}%` }}
+                title={`${y.year}: ${positive ? '+' : ''}${y.value.toFixed(2)}%`}
+              />
+            </div>
+            <div className="num text-[9px] text-white/40">{String(y.year).slice(-2)}</div>
+          </div>
+        );
+      })}
     </div>
   );
 }

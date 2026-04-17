@@ -13,7 +13,7 @@ import {
 } from '../lib/fundData';
 
 export default function FundChart() {
-  const [tf, setTf] = useState<Timeframe>('YTD');
+  const [tf, setTf] = useState<Timeframe>('1Y');
   const master = useMemo(() => getMaster(), []);
   const series = useMemo(
     () => sliceWindow(master, timeframeDays(tf)),
@@ -48,7 +48,7 @@ export default function FundChart() {
             </div>
           </div>
           <div className="mt-1 text-xs text-white/40">
-            Base 100 at inception · Q1 2026
+            Base 100 · M4 V3 backtest, Apr 2012 → present
           </div>
         </div>
 
@@ -87,7 +87,7 @@ export default function FundChart() {
       </div>
 
       <div className="mt-3 text-[10.5px] text-white/35">
-        Vol {vol.toFixed(1)}% · Max DD {mdd.toFixed(1)}% · ITD since Q1 2026.
+        Vol {vol.toFixed(1)}% · Max DD {mdd.toFixed(1)}% · Hypothetical backtest, gross of fees.
       </div>
     </div>
   );
@@ -382,7 +382,7 @@ function generateDateLabels(n: number, tf: Timeframe): { idx: number; label: str
   const today = new Date();
   const calDays = Math.round(n * 1.45);
   const start = new Date(today.getTime() - calDays * 86_400_000);
-  const ticks = tf === '1M' ? 4 : tf === '3M' ? 4 : tf === 'YTD' ? 5 : tf === '1Y' ? 5 : 4;
+  const ticks = tf === '1Y' ? 5 : tf === '3Y' ? 4 : 5;
   const out: { idx: number; label: string }[] = [];
   for (let i = 0; i < ticks; i++) {
     const idx = Math.round((i * (n - 1)) / (ticks - 1));
@@ -390,9 +390,9 @@ function generateDateLabels(n: number, tf: Timeframe): { idx: number; label: str
     const ts = start.getTime() + ratio * (today.getTime() - start.getTime());
     const d = new Date(ts);
     const label =
-      tf === '1Y' || tf === 'ITD'
-        ? d.toLocaleString('en-US', { month: 'short', year: '2-digit' })
-        : d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+      tf === '1Y'
+        ? d.toLocaleString('en-US', { month: 'short', day: 'numeric' })
+        : d.toLocaleString('en-US', { month: 'short', year: '2-digit' });
     out.push({ idx, label });
   }
   return out;
@@ -405,7 +405,7 @@ function pointDateLabel(idx: number, n: number, tf: Timeframe): string {
   const ratio = idx / (n - 1);
   const ts = start.getTime() + ratio * (today.getTime() - start.getTime());
   const d = new Date(ts);
-  return tf === '1Y' || tf === 'ITD'
+  return tf === '1Y'
     ? d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : d.toLocaleString('en-US', { month: 'short', day: 'numeric' });
+    : d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
 }
