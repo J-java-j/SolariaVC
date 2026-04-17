@@ -45,9 +45,9 @@ const team: Member[] = [
 
 const facts = [
   { k: 'Founded', v: '2026' },
+  { k: 'Headquarters', v: 'San Diego, CA' },
   { k: 'Domicile', v: 'Delaware, USA' },
   { k: 'Entity', v: 'Solaria Capital, LLC' },
-  { k: 'Desks', v: 'Capital · Ventures · Research' },
 ];
 
 const deptStyles: Record<Member['dept'], string> = {

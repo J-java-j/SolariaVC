@@ -13,8 +13,14 @@ export default function Footer() {
               Solaria Capital, LLC. A privately held investment partnership operating the Medallion
               Fund, Solaria Ventures, and Solaria Research.
             </p>
-            <div className="num mt-6 text-xs text-white/40">
-              johnsonj198207@gmail.com
+            <div className="mt-6 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs text-white/55">
+                <PinIcon />
+                San Diego, California
+              </div>
+              <div className="num text-xs text-white/40">
+                johnsonj198207@gmail.com
+              </div>
             </div>
           </div>
 
@@ -65,6 +71,26 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+function PinIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-moss-400/80"
+      aria-hidden
+    >
+      <path d="M8 14s5-4.5 5-9a5 5 0 1 0-10 0c0 4.5 5 9 5 9z" />
+      <circle cx="8" cy="5" r="1.6" fill="currentColor" />
+    </svg>
   );
 }
 
