@@ -1,6 +1,7 @@
-# Solaria VC
+# Solaria
 
-Marketing site for Solaria VC — a student-led venture club and LLC.
+Marketing site for Solaria — a privately held investment firm operating
+the Medallion Fund, Solaria Ventures, and Solaria Research.
 
 ## Local development
 

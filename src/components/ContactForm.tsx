@@ -143,7 +143,7 @@ export default function ContactForm({ defaultKind = 'fund', compact = false }: P
             label="Organization"
             value={organization}
             onChange={setOrganization}
-            placeholder="Firm · university · fund"
+            placeholder="Firm or organization"
             optional
             autoComplete="organization"
           />
