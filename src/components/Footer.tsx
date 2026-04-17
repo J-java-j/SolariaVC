@@ -16,7 +16,7 @@ export default function Footer() {
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/55">
               <span className="inline-flex items-center gap-2">
                 <PinIcon />
-                San Diego, California
+                La Jolla, California
               </span>
               <a
                 href="#contact"

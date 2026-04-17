@@ -82,7 +82,7 @@ export default function FundChart() {
       <div className="mt-5 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
         <Pill label="Fund" value={`${fmt(fundReturn)}%`} tone="moss" />
         <Pill label="S&P 500" value={`${fmt(spxReturn)}%`} tone="muted" />
-        <Pill label="Alpha" value={`${fmt(spread)}%`} tone={spread >= 0 ? 'moss' : 'rose'} />
+        <Pill label="vs S&P 500" value={`${fmt(spread)}%`} tone={spread >= 0 ? 'moss' : 'rose'} />
         <Pill label={`Sharpe · ITD`} value={sr.toFixed(2)} tone="muted" />
       </div>
 

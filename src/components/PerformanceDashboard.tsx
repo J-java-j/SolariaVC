@@ -235,8 +235,10 @@ function AlphaRow({
   return (
     <tr className="bg-moss-500/[0.04] hover:bg-moss-500/[0.08]">
       <td className="px-5 py-3.5 text-moss-200">
-        <span className="font-display">Alpha</span>
-        <span className="ml-2 text-[10px] text-white/35">fund − benchmark</span>
+        <span className="font-display">Outperformance</span>
+        <span className="ml-2 text-[10px] text-white/35">
+          Solaria − S&P 500 · positive = beating the market
+        </span>
       </td>
       {TIMEFRAMES.map((t) => {
         const a = fund[t] - bench[t];
