@@ -14,34 +14,35 @@ export type Quote = {
 };
 
 type Asset = {
-  symbol: string;
+  symbol: string;       // canonical symbol shown in UI
+  yahoo?: string;       // override symbol for Yahoo lookup (e.g. ^GSPC)
+  coingeckoId?: string; // CoinGecko id for crypto
   label: string;
   basePrice: number;
   category: 'index' | 'equity' | 'crypto';
   decimals: number;
   prefix?: string;
-  vol: number; // daily-ish volatility for sim
+  vol: number;
 };
 
 const universe: Asset[] = [
-  { symbol: '^GSPC',   label: 'S&P 500',     basePrice: 5240,  category: 'index',  decimals: 2, vol: 0.008 },
-  { symbol: '^NDX',    label: 'Nasdaq 100',  basePrice: 18420, category: 'index',  decimals: 2, vol: 0.011 },
-  { symbol: '^DJI',    label: 'Dow Jones',   basePrice: 39800, category: 'index',  decimals: 2, vol: 0.007 },
-  { symbol: 'AAPL',    label: 'Apple',       basePrice: 222,   category: 'equity', decimals: 2, prefix: '$', vol: 0.014 },
-  { symbol: 'MSFT',    label: 'Microsoft',   basePrice: 425,   category: 'equity', decimals: 2, prefix: '$', vol: 0.013 },
-  { symbol: 'NVDA',    label: 'Nvidia',      basePrice: 132,   category: 'equity', decimals: 2, prefix: '$', vol: 0.026 },
-  { symbol: 'GOOGL',   label: 'Alphabet',    basePrice: 168,   category: 'equity', decimals: 2, prefix: '$', vol: 0.015 },
-  { symbol: 'META',    label: 'Meta',        basePrice: 525,   category: 'equity', decimals: 2, prefix: '$', vol: 0.018 },
-  { symbol: 'TSLA',    label: 'Tesla',       basePrice: 248,   category: 'equity', decimals: 2, prefix: '$', vol: 0.030 },
-  { symbol: 'AMZN',    label: 'Amazon',      basePrice: 188,   category: 'equity', decimals: 2, prefix: '$', vol: 0.016 },
-  { symbol: 'BTC-USD', label: 'Bitcoin',     basePrice: 67000, category: 'crypto', decimals: 0, prefix: '$', vol: 0.022 },
-  { symbol: 'ETH-USD', label: 'Ethereum',    basePrice: 3450,  category: 'crypto', decimals: 0, prefix: '$', vol: 0.025 },
+  { symbol: '^GSPC',   yahoo: '^GSPC',   label: 'S&P 500',     basePrice: 5240,  category: 'index',  decimals: 2, vol: 0.008 },
+  { symbol: '^NDX',    yahoo: '^NDX',    label: 'Nasdaq 100',  basePrice: 18420, category: 'index',  decimals: 2, vol: 0.011 },
+  { symbol: '^DJI',    yahoo: '^DJI',    label: 'Dow Jones',   basePrice: 39800, category: 'index',  decimals: 2, vol: 0.007 },
+  { symbol: 'AAPL',    yahoo: 'AAPL',    label: 'Apple',       basePrice: 222,   category: 'equity', decimals: 2, prefix: '$', vol: 0.014 },
+  { symbol: 'MSFT',    yahoo: 'MSFT',    label: 'Microsoft',   basePrice: 425,   category: 'equity', decimals: 2, prefix: '$', vol: 0.013 },
+  { symbol: 'NVDA',    yahoo: 'NVDA',    label: 'Nvidia',      basePrice: 132,   category: 'equity', decimals: 2, prefix: '$', vol: 0.026 },
+  { symbol: 'GOOGL',   yahoo: 'GOOGL',   label: 'Alphabet',    basePrice: 168,   category: 'equity', decimals: 2, prefix: '$', vol: 0.015 },
+  { symbol: 'META',    yahoo: 'META',    label: 'Meta',        basePrice: 525,   category: 'equity', decimals: 2, prefix: '$', vol: 0.018 },
+  { symbol: 'TSLA',    yahoo: 'TSLA',    label: 'Tesla',       basePrice: 248,   category: 'equity', decimals: 2, prefix: '$', vol: 0.030 },
+  { symbol: 'AMZN',    yahoo: 'AMZN',    label: 'Amazon',      basePrice: 188,   category: 'equity', decimals: 2, prefix: '$', vol: 0.016 },
+  { symbol: 'BTC-USD', coingeckoId: 'bitcoin',  label: 'Bitcoin',  basePrice: 67000, category: 'crypto', decimals: 0, prefix: '$', vol: 0.022 },
+  { symbol: 'ETH-USD', coingeckoId: 'ethereum', label: 'Ethereum', basePrice: 3450,  category: 'crypto', decimals: 0, prefix: '$', vol: 0.025 },
 ];
 
 function seedQuotes(): Quote[] {
   return universe.map((a) => {
-    // start each session with a small random session-day offset
-    const driftSeed = (hash(a.symbol) % 200 - 100) / 100; // -1..1
+    const driftSeed = (hash(a.symbol) % 200 - 100) / 100;
     const sessionMove = driftSeed * a.vol * 0.6;
     const price = a.basePrice * (1 + sessionMove);
     const change = price - a.basePrice;
@@ -70,144 +71,107 @@ function hash(s: string): number {
 }
 
 function gauss(): number {
-  // Box-Muller
   const u = 1 - Math.random();
   const v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
 
 function tickQuote(q: Quote): Quote {
-  const a = universe.find((x) => x.symbol === q.symbol)!;
-  // small intraday step
-  const step = gauss() * a.vol * 0.06;
+  const a = universe.find((x) => x.symbol === q.symbol);
+  if (!a) return q;
+  // Tiny intraday step for visual liveness between real fetches.
+  // Smaller than the 30s real refresh so it never drifts far from truth.
+  const step = gauss() * a.vol * 0.04;
   const newPrice = Math.max(0.01, q.price * (1 + step));
   const change = newPrice - q.prevClose;
   return {
     ...q,
     price: newPrice,
     change,
-    changePct: (change / q.prevClose) * 100,
+    changePct: q.prevClose ? (change / q.prevClose) * 100 : q.changePct,
   };
 }
 
-async function tryFetchCoinGecko(): Promise<Partial<Quote>[] | null> {
-  try {
-    const res = await fetch(
-      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true',
-      { signal: AbortSignal.timeout(4000) }
-    );
-    if (!res.ok) return null;
-    const j: { bitcoin?: { usd: number; usd_24h_change: number }; ethereum?: { usd: number; usd_24h_change: number } } = await res.json();
-    const out: Partial<Quote>[] = [];
-    if (j.bitcoin) {
-      out.push({
-        symbol: 'BTC-USD',
-        price: j.bitcoin.usd,
-        changePct: j.bitcoin.usd_24h_change ?? 0,
-        change: (j.bitcoin.usd * (j.bitcoin.usd_24h_change ?? 0)) / 100,
-        prevClose: j.bitcoin.usd / (1 + (j.bitcoin.usd_24h_change ?? 0) / 100),
-        isLive: true,
-      });
-    }
-    if (j.ethereum) {
-      out.push({
-        symbol: 'ETH-USD',
-        price: j.ethereum.usd,
-        changePct: j.ethereum.usd_24h_change ?? 0,
-        change: (j.ethereum.usd * (j.ethereum.usd_24h_change ?? 0)) / 100,
-        prevClose: j.ethereum.usd / (1 + (j.ethereum.usd_24h_change ?? 0) / 100),
-        isLive: true,
-      });
-    }
-    return out;
-  } catch {
-    return null;
-  }
-}
-
-async function tryFetchYahoo(symbols: string[]): Promise<Partial<Quote>[] | null> {
-  const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols.join(',')}`;
-  // Try direct first (rare CORS support), then fall back to a public proxy.
-  const targets = [yahooUrl, `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`];
-  for (const url of targets) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) continue;
-      const j: { quoteResponse?: { result?: YahooQuote[] } } = await res.json();
-      const list = j?.quoteResponse?.result;
-      if (!Array.isArray(list) || list.length === 0) continue;
-      return list.map((q): Partial<Quote> => ({
-        symbol: q.symbol,
-        price: q.regularMarketPrice ?? 0,
-        change: q.regularMarketChange ?? 0,
-        changePct: q.regularMarketChangePercent ?? 0,
-        prevClose: q.regularMarketPreviousClose ?? 0,
-        isLive: true,
-      }));
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-
-type YahooQuote = {
+type ApiQuote = {
   symbol: string;
-  regularMarketPrice?: number;
-  regularMarketChange?: number;
-  regularMarketChangePercent?: number;
-  regularMarketPreviousClose?: number;
+  price: number;
+  change: number;
+  changePct: number;
+  prevClose: number;
+  currency?: string;
+  isLive: boolean;
 };
+
+async function fetchQuotesFromApi(): Promise<ApiQuote[]> {
+  const equitySymbols = universe
+    .filter((a) => a.category !== 'crypto' && a.yahoo)
+    .map((a) => a.yahoo!);
+  const cryptoIds = universe
+    .filter((a) => a.category === 'crypto' && a.coingeckoId)
+    .map((a) => a.coingeckoId!);
+
+  const [equities, crypto] = await Promise.allSettled([
+    fetch(`/api/quotes?symbols=${encodeURIComponent(equitySymbols.join(','))}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('quotes ' + r.status)))),
+    fetch(`/api/crypto?ids=${encodeURIComponent(cryptoIds.join(','))}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('crypto ' + r.status)))),
+  ]);
+
+  const out: ApiQuote[] = [];
+  if (equities.status === 'fulfilled' && Array.isArray(equities.value?.quotes)) {
+    out.push(...equities.value.quotes);
+  }
+  if (crypto.status === 'fulfilled' && Array.isArray(crypto.value?.quotes)) {
+    out.push(...crypto.value.quotes);
+  }
+  return out;
+}
 
 export function useLivePrices() {
   const [quotes, setQuotes] = useState<Quote[]>(() => seedQuotes());
   const [hasReal, setHasReal] = useState(false);
-  const realLastFetched = useRef<number>(0);
+  const lastRealAt = useRef<number>(0);
 
-  // fetch real prices on mount + every 60s
+  // Fetch real prices on mount and every 30s thereafter.
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
 
-    const fetchReal = async () => {
-      const equitySymbols = universe
-        .filter((a) => a.category !== 'crypto')
-        .map((a) => a.symbol);
-
-      const [yahoo, coingecko] = await Promise.all([
-        tryFetchYahoo(equitySymbols),
-        tryFetchCoinGecko(),
-      ]);
-
-      if (cancelled) return;
-      const incoming = [...(yahoo ?? []), ...(coingecko ?? [])];
-      if (incoming.length === 0) return;
-      realLastFetched.current = Date.now();
-      setHasReal(true);
-      setQuotes((prev) =>
-        prev.map((q) => {
-          const upd = incoming.find((u) => u.symbol === q.symbol);
-          if (!upd) return q;
-          return {
-            ...q,
-            price: upd.price ?? q.price,
-            change: upd.change ?? q.change,
-            changePct: upd.changePct ?? q.changePct,
-            prevClose: upd.prevClose ?? q.prevClose,
-            isLive: true,
-          };
-        })
-      );
+    const refresh = async () => {
+      try {
+        const incoming = await fetchQuotesFromApi();
+        if (cancelled || incoming.length === 0) return;
+        lastRealAt.current = Date.now();
+        setHasReal(true);
+        setQuotes((prev) =>
+          prev.map((q) => {
+            const upd = incoming.find((u) => u.symbol === q.symbol);
+            if (!upd) return q;
+            return {
+              ...q,
+              price: upd.price,
+              change: upd.change,
+              changePct: upd.changePct,
+              prevClose: upd.prevClose,
+              isLive: true,
+            };
+          })
+        );
+      } catch (e) {
+        // swallow — simulator keeps the UI alive
+        console.warn('[live] refresh failed:', e);
+      }
     };
 
-    fetchReal();
-    const interval = setInterval(fetchReal, 60_000);
+    refresh();
+    timer = setInterval(refresh, 30_000);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (timer) clearInterval(timer);
     };
   }, []);
 
-  // simulate ticks every ~2.5s for liveness
+  // Tick simulator every 2.5s for between-fetch micro-movement.
   useEffect(() => {
     const id = setInterval(() => {
       setQuotes((prev) => prev.map(tickQuote));
@@ -215,17 +179,15 @@ export function useLivePrices() {
     return () => clearInterval(id);
   }, []);
 
-  return { quotes, hasReal };
+  return { quotes, hasReal, lastRealAt: lastRealAt.current };
 }
 
 export function formatPrice(q: Quote): string {
-  const p = q.price;
   const opts: Intl.NumberFormatOptions = {
     minimumFractionDigits: q.decimals,
     maximumFractionDigits: q.decimals,
   };
-  const formatted = new Intl.NumberFormat('en-US', opts).format(p);
-  return `${q.prefix ?? ''}${formatted}`;
+  return `${q.prefix ?? ''}${new Intl.NumberFormat('en-US', opts).format(q.price)}`;
 }
 
 export function formatChange(q: Quote): string {

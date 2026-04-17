@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.6
 
-# ---- Build stage ----
+# ---- Build stage: compile the React app ----
 FROM node:20-alpine AS build
 WORKDIR /app
 
@@ -10,17 +10,18 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ---- Runtime stage ----
-FROM nginx:1.27-alpine AS runtime
-
-# Cloud Run injects PORT (default 8080). nginx config uses ${PORT}.
+# ---- Runtime stage: tiny Node server ----
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
 ENV PORT=8080
 
-COPY nginx.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=build /app/dist /usr/share/nginx/html
+# Server has zero npm dependencies — uses only built-in Node modules
+# (http, fs, path, url, global fetch in Node 18+). Just copy the built
+# assets and the server entry point.
+COPY --from=build /app/dist ./dist
+COPY server ./server
 
 EXPOSE 8080
-
-# nginx:alpine entrypoint runs envsubst on /etc/nginx/templates/*.template
-# automatically before starting nginx.
-CMD ["nginx", "-g", "daemon off;"]
+USER node
+CMD ["node", "server/index.js"]

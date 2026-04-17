@@ -52,7 +52,12 @@ docker run --rm -p 8080:8080 -e PORT=8080 solaria-vc
 
 - Vite + React 18 + TypeScript
 - Tailwind CSS 3
-- nginx 1.27 (alpine) for serving in production
+- Node 20 server (`server/index.js`, zero npm deps) that:
+  - Serves the built static app from `dist/`
+  - Proxies `/api/quotes` to Stooq (with Yahoo Finance fallback) for real
+    equity + index prices
+  - Proxies `/api/crypto` to CoinGecko for BTC/ETH
+  - Caches responses in-memory (15–60s TTL)
 
 ## Structure
 
