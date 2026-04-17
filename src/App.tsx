@@ -2,6 +2,7 @@ import Nav from './components/Nav';
 import Hero from './components/Hero';
 import LiveTicker from './components/LiveTicker';
 import MedallionFund from './components/MedallionFund';
+import Ventures from './components/Ventures';
 import Research from './components/Research';
 import Approach from './components/Approach';
 import Firm from './components/Firm';
@@ -17,6 +18,7 @@ export default function App() {
         <Hero />
         <LiveTicker />
         <MedallionFund />
+        <Ventures />
         <Research />
         <Approach />
         <Firm />

@@ -52,10 +52,11 @@ export default function Hero() {
             className="mt-7 max-w-2xl text-lg leading-relaxed text-white/70 sm:text-xl animate-rise"
             style={{ animationDelay: '160ms' }}
           >
-            Solaria is an investment firm built around two products:{' '}
-            <span className="text-white">the Medallion Fund</span>, a closed-end portfolio running
-            systematic strategies — and <span className="text-white">Solaria Research</span>,
-            applying quantitative models to venture and private markets.
+            Solaria is an investment partnership with three products:{' '}
+            <span className="text-white">the Medallion Fund</span>, a closed-end quantitative
+            portfolio; <span className="text-white">Solaria Ventures</span>, our pre-seed and
+            seed venture arm; and <span className="text-white">Solaria Research</span>, the
+            models that inform both.
           </p>
 
           <div
@@ -82,8 +83,8 @@ export default function Hero() {
             style={{ animationDelay: '380ms' }}
           >
             <Stat label="Fund vintage" value="2026" />
-            <Stat label="Target NAV" value="$2.5M" />
-            <Stat label="Strategies" value="04" />
+            <Stat label="Capital deployed" value="$2.5M" />
+            <Stat label="Companies backed" value="08" />
             <Stat label="Research notes" value="12+" />
           </dl>
         </div>

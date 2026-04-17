@@ -10,8 +10,8 @@ export default function Footer() {
               <div className="font-display text-2xl tracking-tight">Solaria</div>
             </div>
             <p className="mt-4 max-w-md text-sm text-white/55 leading-relaxed">
-              Solaria Capital, LLC. A privately held investment partnership operating the Medallion Fund and
-              publishing Solaria Research.
+              Solaria Capital, LLC. A privately held investment partnership operating the Medallion
+              Fund, Solaria Ventures, and Solaria Research.
             </p>
             <div className="num mt-6 text-xs text-white/40">
               johnsonj198207@gmail.com
@@ -24,6 +24,13 @@ export default function Footer() {
               items={[
                 { label: 'Medallion Fund', href: '#fund' },
                 { label: 'Investor inquiries', href: '#contact' },
+              ]}
+            />
+            <FooterCol
+              title="Ventures"
+              items={[
+                { label: 'Portfolio', href: '#ventures' },
+                { label: 'Pitch us', href: '#contact' },
               ]}
             />
             <FooterCol
@@ -41,20 +48,13 @@ export default function Footer() {
                 { label: 'Contact', href: '#contact' },
               ]}
             />
-            <FooterCol
-              title="Legal"
-              items={[
-                { label: 'Disclosures', href: '#contact' },
-                { label: 'Privacy', href: '#contact' },
-              ]}
-            />
           </div>
         </div>
 
         <div className="mt-14 border-t border-white/[0.06] pt-6 text-[11px] text-white/40 leading-relaxed">
           <p>
-            © {year} Solaria Capital, LLC. All rights reserved. Solaria, the Medallion Fund, and Solaria
-            Research are marks of Solaria Capital, LLC.
+            © {year} Solaria Capital, LLC. All rights reserved. Solaria, the Medallion Fund,
+            Solaria Ventures, and Solaria Research are marks of Solaria Capital, LLC.
           </p>
           <p className="mt-3 max-w-4xl">
             This material is for informational purposes only and does not constitute an offer to sell or a

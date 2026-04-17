@@ -3,7 +3,7 @@ import Spotlight from './Spotlight';
 const team = [
   { name: 'Johnson Jiang', role: 'Founder & Managing Partner', focus: 'Quant Research · Capital Markets' },
   { name: 'Open Seat', role: 'Partner — Quant Strategies', focus: 'Statistical Arb · Vol' },
-  { name: 'Open Seat', role: 'Partner — Venture', focus: 'Frontier · Diligence' },
+  { name: 'Open Seat', role: 'Partner — Ventures', focus: 'Pre-seed · Seed · Diligence' },
   { name: 'Open Seat', role: 'Head of Research', focus: 'Factor Models · Alt Data' },
 ];
 
@@ -11,7 +11,7 @@ const facts = [
   { k: 'Founded', v: '2026' },
   { k: 'Domicile', v: 'Delaware, USA' },
   { k: 'Entity', v: 'Solaria Capital, LLC' },
-  { k: 'Funds under mgmt', v: 'The Medallion Fund' },
+  { k: 'Desks', v: 'Capital · Ventures · Research' },
 ];
 
 export default function Firm() {
@@ -25,9 +25,10 @@ export default function Firm() {
               Built for the long arc.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-white/70">
-              Solaria is a privately held investment partnership. We operate two desks under one roof —
-              Capital, which runs the Medallion Fund, and Research, which publishes our quantitative work.
-              Same team, same priors, two surfaces.
+              Solaria is a privately held investment partnership. We operate three desks under one
+              roof — Capital, which runs the Medallion Fund; Ventures, which writes pre-seed and
+              seed checks; and Research, which publishes the quantitative work that informs both.
+              Same team, same priors, three surfaces.
             </p>
 
             <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
