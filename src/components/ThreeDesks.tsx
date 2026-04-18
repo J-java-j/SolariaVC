@@ -44,7 +44,7 @@ export default function ThreeDesks() {
   return (
     <section
       id="desks"
-      className="relative border-t border-white/[0.06] py-24 sm:py-32"
+      className="relative border-t border-white/[0.06] py-16 sm:py-24 lg:py-32"
     >
       <div className="container-x">
         <Reveal>

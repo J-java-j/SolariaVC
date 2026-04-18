@@ -33,12 +33,8 @@ export default function Nav() {
             alt="Solaria Capital"
             className="h-8 w-8 object-contain transition-transform duration-500 group-hover:scale-105"
           />
-          <span className="font-display text-lg tracking-tight">
+          <span className="font-display text-base sm:text-lg tracking-tight whitespace-nowrap">
             Solaria Capital
-          </span>
-          <span className="hidden sm:inline-block h-3 w-px bg-white/15" />
-          <span className="hidden sm:inline-block label !tracking-[0.18em] !text-white/45">
-            Capital · Research
           </span>
         </a>
         <nav className="hidden lg:flex items-center gap-8">

@@ -17,8 +17,11 @@ type Props = {
 /**
  * Wraps text in a hand-drawn-feel SVG ellipse that draws itself
  * around the content on scroll-in. The path is intentionally open
- * (start and end don't meet) and slightly imperfect — looks like
- * someone circled the word with a marker.
+ * (start and end don't meet) and slightly imperfect.
+ *
+ * Implementation note: uses a large absolute strokeDasharray (rather
+ * than pathLength=1 + dasharray=1, which normalises to "1 1" and
+ * renders as a 50/50 dash/gap pattern instead of a fully solid line).
  */
 export default function Circled({
   children,
@@ -28,28 +31,37 @@ export default function Circled({
   duration = 1200,
   className = '',
 }: Props) {
-  const [ref, shown] = useInView<HTMLSpanElement>({ threshold: 0.5 });
+  const [ref, shown] = useInView<HTMLSpanElement>({ threshold: 0.25 });
+
+  // Approximate length of the path below — generous so the dash
+  // pattern definitely covers it (>) at any viewport scale.
+  const PATH_LEN = 600;
 
   return (
     <span
       ref={ref}
-      className={`relative inline-block leading-none ${className}`}
+      className={`relative inline-block ${className}`}
     >
       <span className="relative z-[1]">{children}</span>
       <svg
-        className="pointer-events-none absolute -left-[7%] -top-[22%] h-[148%] w-[114%]"
+        className="pointer-events-none absolute"
+        style={{
+          left: '-7%',
+          top: '-22%',
+          width: '114%',
+          height: '148%',
+          overflow: 'visible',
+        }}
         viewBox="0 0 200 90"
         preserveAspectRatio="none"
         aria-hidden
       >
         {/*
-          Hand-drawn-feel ellipse:
-          - Starts at the top (~10 o'clock)
-          - Travels around clockwise
-          - Ends past the start point with a small overshoot, leaving a
-            visible gap (like a marker circle that didn't quite close)
-          - Slightly inconsistent radius / control points so it doesn't
-            read as a perfect mathematical ellipse
+          Open hand-drawn-feel ellipse. Starts at top (~10 o'clock),
+          travels clockwise, ends past the start with a small overshoot
+          so the ends don't meet — like a marker stroke that didn't
+          quite close. Asymmetric Bézier control points so the radius
+          wobbles slightly.
         */}
         <path
           d="
@@ -64,9 +76,8 @@ export default function Circled({
           strokeWidth={width}
           strokeLinecap="round"
           strokeLinejoin="round"
-          pathLength={1}
-          strokeDasharray="1"
-          strokeDashoffset={shown ? 0 : 1}
+          strokeDasharray={PATH_LEN}
+          strokeDashoffset={shown ? 0 : PATH_LEN}
           style={{
             transition: `stroke-dashoffset ${duration}ms cubic-bezier(0.55, 0.1, 0.25, 1) ${delay}ms`,
           }}
