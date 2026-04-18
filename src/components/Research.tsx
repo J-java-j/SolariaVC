@@ -27,7 +27,7 @@ export default function Research() {
             <SectionTitle className="mt-6">
               Published
               <br />
-              <span className="text-accent italic font-light">openly.</span>
+              <span className="text-accent">openly.</span>
             </SectionTitle>
             <div className="mt-10 flex items-baseline gap-8">
               <div>

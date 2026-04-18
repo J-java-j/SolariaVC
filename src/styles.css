@@ -84,7 +84,7 @@ html, body {
   body {
     background: var(--bg-a);
     color: var(--fg);
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Switzer', 'Söhne', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
   }
   ::selection { background: var(--selection); color: #fff; }

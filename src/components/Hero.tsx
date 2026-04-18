@@ -109,7 +109,7 @@ export default function Hero() {
           Built on{' '}
           <span className="relative inline-block text-accent">
             <NaturalCircle inView={inView} />
-            <span className="relative italic">proof</span>
+            <span className="relative">proof</span>
           </span>
           .
         </h1>

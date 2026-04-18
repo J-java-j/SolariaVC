@@ -63,7 +63,7 @@ export default function Fund() {
                 'opacity 1200ms cubic-bezier(0.22,1,0.36,1) 200ms, transform 1200ms cubic-bezier(0.22,1,0.36,1) 200ms',
             }}
           >
-            Medallion <span className="italic text-accent">Fund</span>
+            Medallion <span className="text-accent">Fund</span>
           </h2>
           <p
             className="mt-7 mx-auto max-w-[38ch] text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted"
@@ -90,7 +90,7 @@ export default function Fund() {
         >
           <span className="inline-block">{phrase}</span>
           <span
-            className="inline-block italic text-accent relative"
+            className="inline-block text-accent relative"
             style={{
               opacity: showSixteen ? 1 : 0,
               transform: showSixteen ? 'scale(1)' : 'scale(0.5)',

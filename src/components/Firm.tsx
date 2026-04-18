@@ -24,7 +24,7 @@ export default function Firm() {
           <SectionTitle className="mt-6">
             Same team.
             <br />
-            <span className="text-accent italic font-light">Three surfaces.</span>
+            <span className="text-accent">Three surfaces.</span>
           </SectionTitle>
         </div>
 

@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useReveal } from '../hooks/useReveal';
 import { useScrollProgress } from '../hooks/useScrollProgress';
 import { Eyebrow, SectionTitle } from './primitives';
@@ -55,7 +55,14 @@ export default function Record() {
   const x = (i: number) => padL + (i / (sol.length - 1)) * innerW;
   const y = (v: number) => padT + (1 - (v - minV) / (maxV - minV)) * innerH;
 
-  const draw = Math.max(0.02, Math.min(1, (progress - 0.05) * 1.6));
+  // Monotonic forward-only draw — only advances, never retreats. Finishes
+  // as soon as the chart is centered so the full graph is visible while
+  // the section is still on screen.
+  const target = Math.max(0, Math.min(1, (progress - 0.15) * 2.6));
+  const [draw, setDraw] = useState(0);
+  useEffect(() => {
+    setDraw((d) => Math.max(d, target));
+  }, [target]);
   const drawIdx = Math.floor((sol.length - 1) * draw);
 
   const mkPath = (pts: number[], lim: number) =>
@@ -105,14 +112,14 @@ export default function Record() {
           }`}
         >
           <Eyebrow>The record · M4 V3 backtest</Eyebrow>
-          <SectionTitle className="mt-6">
+          <SectionTitle className="mt-5">
             Fourteen years.
             <br />
-            <span className="text-accent italic">One dollar became sixteen.</span>
+            <span className="text-accent">$1 → $16.</span>
           </SectionTitle>
-          <div className="mt-6 font-mono text-[11px] tracking-[0.18em] uppercase text-fg-muted">
-            Apr 2012 → Apr 2026 · S&P 500 grew $1 to $6.55
-          </div>
+          <p className="mt-6 max-w-xl text-[13px] font-mono tracking-[0.06em] text-fg-muted">
+            Apr 2012 → Apr 2026 · monthly data · 6-year out-of-sample hold-out · S&P same dollar: $6.55
+          </p>
         </div>
 
         <div
@@ -235,16 +242,20 @@ export default function Record() {
                 ['Monthly win rate', '65.48%', '110 of 168', false],
               ] as const
             ).map(([k, v, s, a]) => (
-              <div key={k} className="bg-fg-b px-5 py-5 sm:px-10 sm:py-6">
-                <div className="font-mono text-[9.5px] tracking-[0.22em] uppercase text-fg-faint">{k}</div>
+              <div key={k} className="bg-fg-b px-5 py-6 sm:px-7 overflow-hidden">
+                <div className="font-mono text-[9.5px] tracking-[0.22em] uppercase text-fg-faint truncate">
+                  {k}
+                </div>
                 <div
-                  className={`mt-2 font-display text-[1.7rem] tabular-nums font-semibold sm:text-[2.2rem] ${
+                  className={`mt-2 font-display text-[1.5rem] tabular-nums font-semibold sm:text-[1.75rem] leading-none truncate ${
                     a ? 'text-accent' : 'text-fg'
                   }`}
                 >
                   {v}
                 </div>
-                <div className="mt-1.5 font-mono text-[10.5px] tabular-nums text-fg-faint">{s}</div>
+                <div className="mt-2 font-mono text-[10.5px] tabular-nums text-fg-faint truncate">
+                  {s}
+                </div>
               </div>
             ))}
           </div>

@@ -25,7 +25,7 @@ export default function Ventures() {
           <SectionTitle className="mt-6">
             First checks.
             <br />
-            <span className="text-accent italic font-light">Scored by models.</span>
+            <span className="text-accent">Scored by models.</span>
           </SectionTitle>
         </div>
 

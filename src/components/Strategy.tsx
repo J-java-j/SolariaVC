@@ -104,7 +104,7 @@ export default function Strategy() {
           <SectionTitle className="mt-6">
             Four sleeves.
             <br />
-            <span className="text-accent italic font-light">ρ = 0.055.</span>
+            <span className="text-accent">ρ = 0.055.</span>
           </SectionTitle>
         </div>
 
