@@ -41,21 +41,21 @@ function Scene({
   total: number;
   isLast: boolean;
 }) {
-  const [ref, shown] = useInView<HTMLDivElement>({ threshold: 0.35 });
+  const [ref, shown] = useInView<HTMLDivElement>({ threshold: 0.3 });
 
   return (
     <div
       ref={ref}
-      className={`relative px-5 py-24 sm:py-32 lg:py-40 ${
+      className={`relative px-5 py-20 sm:py-28 lg:py-36 ${
         isLast ? '' : 'border-b border-white/[0.05]'
       }`}
     >
       <div className="container-x">
-        <div className="flex items-center justify-between mb-8 sm:mb-10">
-          <span className="num text-[10px] uppercase tracking-[0.24em] text-moss-300/70 sm:text-[11px]">
+        <div className="mb-6 flex items-center justify-between sm:mb-10">
+          <span className="num text-[10px] font-medium uppercase tracking-[0.24em] text-moss-300/70 sm:text-[11px]">
             ─  Backtest
           </span>
-          <span className="num text-[10px] uppercase tracking-[0.24em] text-white/30 sm:text-[11px]">
+          <span className="num text-[10px] font-medium uppercase tracking-[0.24em] text-white/30 sm:text-[11px]">
             {String(scene.n).padStart(2, '0')} / {String(total).padStart(2, '0')}
           </span>
         </div>
@@ -67,15 +67,8 @@ function Scene({
             transform: shown ? 'translateY(0)' : 'translateY(20px)',
           }}
         >
-          <div
-            className="num font-display font-medium tracking-[-0.04em] text-gradient-moss"
-            style={{
-              fontSize: 'clamp(2.5rem, 12vw, 9rem)',
-              lineHeight: 1.05,
-              paddingTop: '0.18em',
-              paddingBottom: '0.1em',
-            }}
-          >
+          {/* Tailwind responsive sizes — predictable at every breakpoint */}
+          <div className="num font-display font-medium leading-[1.05] tracking-[-0.04em] text-gradient-moss text-5xl sm:text-7xl md:text-8xl lg:text-[8rem] py-2">
             <AnimatedNumber
               value={scene.value}
               prefix={scene.prefix}

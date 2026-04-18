@@ -5,21 +5,18 @@ export default function Hero() {
   return (
     <section
       id="top"
-      className="relative pt-28 pb-20 sm:pt-40 sm:pb-32"
+      className="relative pt-28 pb-16 sm:pt-36 sm:pb-24 lg:pt-44 lg:pb-32"
     >
       <div className="container-x">
         <div className="max-w-4xl">
           <Reveal>
-            <div className="text-[10px] uppercase tracking-[0.24em] text-moss-300/80 sm:text-[11px] sm:tracking-[0.28em]">
+            <div className="text-[10px] font-medium uppercase tracking-[0.22em] text-moss-300/80 sm:text-[11px] sm:tracking-[0.28em]">
               Solaria Capital · La Jolla, California
             </div>
           </Reveal>
 
           <Reveal delay={120}>
-            <h1
-              className="mt-6 font-display font-medium leading-[1.05] tracking-[-0.02em] sm:mt-8"
-              style={{ fontSize: 'clamp(2rem, 8vw, 5.5rem)' }}
-            >
+            <h1 className="mt-6 font-display text-4xl font-medium leading-[1.05] tracking-[-0.02em] sm:mt-8 sm:text-5xl md:text-6xl lg:text-7xl">
               Built to{' '}
               <Circled color="#34d399" delay={900}>
                 outperform
@@ -29,7 +26,7 @@ export default function Hero() {
           </Reveal>
 
           <Reveal delay={240}>
-            <p className="mt-6 text-base leading-relaxed text-white/55 sm:mt-8 sm:text-xl">
+            <p className="mt-6 text-base leading-relaxed text-white/55 sm:mt-8 sm:text-lg lg:text-xl">
               Quantitative investment management.
             </p>
           </Reveal>

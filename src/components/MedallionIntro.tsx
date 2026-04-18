@@ -3,22 +3,21 @@ import Reveal from './Reveal';
 const GOLD = '#fcd34d';
 
 /**
- * Solaria's flagship product. Three lines, dead-centre, with a soft
- * gold radial glow behind. Padding-based section (no viewport-height
- * tricks) so it can't crop awkwardly on any device.
+ * The Fund's prestige introduction. Three lines, dead-centre.
+ * Explicit Tailwind responsive sizes so it sizes predictably at
+ * every breakpoint instead of guessing with clamp().
  */
 export default function MedallionIntro() {
   return (
     <section
       id="fund-intro"
-      className="relative border-t border-white/[0.05] px-5 py-28 sm:py-36 lg:py-44"
+      className="relative border-t border-white/[0.05] px-5 py-24 sm:py-32 lg:py-40"
     >
-      {/* very soft gold radial glow, centred */}
       <div
         className="pointer-events-none absolute inset-0 -z-10"
         style={{
           background:
-            'radial-gradient(ellipse 50% 40% at 50% 50%, rgba(252, 211, 77, 0.09), transparent 70%)',
+            'radial-gradient(ellipse 50% 40% at 50% 50%, rgba(252, 211, 77, 0.10), transparent 70%)',
         }}
         aria-hidden
       />
@@ -26,27 +25,22 @@ export default function MedallionIntro() {
       <div className="container-x">
         <div className="text-center">
           <Reveal>
-            <div className="text-[10px] uppercase tracking-[0.4em] text-amber-300/65 sm:text-[11px]">
+            <div className="text-[10px] font-medium uppercase tracking-[0.4em] text-amber-300/65 sm:text-[11px]">
               Introducing
             </div>
           </Reveal>
 
           <Reveal delay={160}>
             <h2
-              className="mt-6 font-display font-semibold leading-[1.05] tracking-[-0.025em] sm:mt-8"
-              style={{
-                fontSize: 'clamp(2rem, 11vw, 6.5rem)',
-                color: GOLD,
-                paddingTop: '0.15em',
-                paddingBottom: '0.05em',
-              }}
+              className="mt-5 font-display text-4xl font-semibold leading-[1.05] tracking-[-0.02em] sm:mt-7 sm:text-6xl md:text-7xl lg:text-8xl"
+              style={{ color: GOLD, paddingTop: '0.12em', paddingBottom: '0.08em' }}
             >
               Medallion
             </h2>
           </Reveal>
 
           <Reveal delay={320}>
-            <p className="mt-6 text-sm text-white/55 sm:mt-8 sm:text-base">
+            <p className="mt-5 text-sm text-white/55 sm:mt-7 sm:text-base">
               Closed-end. Quantitative.
             </p>
           </Reveal>

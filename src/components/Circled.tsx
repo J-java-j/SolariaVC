@@ -3,37 +3,29 @@ import { useInView } from '../hooks/useInView';
 
 type Props = {
   children: ReactNode;
-  /** stroke color */
   color?: string;
-  /** stroke width in viewBox units */
   width?: number;
-  /** ms before the draw begins, after the element enters view */
   delay?: number;
-  /** total draw duration in ms */
   duration?: number;
   className?: string;
 };
 
 /**
- * Wraps text in a hand-drawn-feel SVG ellipse that draws itself
- * around the content on scroll-in. The path is intentionally open
- * (start and end don't meet) and a per-instance turbulence filter
- * adds tiny pixel-level wobble so the line doesn't read as a perfect
- * mathematical ellipse.
+ * Hand-drawn-feel SVG ellipse drawn around its text on scroll-in.
+ * SVG uses tighter overflow margins so the circle can't push past
+ * the parent layout on narrow viewports — keeps it inside the
+ * heading's container at every breakpoint.
  */
 export default function Circled({
   children,
   color = '#34d399',
   width = 3,
   delay = 350,
-  duration = 1300,
+  duration = 1200,
   className = '',
 }: Props) {
   const [ref, shown] = useInView<HTMLSpanElement>({ threshold: 0.2 });
   const filterId = useId().replace(/:/g, '');
-
-  // Long absolute dasharray so the offset animation walks the dash
-  // pattern off the path once and the line draws cleanly.
   const PATH_LEN = 600;
 
   return (
@@ -45,10 +37,10 @@ export default function Circled({
       <svg
         className="pointer-events-none absolute"
         style={{
-          left: '-7%',
-          top: '-22%',
-          width: '114%',
-          height: '148%',
+          left: '-4%',
+          top: '-18%',
+          width: '108%',
+          height: '136%',
           overflow: 'visible',
         }}
         viewBox="0 0 200 90"
@@ -64,7 +56,7 @@ export default function Circled({
               seed={3}
               result="noise"
             />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.5" />
           </filter>
         </defs>
         <path
