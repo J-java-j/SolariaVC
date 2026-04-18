@@ -285,7 +285,7 @@ function SuccessPanel({ onSendAnother }: { onSendAnother: () => void }) {
       </div>
       <h3 className="mt-5 font-display text-2xl">Message received.</h3>
       <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/70">
-        Thank you for reaching out to Solaria. A partner will review your inquiry and respond
+        Thank you for reaching out to Solaria Capital. A partner will review your inquiry and respond
         within two business days.
       </p>
       <button

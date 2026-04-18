@@ -102,7 +102,7 @@ export default function MedallionFund() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
-                  <Row label="Solaria · M4 V3" values={fundReturns} accent />
+                  <Row label="Solaria Capital · M4 V3" values={fundReturns} accent />
                   <Row label="S&P 500 (SPY)" values={spxReturns} muted />
                   <AlphaRow fund={fundReturns} bench={spxReturns} />
                 </tbody>
@@ -192,7 +192,7 @@ function AlphaRow({
       <td className="px-5 py-3 text-moss-200">
         Outperformance{' '}
         <span className="text-[10px] text-white/35">
-          (Solaria − S&P, positive = beating the market)
+          (Solaria Capital − S&P, positive = beating the market)
         </span>
       </td>
       {TIMEFRAMES.map((t) => {

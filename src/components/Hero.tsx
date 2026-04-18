@@ -15,7 +15,7 @@ export default function Hero() {
           </h1>
 
           <p className="mt-7 max-w-2xl text-lg leading-relaxed text-white/70">
-            Solaria operates three things: <span className="text-white">the
+            Solaria Capital operates three things: <span className="text-white">the
             Medallion Fund</span> — a closed-end quantitative portfolio;{' '}
             <span className="text-white">Solaria Ventures</span> — a pre-seed
             and seed venture arm; and <span className="text-white">Solaria

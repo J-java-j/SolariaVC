@@ -6,8 +6,8 @@ export default function Footer() {
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-5">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Solaria" className="h-9 w-9 object-contain" />
-              <div className="font-display text-2xl tracking-tight">Solaria</div>
+              <img src="/logo.png" alt="Solaria Capital" className="h-9 w-9 object-contain" />
+              <div className="font-display text-2xl tracking-tight">Solaria Capital</div>
             </div>
             <p className="mt-4 max-w-md text-sm text-white/55 leading-relaxed">
               Solaria Capital, LLC. A privately held investment partnership operating the Medallion
@@ -62,8 +62,9 @@ export default function Footer() {
 
         <div className="mt-14 border-t border-white/[0.06] pt-6 text-[11px] text-white/40 leading-relaxed">
           <p>
-            © {year} Solaria Capital, LLC. All rights reserved. Solaria, the Medallion Fund,
-            Solaria Ventures, and Solaria Research are marks of Solaria Capital, LLC.
+            © {year} Solaria Capital, LLC. All rights reserved. Solaria Capital, the
+            Medallion Fund, Solaria Ventures, and Solaria Research are marks of Solaria
+            Capital, LLC.
           </p>
           <p className="mt-3 max-w-4xl">
             This material is for informational purposes only and does not constitute an offer to sell or a

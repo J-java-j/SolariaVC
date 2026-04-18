@@ -30,11 +30,11 @@ export default function Nav() {
         <a href="#top" className="flex items-center gap-3 group">
           <img
             src="/logo.png"
-            alt="Solaria"
+            alt="Solaria Capital"
             className="h-8 w-8 object-contain transition-transform duration-500 group-hover:scale-105"
           />
           <span className="font-display text-lg tracking-tight">
-            Solaria
+            Solaria Capital
           </span>
           <span className="hidden sm:inline-block h-3 w-px bg-white/15" />
           <span className="hidden sm:inline-block label !tracking-[0.18em] !text-white/45">

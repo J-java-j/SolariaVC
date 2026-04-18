@@ -37,9 +37,9 @@ export default function Firm() {
               Three desks, one team.
             </h2>
             <p className="mt-6 text-white/70 leading-relaxed">
-              Solaria is a privately held investment partnership operating Capital
-              (the Medallion Fund), Ventures (pre-seed/seed checks), and Research
-              (quantitative work that informs both).
+              Solaria Capital is a privately held investment partnership operating
+              Capital (the Medallion Fund), Ventures (pre-seed and seed checks),
+              and Research (quantitative work that informs both).
             </p>
 
             <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.06] pt-6 text-sm">

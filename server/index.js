@@ -1,4 +1,4 @@
-// Solaria production server.
+// Solaria Capital production server.
 // Serves the built React app from /dist and exposes:
 //   GET  /api/quotes?symbols=AAPL,MSFT,^GSPC   -> Yahoo Finance (server-side, no CORS)
 //   GET  /api/crypto?ids=bitcoin,ethereum      -> CoinGecko
@@ -241,7 +241,7 @@ async function fetchCoinGecko(ids) {
 // To enable real delivery, set RESEND_API_KEY in the Cloud Run service env.
 // Without a key, submissions are logged to stdout (visible in Cloud Run logs).
 const CONTACT_TO = process.env.CONTACT_TO_EMAIL || 'joj059@ucsd.edu';
-const CONTACT_FROM = process.env.CONTACT_FROM_EMAIL || 'Solaria Contact <onboarding@resend.dev>';
+const CONTACT_FROM = process.env.CONTACT_FROM_EMAIL || 'Solaria Capital <onboarding@resend.dev>';
 const KIND_LABEL = {
   fund: 'Medallion Fund',
   ventures: 'Ventures',
@@ -292,7 +292,7 @@ function renderContactHtml(p) {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #04080a; color: #e5e7eb; padding: 28px 24px; max-width: 620px; margin: 0 auto;">
       <div style="border-left: 3px solid #10b981; padding-left: 12px; margin-bottom: 22px;">
-        <div style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #34d399;">Solaria · New inquiry</div>
+        <div style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #34d399;">Solaria Capital · New inquiry</div>
         <div style="font-size: 22px; font-weight: 600; margin-top: 6px;">${esc(kindLabel)}</div>
       </div>
       <table style="width: 100%; border-collapse: collapse;">
@@ -306,7 +306,7 @@ function renderContactHtml(p) {
         <div style="margin-top: 10px; white-space: pre-wrap; line-height: 1.55;">${esc(p.message)}</div>
       </div>
       <div style="margin-top: 28px; font-size: 11px; color: #6b7280;">
-        Sent from the Solaria contact form. Reply directly to this email to respond to ${esc(p.name)}.
+        Sent from the Solaria Capital contact form. Reply directly to this email to respond to ${esc(p.name)}.
       </div>
     </div>
   `;
@@ -315,7 +315,7 @@ function renderContactHtml(p) {
 function renderContactText(p) {
   const kindLabel = KIND_LABEL[p.kind] || KIND_LABEL.other;
   return [
-    `Solaria — new ${kindLabel} inquiry`,
+    `Solaria Capital — new ${kindLabel} inquiry`,
     '',
     `From:         ${p.name} <${p.email}>`,
     p.organization ? `Organization: ${p.organization}` : null,
@@ -348,7 +348,7 @@ async function sendViaResend(payload) {
       from: CONTACT_FROM,
       to: [CONTACT_TO],
       reply_to: payload.email,
-      subject: `[Solaria · ${kindLabel}] ${payload.name}`,
+      subject: `[Solaria Capital · ${kindLabel}] ${payload.name}`,
       html: renderContactHtml(payload),
       text: renderContactText(payload),
     }),
@@ -519,5 +519,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Solaria server listening on :${PORT}, serving ${DIST}`);
+  console.log(`Solaria Capital server listening on :${PORT}, serving ${DIST}`);
 });

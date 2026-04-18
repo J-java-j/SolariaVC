@@ -1,4 +1,4 @@
-// Shared fund data + portfolio metrics for the Solaria site.
+// Shared fund data + portfolio metrics for the Solaria Capital site.
 //
 // The numbers below are derived from the M4 V3 strategy backtest produced
 // by Solaria Research (Esteban Reyes, April 2026):
