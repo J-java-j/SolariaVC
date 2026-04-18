@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Mark } from './primitives';
 
-const links = [
-  { href: '#fund', label: 'Fund' },
-  { href: '#ventures', label: 'Ventures' },
-  { href: '#research', label: 'Research' },
-  { href: '#firm', label: 'Firm' },
+const items: [string, string][] = [
+  ['Fund', '#fund'],
+  ['Ventures', '#ventures'],
+  ['Research', '#research'],
 ];
 
 export default function Nav() {
@@ -12,7 +12,7 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
+    const onScroll = () => setScrolled(window.scrollY > 30);
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -20,90 +20,73 @@ export default function Nav() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'backdrop-blur-md bg-ink-950/80 border-b border-white/[0.06]'
-          : 'bg-transparent'
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        scrolled ? 'backdrop-blur-xl border-b border-line' : ''
       }`}
+      style={
+        scrolled
+          ? { backgroundColor: 'color-mix(in oklab, var(--bg-a) 85%, transparent)' }
+          : {}
+      }
     >
-      <div className="container-x flex h-16 items-center justify-between">
-        <a href="#top" className="flex items-center gap-3 group">
-          <img
-            src="/logo.png"
-            alt="Solaria Capital"
-            className="h-8 w-8 object-contain transition-transform duration-500 group-hover:scale-105"
-          />
-          <span className="font-display text-base sm:text-lg tracking-tight whitespace-nowrap">
-            Solaria Capital
-          </span>
+      <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-4 sm:px-10 lg:px-16">
+        <a href="#top" className="flex items-center gap-3">
+          <Mark size={26} />
+          <div className="leading-none">
+            <div className="font-display text-[17px] tracking-tight text-fg">Solaria</div>
+            <div className="font-mono text-[8.5px] tracking-[0.22em] uppercase text-accent-strong mt-0.5">
+              Capital · LLC
+            </div>
+          </div>
         </a>
-        <nav className="hidden lg:flex items-center gap-8">
-          {links.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className="text-sm text-white/70 hover:text-white transition-colors"
-            >
-              {l.label}
+
+        <nav className="hidden md:flex items-center gap-10 text-[13px] text-fg-muted">
+          {items.map(([l, h]) => (
+            <a key={h} href={h} className="relative hover:text-fg transition-colors group">
+              {l}
+              <span className="absolute -bottom-1 left-0 right-0 h-px scale-x-0 bg-[var(--accent-400)] transition-transform group-hover:scale-x-100 origin-left" />
             </a>
           ))}
         </nav>
-        <div className="hidden lg:flex items-center gap-3">
+
+        <div className="flex items-center gap-3">
           <a
             href="#contact"
-            className="text-sm text-white/70 hover:text-white transition-colors"
+            className="hidden sm:inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-[12.5px] font-semibold hover:opacity-90 transition-opacity"
           >
-            Contact
+            Contact →
           </a>
-          <a
-            href="#contact"
-            className="inline-flex items-center gap-1.5 rounded-md bg-moss-500 px-4 py-2 text-sm font-medium text-ink-950 hover:bg-moss-400 transition-colors"
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Toggle menu"
+            className="md:hidden rounded-md border border-line p-2 text-fg"
           >
-            Investor inquiry
-          </a>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d={open ? 'M6 6l12 12M18 6L6 18' : 'M4 7h16M4 12h16M4 17h16'} strokeLinecap="round" />
+            </svg>
+          </button>
         </div>
-        <button
-          className="lg:hidden text-white/80 p-2"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {open ? (
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            ) : (
-              <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
-            )}
-          </svg>
-        </button>
       </div>
+
       {open && (
-        <div className="lg:hidden border-t border-white/[0.06] bg-ink-950/95 backdrop-blur-md">
-          <div className="container-x py-4 flex flex-col gap-3">
-            {links.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={() => setOpen(false)}
-                className="text-base text-white/80 py-1"
-              >
-                {l.label}
-              </a>
-            ))}
+        <div className="md:hidden border-t border-line bg-fg-a backdrop-blur-xl px-5 py-4 space-y-3 sm:px-10">
+          {items.map(([l, h]) => (
             <a
-              href="#contact"
+              key={h}
+              href={h}
               onClick={() => setOpen(false)}
-              className="text-base text-white/80 py-1"
+              className="block text-[15px] text-fg py-1.5"
             >
-              Contact
+              {l}
             </a>
-            <a
-              href="#contact"
-              onClick={() => setOpen(false)}
-              className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-md bg-moss-500 px-4 py-2 text-sm font-medium text-ink-950"
-            >
-              Investor inquiry
-            </a>
-          </div>
+          ))}
+          <a
+            href="#contact"
+            onClick={() => setOpen(false)}
+            className="block text-[15px] text-accent-strong py-1.5"
+          >
+            Contact →
+          </a>
         </div>
       )}
     </header>

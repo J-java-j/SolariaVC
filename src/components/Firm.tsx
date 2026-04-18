@@ -1,86 +1,66 @@
-import Reveal from './Reveal';
+import { useReveal } from '../hooks/useReveal';
+import { Eyebrow, SectionTitle } from './primitives';
 
-type Member = {
-  name: string;
-  role: string;
-  dept: 'Capital' | 'R&D' | 'Marketing';
-  focus: string;
-  founder?: boolean;
-};
-
-const team: Member[] = [
-  { name: 'Johnson Jiang',  role: 'Founder & Managing Partner',     dept: 'Capital',   focus: 'Quant Research · Capital Markets',  founder: true },
-  { name: 'Karl Li',        role: 'Co-Founder',                     dept: 'Capital',   focus: 'Strategy · Operations',             founder: true },
-  { name: 'Esteban Reyes',  role: 'Head of Research & Development', dept: 'R&D',       focus: 'Quant Models · Backtesting' },
-  { name: 'Tahir Eygoren',  role: 'Research & Development',         dept: 'R&D',       focus: 'Model Implementation · Data' },
-  { name: 'Monica Lin',     role: 'Marketing',                      dept: 'Marketing', focus: 'Brand · Communications' },
-];
-
-const facts = [
-  { k: 'Founded',      v: '2026' },
-  { k: 'Headquarters', v: 'La Jolla, CA' },
-  { k: 'Domicile',     v: 'California, USA' },
-  { k: 'Entity',       v: 'Solaria Capital, LLC' },
+const team = [
+  { name: 'Johnson Jiang', role: 'Founder & Managing Partner', focus: 'Quant research · capital markets', founder: true },
+  { name: 'Karl Li',       role: 'Co-Founder',                 focus: 'Strategy · operations',           founder: true },
+  { name: 'Esteban Reyes', role: 'Head of R&D',                focus: 'Quant models · backtesting' },
+  { name: 'Tahir Eygoren', role: 'R&D',                        focus: 'Model implementation · data' },
+  { name: 'Monica Lin',    role: 'Marketing',                  focus: 'Brand · communications' },
 ];
 
 export default function Firm() {
+  const [revealRef, inView] = useReveal(0.1);
   return (
-    <section
-      id="firm"
-      className="relative border-t border-white/[0.06] py-20 sm:py-28 lg:py-36"
-    >
-      <div className="container-x">
-        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <Reveal className="lg:col-span-5">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
-              The Firm
-            </div>
-            <h2 className="mt-4 font-display text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
-              Three desks, one team.
-            </h2>
-            <p className="mt-6 text-white/70 leading-relaxed">
-              A privately held investment partnership. Five partners, three desks.
-            </p>
+    <section id="firm" className="relative border-t border-line">
+      <div className="mx-auto max-w-[1400px] px-5 py-20 sm:px-10 sm:py-32 lg:px-16 lg:py-40">
+        <div
+          ref={revealRef}
+          className={`max-w-3xl transition-all duration-1000 ${
+            inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+          }`}
+        >
+          <Eyebrow>The firm</Eyebrow>
+          <SectionTitle className="mt-5">
+            Same team. Same priors.
+            <br />
+            <span className="text-accent italic font-light">Three surfaces.</span>
+          </SectionTitle>
+          <p className="mt-5 sm:mt-6 max-w-2xl text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted">
+            Solaria Capital, LLC is a privately-held investment partnership founded in 2026,
+            headquartered in La Jolla, California.
+          </p>
+        </div>
 
-            <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.06] pt-6 text-sm">
-              {facts.map((f) => (
-                <div key={f.k}>
-                  <dt className="text-[10.5px] uppercase tracking-[0.2em] text-white/45">
-                    {f.k}
-                  </dt>
-                  <dd className="num mt-1 text-white">{f.v}</dd>
+        <div className="mt-10 sm:mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {team.map((m, i) => {
+            const init = m.name.split(' ').map((p) => p[0]).slice(0, 2).join('');
+            return (
+              <article
+                key={m.name}
+                className="group rounded-2xl border border-line bg-fg-b p-6 transition-all hover:border-line-strong hover:-translate-y-0.5"
+                style={{ animation: inView ? `rise .7s ease-out ${i * 80}ms both` : 'none' }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="grid h-14 w-14 place-items-center rounded-full bg-[rgba(var(--accent-rgb),0.10)] ring-1 ring-[rgba(var(--accent-rgb),0.25)] font-display text-[17px] text-accent">
+                    {init}
+                  </div>
+                  <div>
+                    <div className="font-display text-[17px] leading-tight text-fg">{m.name}</div>
+                    <div className="mt-1 text-[12.5px] text-accent-strong/85">{m.role}</div>
+                  </div>
                 </div>
-              ))}
-            </dl>
-          </Reveal>
-
-          <Reveal delay={120} className="lg:col-span-7">
-            <div className="text-[10.5px] uppercase tracking-[0.2em] text-white/45 mb-4">
-              The Team
-            </div>
-            <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">
-              {team.map((m) => (
-                <li key={m.name} className="py-5">
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                    <div className="flex items-baseline gap-3 min-w-0">
-                      <span className="font-display text-lg text-white">{m.name}</span>
-                      {m.founder && (
-                        <span className="text-[10px] uppercase tracking-[0.18em] text-moss-300/70">
-                          Founder
-                        </span>
-                      )}
+                <div className="mt-5 border-t border-line pt-4 flex items-center justify-between">
+                  <div className="font-mono text-[11px] text-fg-muted">{m.focus}</div>
+                  {m.founder && (
+                    <div className="rounded bg-[rgba(var(--accent-rgb),0.10)] px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase text-accent-strong ring-1 ring-[rgba(var(--accent-rgb),0.25)]">
+                      Founder
                     </div>
-                    <span className="text-sm text-white/65">{m.role}</span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-baseline gap-x-3 text-[11px] text-white/40">
-                    <span className="num">{m.dept}</span>
-                    <span className="text-white/25">·</span>
-                    <span>{m.focus}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Reveal>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>

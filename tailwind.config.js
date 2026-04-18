@@ -4,51 +4,36 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Newsreader"', '"Times New Roman"', 'serif'],
+        display: ['"Instrument Serif"', 'Georgia', 'serif'],
         sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
-        ink: {
-          950: '#04080a',
-          900: '#070d10',
-          850: '#0a1318',
-          800: '#0d191f',
-          700: '#13242c',
-          600: '#1a3540',
-        },
+        ink:  { 950:'#04080a', 900:'#070d10', 850:'#0a1318', 800:'#0d191f' },
         moss: {
-          50:  '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
-          950: '#022c22',
+          50:'#ecfdf5', 100:'#d1fae5', 200:'#a7f3d0', 300:'#6ee7b7',
+          400:'#34d399', 500:'#10b981', 600:'#059669', 700:'#047857',
+          800:'#065f46', 900:'#064e3b',
         },
-      },
-      animation: {
-        'pulse-slow': 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'rise': 'rise 1s ease-out forwards',
-        'ticker': 'ticker 40s linear infinite',
-        'draw': 'draw 3s ease-out forwards',
       },
       keyframes: {
         rise: {
-          '0%': { opacity: '0', transform: 'translateY(20px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+          'from': { opacity: '0', transform: 'translateY(16px)' },
+          'to':   { opacity: '1', transform: 'translateY(0)' },
         },
-        ticker: {
-          from: { transform: 'translateX(0)' },
-          to: { transform: 'translateX(-50%)' },
+        marquee: {
+          'from': { transform: 'translate3d(0,0,0)' },
+          'to':   { transform: 'translate3d(-50%,0,0)' },
         },
-        draw: {
-          to: { strokeDashoffset: '0' },
+        blink: {
+          '0%,50%': { opacity: '1' },
+          '51%,100%': { opacity: '0' },
         },
+      },
+      animation: {
+        rise: 'rise .8s cubic-bezier(0.22,1,0.36,1) both',
+        marquee: 'marquee 70s linear infinite',
+        blink: 'blink 900ms steps(1) infinite',
       },
     },
   },

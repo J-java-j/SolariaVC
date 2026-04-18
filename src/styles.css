@@ -2,150 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   THEME — dual-mode system, crossfades on scroll into Fund/Record
+   ============================================================ */
+
+/* Light base — warm cream + signature green */
+:root {
+  --bg-a: #faf8f4;
+  --bg-b: #f3efe6;
+  --bg-c: #eae3d2;
+  --fg: #0a0806;
+  --fg-muted: rgba(10, 8, 6, 0.62);
+  --fg-faint: rgba(10, 8, 6, 0.38);
+  --line: rgba(10, 8, 6, 0.10);
+  --line-strong: rgba(10, 8, 6, 0.20);
+  /* signature green — moss/forest, reads on cream */
+  --accent-50:  #eaf3ec;
+  --accent-100: #c9e0cf;
+  --accent-200: #8bbd98;
+  --accent-300: #3f7a52;
+  --accent-400: #2d5f3e;
+  --accent-500: #20492f;
+  --accent-600: #163822;
+  --accent-rgb: 45, 95, 62;
+  --ambient: rgba(45, 95, 62, 0.08);
+  --selection: rgba(45, 95, 62, 0.28);
+}
+
+/* Gold flagship zone — black + burnished gold */
+html[data-theme='gold'] {
+  --bg-a: #0a0704;
+  --bg-b: #14100a;
+  --bg-c: #1e1810;
+  --fg: #fff8e8;
+  --fg-muted: rgba(255, 248, 232, 0.62);
+  --fg-faint: rgba(255, 248, 232, 0.38);
+  --line: rgba(230, 168, 42, 0.14);
+  --line-strong: rgba(230, 168, 42, 0.32);
+  --accent-50:  #fff8e3;
+  --accent-100: #fceab0;
+  --accent-200: #f6d27a;
+  --accent-300: #f0bd4e;
+  --accent-400: #e6a82a;
+  --accent-500: #d49316;
+  --accent-600: #a06d0c;
+  --accent-rgb: 230, 168, 42;
+  --ambient: rgba(230, 168, 42, 0.28);
+  --selection: rgba(230, 168, 42, 0.45);
+}
+
+html, body {
+  transition:
+    background-color 1400ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 1400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @layer base {
-  html {
-    scroll-behavior: smooth;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-  }
+  html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
   body {
-    background: #04080a;
-    color: #fff;
+    background: var(--bg-a);
+    color: var(--fg);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-feature-settings: 'ss01', 'cv11', 'cv02';
-    font-optical-sizing: auto;
+    overflow-x: hidden;
   }
-  /* Display headings get tight tracking + variable optical sizing for that
-     editorial-institutional feel. */
-  h1, h2, h3 {
-    font-feature-settings: 'liga', 'kern';
-    font-optical-sizing: auto;
-  }
-  ::selection {
-    background: rgba(16, 185, 129, 0.35);
-    color: #fff;
-  }
+  ::selection { background: var(--selection); color: #fff; }
 }
 
 @layer components {
   .container-x {
-    @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12;
+    @apply mx-auto w-full max-w-[1400px] px-5 sm:px-10 lg:px-16;
   }
 
-  /* Defensive: prevent any descendant from creating horizontal scroll */
-  body, #root, main {
-    overflow-x: clip;
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum', 'zero';
   }
 
-  .text-gradient-moss {
-    background: linear-gradient(120deg, #ecfdf5 0%, #a7f3d0 30%, #34d399 60%, #059669 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+  /* theme-aware text utilities — the core of the crossfade */
+  .text-fg       { color: var(--fg);       transition: color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  .text-fg-muted { color: var(--fg-muted); transition: color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  .text-fg-faint { color: var(--fg-faint); transition: color 1400ms cubic-bezier(0.22,1,0.36,1); }
+
+  .text-accent          { color: var(--accent-400); transition: color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  .text-accent-strong   { color: var(--accent-300); transition: color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  html[data-theme='gold'] .text-accent        { color: var(--accent-300); }
+  html[data-theme='gold'] .text-accent-strong { color: var(--accent-200); }
+
+  .bg-accent     { background-color: var(--accent-400); color: var(--bg-a); transition: background-color 1400ms cubic-bezier(0.22,1,0.36,1), color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  .bg-fg-a       { background-color: var(--bg-a); transition: background-color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  .bg-fg-b       { background-color: var(--bg-b); transition: background-color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  .bg-fg-c       { background-color: var(--bg-c); transition: background-color 1400ms cubic-bezier(0.22,1,0.36,1); }
+
+  .border-line        { border-color: var(--line);        transition: border-color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  .border-line-strong { border-color: var(--line-strong); transition: border-color 1400ms cubic-bezier(0.22,1,0.36,1); }
+  .border-accent      { border-color: var(--accent-400);  transition: border-color 1400ms cubic-bezier(0.22,1,0.36,1); }
+
+  .ring-accent        { box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.3); transition: box-shadow 1400ms cubic-bezier(0.22,1,0.36,1); }
+
+  .glow-accent        { box-shadow: 0 0 60px -10px rgba(var(--accent-rgb), 0.35); transition: box-shadow 1400ms cubic-bezier(0.22,1,0.36,1); }
+
+  .ambient-accent     { background: radial-gradient(ellipse 60% 50% at 70% 25%, var(--ambient), transparent 65%); transition: background 1400ms cubic-bezier(0.22,1,0.36,1); }
+
+  .text-gradient-accent {
+    background: linear-gradient(120deg, var(--accent-50) 0%, var(--accent-200) 30%, var(--accent-400) 60%, var(--accent-600) 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    transition: background 1200ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Champagne → bright gold → burnished amber. Reserved for the
-     Medallion Fund branding so the Fund reads as the prestige product. */
-  .text-gradient-gold {
-    background: linear-gradient(120deg, #fef9c3 0%, #fde68a 25%, #fcd34d 55%, #ca8a04 82%, #78350f 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+  /* Fund-zone vignette — fades in only when html[data-theme='gold'] */
+  .theme-vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: radial-gradient(ellipse 80% 60% at 50% 50%, transparent 0%, rgba(50, 30, 8, 0.4) 60%, rgba(10, 6, 2, 0.8) 100%);
+    opacity: 0;
+    transition: opacity 1400ms cubic-bezier(0.22, 1, 0.36, 1);
   }
+  html[data-theme='gold'] .theme-vignette { opacity: 1; }
 
-  .ring-moss {
-    box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.18), inset 0 0 0 1px rgba(52, 211, 153, 0.04);
+  /* Subtle ambient noise — opacity tuned per theme */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    opacity: 0.5;
+    mix-blend-mode: multiply;
+    transition: opacity 1400ms cubic-bezier(0.22, 1, 0.36, 1), mix-blend-mode 0ms;
   }
-
-  .glow-moss {
-    box-shadow:
-      0 0 60px -12px rgba(16, 185, 129, 0.55),
-      0 0 200px -60px rgba(52, 211, 153, 0.45);
+  html[data-theme='gold'] body::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+    opacity: 0.4;
   }
-
-  .grid-bg {
-    background-image:
-      linear-gradient(to right, rgba(52, 211, 153, 0.06) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(52, 211, 153, 0.06) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 80%);
-  }
-
-  .dot-bg {
-    background-image: radial-gradient(rgba(52, 211, 153, 0.08) 1px, transparent 1px);
-    background-size: 22px 22px;
-  }
-
-  .noise {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");
-  }
-
-  .hairline {
-    @apply border border-white/[0.07];
-  }
-
-  .num {
-    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
-    font-feature-settings: 'tnum', 'zero', 'ss05';
-    letter-spacing: -0.005em;
-  }
-
-  .label {
-    @apply text-[10.5px] font-semibold uppercase tracking-[0.24em] text-moss-300/80;
-    font-feature-settings: 'tnum';
-  }
-
-  /* Display heading utility — applies the editorial tracking + optical
-     sizing the headline serif is designed for. */
-  .display {
-    font-family: 'Newsreader', 'Times New Roman', serif;
-    letter-spacing: -0.025em;
-    font-optical-sizing: auto;
-    font-feature-settings: 'liga', 'kern';
-  }
-
-  .flash-up {
-    background-color: rgba(52, 211, 153, 0.18);
-    color: #d1fae5 !important;
-    transition: background-color 600ms ease, color 600ms ease;
-    border-radius: 3px;
-    padding: 0 2px;
-    margin: 0 -2px;
-  }
-  .flash-down {
-    background-color: rgba(244, 63, 94, 0.18);
-    color: #fecaca !important;
-    transition: background-color 600ms ease, color 600ms ease;
-    border-radius: 3px;
-    padding: 0 2px;
-    margin: 0 -2px;
-  }
-
-  .lift {
-    @apply transition-transform duration-200 ease-out hover:translate-y-[-2px];
-  }
-
-  .ticker-track {
-    animation: ticker-scroll 70s linear infinite;
-  }
-
-  .ticker-track:hover {
-    animation-play-state: paused;
-  }
-}
-
-@keyframes ticker-scroll {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }

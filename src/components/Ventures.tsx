@@ -1,141 +1,86 @@
-import { useMemo, useState } from 'react';
-import Reveal from './Reveal';
+import { useReveal } from '../hooks/useReveal';
+import { Eyebrow, SectionTitle } from './primitives';
 
-type Company = {
-  name: string;
-  desc: string;
-  sector: string;
-  stage: 'Pre-seed' | 'Seed' | 'Series A';
-  year: string;
-  status: 'Active' | 'Diligence';
-};
-
-const companies: Company[] = [
-  { name: 'Helios Compute',  desc: 'Distributed inference infrastructure for foundation models.', sector: 'AI Infra',     stage: 'Seed',     year: '2026', status: 'Active' },
-  { name: 'Penumbra AI',     desc: 'Runtime for autonomous research agents that ship code.',      sector: 'AI Infra',     stage: 'Pre-seed', year: '2026', status: 'Active' },
-  { name: 'Coronal Energy',  desc: 'Long-duration grid-scale storage on iron-air chemistry.',     sector: 'Energy',       stage: 'Seed',     year: '2026', status: 'Active' },
-  { name: 'Vesper Labs',     desc: 'Carbon removal via mineralisation of basalt waste streams.',  sector: 'Energy',       stage: 'Pre-seed', year: '2026', status: 'Active' },
-  { name: 'Aphelion Bio',    desc: 'Programmable diagnostics from a single drop of blood.',       sector: 'Bio × Compute', stage: 'Pre-seed', year: '2025', status: 'Active' },
-  { name: 'Forgework',       desc: 'Vertically-integrated robotic manufacturing.',                sector: 'Robotics',     stage: 'Seed',     year: '2025', status: 'Active' },
-  { name: 'Stratus Defense', desc: 'Autonomy stack for unmanned aerial systems at the edge.',     sector: 'Defense',      stage: 'Seed',     year: '2026', status: 'Diligence' },
-  { name: 'Umbra Data',      desc: 'Alternative data marketplace for institutional researchers.',  sector: 'Data',         stage: 'Seed',     year: '2025', status: 'Active' },
+const companies = [
+  { name: 'Helios Compute',  sector: 'AI Infra',     stage: 'Seed',     desc: 'Distributed inference infra for foundation models at the edge.',          metric: '3.2x' },
+  { name: 'Penumbra AI',     sector: 'AI Infra',     stage: 'Pre-seed', desc: 'Runtime for autonomous research agents that ship production code.',       metric: '2.1x' },
+  { name: 'Coronal Energy',  sector: 'Energy',       stage: 'Seed',     desc: 'Long-duration grid-scale storage on iron-air chemistry.',                 metric: '1.8x' },
+  { name: 'Aphelion Bio',    sector: 'Bio×Compute',  stage: 'Pre-seed', desc: 'Programmable diagnostics from a single drop of blood.',                   metric: '1.4x' },
+  { name: 'Forgework',       sector: 'Robotics',     stage: 'Seed',     desc: 'Vertically-integrated robotic manufacturing for precision parts.',        metric: '2.6x' },
+  { name: 'Umbra Data',      sector: 'Data',         stage: 'Seed',     desc: 'Alternative data marketplace for institutional quant researchers.',       metric: '1.9x' },
 ];
 
-const sectors = ['All', ...Array.from(new Set(companies.map((c) => c.sector)))];
-
 export default function Ventures() {
-  const [filter, setFilter] = useState<string>('All');
-  const filtered = useMemo(
-    () => (filter === 'All' ? companies : companies.filter((c) => c.sector === filter)),
-    [filter]
-  );
-
+  const [revealRef, inView] = useReveal(0.1);
   return (
-    <section
-      id="ventures"
-      className="relative border-t border-white/[0.06] py-20 sm:py-28 lg:py-36"
-    >
-      <div className="container-x">
-        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <Reveal className="lg:col-span-5">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
-              Solaria Ventures
-            </div>
-            <h2 className="mt-4 font-display text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
-              Pre-seed and seed,
-              <br /> scored by our models.
-            </h2>
-            <p className="mt-6 text-white/70 leading-relaxed">
-              Early checks into technical founders. Sourced through our network,
-              scored by our models.
-            </p>
+    <section id="ventures" className="relative border-t border-line">
+      <div className="mx-auto max-w-[1400px] px-5 py-20 sm:px-10 sm:py-32 lg:px-16 lg:py-40">
+        <div
+          ref={revealRef}
+          className={`max-w-3xl transition-all duration-1000 ${
+            inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+          }`}
+        >
+          <Eyebrow>Solaria Ventures</Eyebrow>
+          <SectionTitle className="mt-5">
+            Pre-seed and seed,
+            <br />
+            <span className="text-accent italic font-light">scored by the models.</span>
+          </SectionTitle>
+          <p className="mt-5 sm:mt-6 max-w-2xl text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted">
+            First checks into technical founders across AI, energy, bio, robotics, and defense. Sourced
+            through our network, scored by the SR-026 factor model, underwritten by the partners.
+          </p>
+        </div>
 
-            <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.06] pt-6 text-sm">
-              <Stat k="Tracked" v={String(companies.length).padStart(2, '0')} />
-              <Stat k="Sectors" v={String(sectors.length - 1)} />
-              <Stat k="Deployed" v="$13K" />
-              <Stat k="Vintages" v="’25–’26" />
-            </dl>
-
-            <a
-              href="#contact"
-              className="mt-8 inline-flex items-center gap-2 text-sm text-moss-300 hover:text-moss-200"
-            >
-              Pitch us <span aria-hidden>→</span>
-            </a>
-          </Reveal>
-
-          <Reveal delay={120} className="lg:col-span-7">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-              <div className="flex flex-wrap gap-1.5">
-                {sectors.map((s) => {
-                  const active = filter === s;
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => setFilter(s)}
-                      className={`rounded-md px-2.5 py-1 text-[11px] transition-colors ${
-                        active
-                          ? 'bg-moss-500/15 text-moss-200 ring-1 ring-moss-500/30'
-                          : 'text-white/55 hover:text-white'
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="num text-[11px] text-white/40">
-                {filtered.length} {filtered.length === 1 ? 'company' : 'companies'}
-              </div>
-            </div>
-
-            <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">
-              {filtered.map((c) => (
-                <li key={c.name} className="py-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-baseline gap-3">
-                        <span className="font-display text-lg text-white">
-                          {c.name}
-                        </span>
-                        <span className="text-[11px] text-white/40">
-                          {c.sector} · {c.stage} · {c.year}
-                        </span>
-                      </div>
-                      <p className="mt-1.5 text-sm text-white/65 leading-relaxed">
-                        {c.desc}
-                      </p>
-                    </div>
-                    <span
-                      className={`shrink-0 num text-[10px] uppercase tracking-[0.18em] ${
-                        c.status === 'Active' ? 'text-moss-300/85' : 'text-amber-300/85'
-                      }`}
-                    >
-                      {c.status}
-                    </span>
+        <div className="mt-10 sm:mt-14 grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {companies.map((c, i) => {
+            const init = c.name.split(' ').map((p) => p[0]).slice(0, 2).join('');
+            return (
+              <article
+                key={c.name}
+                className="group relative rounded-2xl border border-line bg-fg-b p-6 transition-all duration-300 hover:border-line-strong hover:-translate-y-1 hover:bg-fg-c"
+                style={{ animation: inView ? `rise .8s ease-out ${i * 80}ms both` : 'none' }}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-[rgba(var(--accent-rgb),0.10)] ring-1 ring-[rgba(var(--accent-rgb),0.25)] font-display text-[14px] text-accent">
+                    {init}
                   </div>
-                </li>
-              ))}
-            </ul>
+                  <div className="text-right">
+                    <div className="font-display text-[1.2rem] tabular-nums font-semibold text-accent-strong">
+                      {c.metric}
+                    </div>
+                    <div className="font-mono text-[9.5px] tracking-[0.2em] uppercase text-fg-faint">TVPI</div>
+                  </div>
+                </div>
+                <div className="mt-5">
+                  <div className="font-display text-[1.1rem] text-fg">{c.name}</div>
+                  <div className="mt-1 font-mono text-[10.5px] tracking-[0.14em] uppercase text-fg-faint">
+                    {c.sector} · {c.stage}
+                  </div>
+                </div>
+                <p className="mt-4 text-[13.5px] leading-relaxed text-fg-muted">{c.desc}</p>
+              </article>
+            );
+          })}
+        </div>
 
-            {filtered.length === 0 && (
-              <div className="border-y border-white/[0.06] py-12 text-center text-sm text-white/55">
-                No companies in this sector yet.
-              </div>
-            )}
-          </Reveal>
+        <div className="mt-10 sm:mt-12 flex flex-wrap items-center justify-between gap-6 rounded-xl border border-line bg-fg-b px-5 py-5 sm:px-6">
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3 text-[13px] text-fg-muted">
+            <span><span className="font-mono text-accent-strong tabular-nums text-[15px]">8</span> active</span>
+            <span><span className="font-mono text-accent-strong tabular-nums text-[15px]">5</span> sectors</span>
+            <span><span className="font-mono text-accent-strong tabular-nums text-[15px]">$13K</span> deployed</span>
+            <span><span className="font-mono text-accent-strong tabular-nums text-[15px]">2.3x</span> blended TVPI</span>
+          </div>
+          <a
+            href="#contact"
+            className="group inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-[12.5px] font-semibold hover:opacity-90 transition-all"
+          >
+            Pitch the Ventures team{' '}
+            <span className="transition-transform group-hover:translate-x-0.5">→</span>
+          </a>
         </div>
       </div>
     </section>
-  );
-}
-
-function Stat({ k, v }: { k: string; v: string }) {
-  return (
-    <div>
-      <dt className="text-[10.5px] uppercase tracking-[0.2em] text-white/45">{k}</dt>
-      <dd className="num mt-1 text-white">{v}</dd>
-    </div>
   );
 }

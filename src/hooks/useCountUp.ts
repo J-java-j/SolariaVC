@@ -1,38 +1,29 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-type Options = {
-  to: number;
-  from?: number;
-  duration?: number;
-  decimals?: number;
-  start?: boolean;
-};
-
-export function useCountUp({
-  to,
-  from = 0,
-  duration = 1200,
-  decimals = 0,
-  start = false,
-}: Options): number {
-  const [value, setValue] = useState(from);
-  const startedRef = useRef(false);
-
+/**
+ * Eases up to `target` once `trigger` is true. Returns a fixed-decimal
+ * string so width is stable for tabular-nums layouts.
+ */
+export function useCountUp(
+  target: number,
+  trigger: boolean,
+  duration = 1800,
+  decimals = 2
+): string {
+  const [v, setV] = useState(0);
   useEffect(() => {
-    if (!start || startedRef.current) return;
-    startedRef.current = true;
-    const t0 = performance.now();
+    if (!trigger) return;
     let raf = 0;
+    let start = 0;
     const tick = (t: number) => {
-      const p = Math.min(1, (t - t0) / duration);
-      const eased = 1 - Math.pow(1 - p, 3); // ease-out cubic
-      setValue(from + (to - from) * eased);
+      if (!start) start = t;
+      const p = Math.min(1, (t - start) / duration);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setV(target * ease);
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [start, to, from, duration]);
-
-  const factor = Math.pow(10, decimals);
-  return Math.round(value * factor) / factor;
+  }, [target, trigger, duration]);
+  return v.toFixed(decimals);
 }

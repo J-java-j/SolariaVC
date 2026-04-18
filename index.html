@@ -1,15 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="moss">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#04080a" />
+    <meta name="theme-color" content="#faf8f4" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/logo.png" />
     <link rel="canonical" href="https://solariavc.com/" />
 
-    <title>Solaria Capital — Quantitative investment & venture capital</title>
+    <title>Solaria Capital — Quantitative conviction for the next era of capital</title>
     <meta
       name="description"
       content="Solaria Capital is a privately held investment firm operating the Medallion Fund (closed-end quantitative portfolio), Solaria Ventures (pre-seed and seed venture), and Solaria Research. Based in La Jolla, California."
@@ -17,7 +17,6 @@
     <meta name="author" content="Solaria Capital, LLC" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
 
-    <!-- Open Graph (social previews + some Google contexts) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Solaria Capital" />
     <meta property="og:title" content="Solaria Capital — Quantitative investment & venture capital" />
@@ -27,9 +26,8 @@
     />
     <meta property="og:url" content="https://solariavc.com/" />
     <meta property="og:image" content="https://solariavc.com/logo.png" />
-    <meta property="og:image:alt" content="Solaria Capital logo — emerald S with upward arrow" />
+    <meta property="og:image:alt" content="Solaria Capital logo" />
 
-    <!-- Twitter card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Solaria Capital — Quantitative investment & venture capital" />
     <meta
@@ -38,7 +36,6 @@
     />
     <meta name="twitter:image" content="https://solariavc.com/logo.png" />
 
-    <!-- Structured data: tells Google exactly what this entity is -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -59,33 +56,6 @@
         "founders": [
           { "@type": "Person", "name": "Johnson Jiang" },
           { "@type": "Person", "name": "Karl Li" }
-        ],
-        "areaServed": "United States",
-        "knowsAbout": [
-          "Quantitative investment management",
-          "Venture capital",
-          "Statistical arbitrage",
-          "Frontier technology investing",
-          "Pre-seed venture",
-          "Seed venture",
-          "Closed-end fund"
-        ],
-        "subOrganization": [
-          {
-            "@type": "Organization",
-            "name": "The Medallion Fund",
-            "description": "Closed-end quantitative portfolio."
-          },
-          {
-            "@type": "Organization",
-            "name": "Solaria Ventures",
-            "description": "Pre-seed and seed venture capital arm."
-          },
-          {
-            "@type": "Organization",
-            "name": "Solaria Research",
-            "description": "Quantitative research published openly."
-          }
         ]
       }
     </script>
@@ -93,12 +63,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500;6..72,600;6..72,700;6..72,800&family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
   </head>
-  <body class="bg-ink-950 text-white antialiased">
+  <body>
     <div id="root"></div>
+    <div class="theme-vignette" aria-hidden="true"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
