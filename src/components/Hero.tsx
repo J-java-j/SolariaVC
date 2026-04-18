@@ -1,127 +1,54 @@
-import { useEffect, useRef, useState } from 'react';
-import AnimatedNumber from './AnimatedNumber';
-
 export default function Hero() {
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [parallax, setParallax] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const el = heroRef.current;
-    if (!el) return;
-    const onMove = (e: MouseEvent) => {
-      const r = el.getBoundingClientRect();
-      const x = (e.clientX - r.left) / r.width - 0.5;
-      const y = (e.clientY - r.top) / r.height - 0.5;
-      setParallax({ x, y });
-    };
-    el.addEventListener('mousemove', onMove);
-    return () => el.removeEventListener('mousemove', onMove);
-  }, []);
-
   return (
     <section
       id="top"
-      ref={heroRef}
-      className="relative isolate pt-32 pb-20 sm:pt-40 sm:pb-28 lg:pt-44 lg:pb-32 overflow-hidden"
+      className="relative pt-36 pb-24 sm:pt-44 sm:pb-32"
     >
-      <div className="absolute inset-0 -z-10 grid-bg" aria-hidden />
-      <NavChartBackdrop className="absolute inset-x-0 bottom-0 -z-10 h-[420px] w-full opacity-60" />
-      <div
-        className="absolute -top-32 left-1/2 -z-10 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-gradient-to-br from-moss-500/25 via-moss-700/10 to-transparent blur-3xl transition-transform duration-700 ease-out"
-        style={{
-          transform: `translate(calc(-50% + ${parallax.x * 30}px), ${parallax.y * 18}px)`,
-        }}
-        aria-hidden
-      />
-
-      <div className="container-x relative">
-        <div className="max-w-5xl">
-          {/* trust strip */}
-          <div
-            className="flex flex-wrap items-center gap-2 animate-rise"
-          >
-            <div className="inline-flex items-center gap-2 rounded-full border border-moss-500/30 bg-moss-500/10 px-3 py-1 text-xs">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inset-0 animate-ping rounded-full bg-moss-400 opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-moss-400" />
-              </span>
-              <span className="label !text-moss-200/90">Q2 2026 · Subscriptions open</span>
-            </div>
-            <span className="num text-[10px] uppercase tracking-[0.18em] text-white/35">
-              Solaria Capital, LLC
-            </span>
-            <span className="text-white/15">·</span>
-            <span className="num text-[10px] uppercase tracking-[0.18em] text-white/35">
-              La Jolla, CA
-            </span>
-            <span className="text-white/15">·</span>
-            <span className="num text-[10px] uppercase tracking-[0.18em] text-white/35">
-              Capital · Ventures · Research
-            </span>
+      <div className="container-x">
+        <div className="max-w-3xl">
+          <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
+            Solaria Capital, LLC · La Jolla, California
           </div>
 
-          <h1
-            className="mt-8 font-display text-[3.4rem] font-semibold leading-[1.02] tracking-tight sm:text-7xl lg:text-[6.25rem] xl:text-[7rem] animate-rise"
-            style={{ animationDelay: '60ms' }}
-          >
-            Quantitative conviction
-            <br className="hidden sm:block" /> for the{' '}
-            <span className="text-gradient-moss">next era of capital.</span>
+          <h1 className="mt-6 font-display text-4xl font-medium leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+            Quantitative investment management.
           </h1>
 
-          <p
-            className="mt-8 max-w-2xl text-lg leading-relaxed text-white/70 sm:text-xl animate-rise"
-            style={{ animationDelay: '160ms' }}
-          >
-            Solaria is an investment partnership with three products:{' '}
-            <span className="text-white">the Medallion Fund</span>, a closed-end quantitative
-            portfolio backed by a 14-year backtest with{' '}
-            <span className="text-moss-300 num">20.53%</span> annualised return;{' '}
-            <span className="text-white">Solaria Ventures</span>, our pre-seed and seed
-            arm; and <span className="text-white">Solaria Research</span>, the models that
-            inform both.
+          <p className="mt-7 max-w-2xl text-lg leading-relaxed text-white/70">
+            Solaria operates three things: <span className="text-white">the
+            Medallion Fund</span> — a closed-end quantitative portfolio;{' '}
+            <span className="text-white">Solaria Ventures</span> — a pre-seed
+            and seed venture arm; and <span className="text-white">Solaria
+            Research</span> — the models that inform both. The strategy
+            backtest from April 2012 through April 2026 returned{' '}
+            <span className="num text-white">20.53%</span> annualised at a
+            Sharpe of <span className="num text-white">1.46</span>.
           </p>
 
-          <div
-            className="mt-10 flex flex-wrap items-center gap-3 animate-rise"
-            style={{ animationDelay: '260ms' }}
-          >
+          <div className="mt-10 flex flex-wrap items-center gap-4">
             <a
-              href="#fund"
-              className="inline-flex items-center gap-2 rounded-md bg-moss-500 px-6 py-3.5 text-sm font-semibold text-ink-950 transition-all hover:bg-moss-400 hover:translate-y-[-1px] glow-moss"
+              href="#contact"
+              className="inline-flex items-center gap-2 rounded-md bg-moss-500 px-5 py-3 text-sm font-medium text-ink-950 transition-colors hover:bg-moss-400"
             >
-              View the Fund
+              Get in touch
               <span aria-hidden>→</span>
             </a>
             <a
-              href="#performance"
-              className="inline-flex items-center gap-2 rounded-md border border-white/15 bg-white/[0.03] px-6 py-3.5 text-sm font-medium text-white/90 transition-all hover:bg-white/[0.06] hover:border-white/25 hover:translate-y-[-1px]"
+              href="#fund"
+              className="inline-flex items-center gap-2 text-sm text-white/70 transition-colors hover:text-white"
             >
-              Performance backtest
-            </a>
-            <a
-              href="#research"
-              className="inline-flex items-center gap-2 px-3 py-3.5 text-sm font-medium text-white/65 transition-colors hover:text-white"
-            >
-              Read the research →
+              Read about the Fund <span aria-hidden>→</span>
             </a>
           </div>
 
-          <dl
-            className="mt-16 grid max-w-3xl grid-cols-2 gap-x-10 gap-y-6 sm:grid-cols-4 animate-rise"
-            style={{ animationDelay: '380ms' }}
-          >
-            <StatGrowingAUM />
-            <StatNum label="Backtest CAGR" value={20.53} suffix="%" decimals={2} />
-            <StatNum label="Backtest Sharpe" value={1.46} decimals={2} />
-            <StatNum label="Companies" value={8} pad={2} />
-          </dl>
-
-          <div
-            className="mt-4 max-w-3xl text-[10.5px] text-white/35 animate-rise"
-            style={{ animationDelay: '480ms' }}
-          >
-            Backtest figures are hypothetical. Past performance is not indicative of future results. Live fund inception Q1 2026.
+          <div className="mt-16 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-white/[0.06] pt-8 text-sm">
+            <Stat label="AUM" value="$50K" />
+            <Sep />
+            <Stat label="Backtest CAGR" value="20.53%" />
+            <Sep />
+            <Stat label="Backtest Sharpe" value="1.46" />
+            <Sep />
+            <Stat label="Companies tracked" value="08" />
           </div>
         </div>
       </div>
@@ -129,160 +56,17 @@ export default function Hero() {
   );
 }
 
-function StatNum({
-  label,
-  value,
-  suffix = '',
-  pad,
-  decimals = 0,
-}: {
-  label: string;
-  value: number;
-  suffix?: string;
-  pad?: number;
-  decimals?: number;
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="border-l border-white/10 pl-4 transition-colors hover:border-moss-500/60">
-      <dt className="label">{label}</dt>
-      <dd className="num mt-1.5 text-2xl text-white sm:text-3xl">
-        {pad ? (
-          <PaddedAnimated value={value} pad={pad} />
-        ) : (
-          <AnimatedNumber value={value} suffix={suffix} decimals={decimals} />
-        )}
-      </dd>
+    <div>
+      <div className="text-[10.5px] uppercase tracking-[0.2em] text-white/45">
+        {label}
+      </div>
+      <div className="num mt-1 text-lg text-white">{value}</div>
     </div>
   );
 }
 
-function PaddedAnimated({ value, pad }: { value: number; pad: number }) {
-  // Show "08" instead of "8". Animate up to value, then format with leading zero.
-  return (
-    <span>
-      <AnimatedNumber value={value} prefix={'0'.repeat(Math.max(0, pad - String(value).length))} />
-    </span>
-  );
-}
-
-function StatGrowingAUM() {
-  return (
-    <div className="border-l border-moss-500/40 pl-4 transition-colors hover:border-moss-500">
-      <dt className="label !text-moss-300/90">AUM</dt>
-      <dd className="num mt-1.5">
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl text-white sm:text-3xl">
-            <AnimatedNumber value={50000} format="k" prefix="$" duration={1800} />
-          </span>
-          <span className="inline-flex items-center gap-1 text-[11px] text-moss-300">
-            <UpArrow />
-            growing
-          </span>
-        </div>
-        <Sparkline className="mt-1.5 h-3 w-20" />
-      </dd>
-    </div>
-  );
-}
-
-function UpArrow() {
-  return (
-    <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden>
-      <path d="M5 1 L9 7 L1 7 Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function Sparkline({ className = '' }: { className?: string }) {
-  // small upward-trending sparkline for the AUM stat
-  const pts = [10, 9, 11, 8, 7, 9, 6, 7, 5, 6, 3, 4, 2];
-  const w = 80;
-  const h = 14;
-  const stepX = w / (pts.length - 1);
-  const min = Math.min(...pts);
-  const max = Math.max(...pts);
-  const span = max - min || 1;
-  const ys = pts.map((v) => 1 + ((v - min) / span) * (h - 2));
-  let d = `M 0 ${ys[0].toFixed(1)}`;
-  for (let i = 1; i < pts.length; i++) {
-    d += ` L ${(i * stepX).toFixed(1)} ${ys[i].toFixed(1)}`;
-  }
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className={className} preserveAspectRatio="none" aria-hidden>
-      <defs>
-        <linearGradient id="sparkfill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#34d399" stopOpacity="0.4" />
-          <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${d} L ${w} ${h} L 0 ${h} Z`} fill="url(#sparkfill)" />
-      <path d={d} fill="none" stroke="#34d399" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={w} cy={ys[ys.length - 1]} r="1.6" fill="#a7f3d0" />
-    </svg>
-  );
-}
-
-function NavChartBackdrop({ className = '' }: { className?: string }) {
-  const points = generateSeries(64);
-  const path = pathFromPoints(points, 1200, 380, 8);
-  const area = `${path} L 1200 380 L 0 380 Z`;
-  return (
-    <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="navarea" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="navline" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="#34d399" stopOpacity="0.3" />
-          <stop offset="50%" stopColor="#34d399" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#a7f3d0" stopOpacity="1" />
-        </linearGradient>
-      </defs>
-      {[0.25, 0.5, 0.75].map((y) => (
-        <line key={y} x1="0" x2="1200" y1={380 * y} y2={380 * y} stroke="#34d39920" strokeDasharray="2 6" />
-      ))}
-      <path d={area} fill="url(#navarea)" />
-      <path
-        d={path}
-        fill="none"
-        stroke="url(#navline)"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray="3500"
-        strokeDashoffset="3500"
-        className="animate-draw"
-      />
-    </svg>
-  );
-}
-
-function generateSeries(n: number): number[] {
-  const out: number[] = [];
-  let v = 0.55;
-  for (let i = 0; i < n; i++) {
-    const drift = 0.006;
-    const wobble = Math.sin(i * 0.45) * 0.04 + Math.sin(i * 0.13) * 0.025;
-    const shock = i === 18 || i === 41 ? -0.06 : 0;
-    v = Math.max(0.15, Math.min(0.95, v + drift + wobble * 0.4 + shock));
-    out.push(v);
-  }
-  return out;
-}
-
-function pathFromPoints(values: number[], w: number, h: number, padTop: number): string {
-  const n = values.length;
-  const stepX = w / (n - 1);
-  const usableH = h - padTop;
-  const ys = values.map((v) => padTop + (1 - v) * usableH);
-  let d = `M 0 ${ys[0].toFixed(1)}`;
-  for (let i = 1; i < n; i++) {
-    const x0 = (i - 1) * stepX;
-    const x1 = i * stepX;
-    const cpx0 = x0 + stepX / 2;
-    const cpx1 = x1 - stepX / 2;
-    d += ` C ${cpx0.toFixed(1)} ${ys[i - 1].toFixed(1)}, ${cpx1.toFixed(1)} ${ys[i].toFixed(1)}, ${x1.toFixed(1)} ${ys[i].toFixed(1)}`;
-  }
-  return d;
+function Sep() {
+  return <span aria-hidden className="hidden sm:inline-block h-8 w-px bg-white/10" />;
 }

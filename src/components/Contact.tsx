@@ -1,55 +1,47 @@
-import Spotlight from './Spotlight';
 import ContactForm from './ContactForm';
-import Reveal from './Reveal';
 
 const facts = [
-  { k: 'Response', v: '≤ 2 business days' },
+  { k: 'Response',     v: '≤ 2 business days' },
   { k: 'Headquarters', v: 'La Jolla, CA' },
-  { k: 'Domicile', v: 'California, USA' },
-  { k: 'Privacy', v: 'Never shared' },
+  { k: 'Domicile',     v: 'California, USA' },
+  { k: 'Privacy',      v: 'Never shared' },
 ];
 
 export default function Contact() {
   return (
     <section
       id="contact"
-      className="relative py-28 sm:py-36 border-t border-white/[0.06] bg-gradient-to-b from-ink-950 via-ink-900/40 to-ink-950"
+      className="relative border-t border-white/[0.06] py-24 sm:py-32"
     >
       <div className="container-x">
-        <div className="grid gap-12 lg:grid-cols-12">
-          <Reveal className="lg:col-span-5">
-            <div className="label">Contact</div>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl">
-              Tell us about <br className="hidden sm:block" />
-              yourself.
+        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-5">
+            <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
+              Contact
+            </div>
+            <h2 className="mt-4 font-display text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
+              Tell us about yourself.
             </h2>
-            <p className="mt-6 text-lg leading-relaxed text-white/70">
-              Investor inquiries, founder pitches, and research collaborations all land in the
-              same partner inbox. Short notes are welcome — we'd rather reply to a paragraph
-              than skim a deck.
+            <p className="mt-6 text-white/70 leading-relaxed">
+              Investor inquiries, founder pitches, and research collaborations all
+              land in the same partner inbox. Short notes are welcome.
             </p>
 
-            <dl className="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+            <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.06] pt-6 text-sm">
               {facts.map((f) => (
-                <div key={f.k} className="bg-ink-900/60 px-5 py-4">
-                  <dt className="label !text-white/40 !text-[10px]">{f.k}</dt>
-                  <dd className="num mt-1.5 text-sm text-white">{f.v}</dd>
+                <div key={f.k}>
+                  <dt className="text-[10.5px] uppercase tracking-[0.2em] text-white/45">
+                    {f.k}
+                  </dt>
+                  <dd className="num mt-1 text-white">{f.v}</dd>
                 </div>
               ))}
             </dl>
-          </Reveal>
+          </div>
 
-          <Reveal delay={120} className="lg:col-span-7">
-            <Spotlight intensity={0.14} className="rounded-2xl">
-              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-ink-900/80 via-ink-900/60 to-ink-800/60 p-6 sm:p-8 backdrop-blur-sm">
-                <div
-                  className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-moss-500/15 blur-3xl"
-                  aria-hidden
-                />
-                <ContactForm />
-              </div>
-            </Spotlight>
-          </Reveal>
+          <div className="lg:col-span-7">
+            <ContactForm />
+          </div>
         </div>
       </div>
     </section>
