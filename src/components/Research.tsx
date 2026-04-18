@@ -12,7 +12,7 @@ export default function Research() {
   return (
     <section
       id="research"
-      className="relative border-t border-white/[0.06] py-16 sm:py-24 lg:py-32"
+      className="relative border-t border-white/[0.06] py-20 sm:py-28 lg:py-36"
     >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">

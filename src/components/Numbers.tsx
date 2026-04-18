@@ -12,9 +12,9 @@ type Scene = {
 };
 
 const scenes: Scene[] = [
-  { n: 1, value: BACKTEST_STATS.cagrPct,         suffix: '%',          decimals: 2, label: 'Annualised return' },
-  { n: 2, value: BACKTEST_STATS.totalReturnPct,  prefix: '+', suffix: '%', decimals: 0, label: 'Total return' },
-  { n: 3, value: BACKTEST_STATS.sharpe,                                 decimals: 2, label: 'Sharpe ratio' },
+  { n: 1, value: BACKTEST_STATS.cagrPct,        suffix: '%',           decimals: 2, label: 'Annualised return' },
+  { n: 2, value: BACKTEST_STATS.totalReturnPct, prefix: '+', suffix: '%', decimals: 0, label: 'Total return' },
+  { n: 3, value: BACKTEST_STATS.sharpe,                                  decimals: 2, label: 'Sharpe ratio' },
 ];
 
 export default function Numbers() {
@@ -41,53 +41,59 @@ function Scene({
   total: number;
   isLast: boolean;
 }) {
-  const [ref, shown] = useInView<HTMLDivElement>({ threshold: 0.4 });
+  const [ref, shown] = useInView<HTMLDivElement>({ threshold: 0.35 });
 
   return (
     <div
       ref={ref}
-      className={`relative flex min-h-[60svh] items-center justify-center px-4 sm:min-h-[78vh] sm:px-6 ${
+      className={`relative px-5 py-24 sm:py-32 lg:py-40 ${
         isLast ? '' : 'border-b border-white/[0.05]'
       }`}
     >
-      <div className="absolute right-4 top-5 num text-[10px] uppercase tracking-[0.22em] text-white/30 sm:right-12 sm:top-12 sm:text-[11px] sm:tracking-[0.24em]">
-        {String(scene.n).padStart(2, '0')} / {String(total).padStart(2, '0')}
-      </div>
-
-      <div
-        className="w-full text-center transition-all duration-[900ms] ease-out"
-        style={{
-          opacity: shown ? 1 : 0,
-          transform: shown ? 'translateY(0) scale(1)' : 'translateY(28px) scale(0.96)',
-        }}
-      >
-        <div
-          className="num font-display font-medium tracking-[-0.04em] text-gradient-moss"
-          style={{
-            // tighter clamp so even "+1,520%" fits comfortably on a 320px viewport
-            fontSize: 'clamp(2.5rem, 13vw, 10rem)',
-            lineHeight: 1.05,
-            paddingTop: '0.22em',
-            paddingBottom: '0.12em',
-          }}
-        >
-          <AnimatedNumber
-            value={scene.value}
-            prefix={scene.prefix}
-            suffix={scene.suffix}
-            decimals={scene.decimals}
-            duration={1800}
-          />
+      <div className="container-x">
+        <div className="flex items-center justify-between mb-8 sm:mb-10">
+          <span className="num text-[10px] uppercase tracking-[0.24em] text-moss-300/70 sm:text-[11px]">
+            ─  Backtest
+          </span>
+          <span className="num text-[10px] uppercase tracking-[0.24em] text-white/30 sm:text-[11px]">
+            {String(scene.n).padStart(2, '0')} / {String(total).padStart(2, '0')}
+          </span>
         </div>
+
         <div
-          className="mt-4 text-base text-white/70 sm:mt-8 sm:text-xl"
+          className="text-center transition-all duration-[800ms] ease-out"
           style={{
             opacity: shown ? 1 : 0,
-            transform: shown ? 'translateY(0)' : 'translateY(12px)',
-            transition: 'all 700ms ease-out 400ms',
+            transform: shown ? 'translateY(0)' : 'translateY(20px)',
           }}
         >
-          {scene.label}
+          <div
+            className="num font-display font-medium tracking-[-0.04em] text-gradient-moss"
+            style={{
+              fontSize: 'clamp(2.5rem, 12vw, 9rem)',
+              lineHeight: 1.05,
+              paddingTop: '0.18em',
+              paddingBottom: '0.1em',
+            }}
+          >
+            <AnimatedNumber
+              value={scene.value}
+              prefix={scene.prefix}
+              suffix={scene.suffix}
+              decimals={scene.decimals}
+              duration={1600}
+            />
+          </div>
+          <div
+            className="mt-3 text-base text-white/65 sm:mt-5 sm:text-lg"
+            style={{
+              opacity: shown ? 1 : 0,
+              transform: shown ? 'translateY(0)' : 'translateY(8px)',
+              transition: 'all 600ms ease-out 350ms',
+            }}
+          >
+            {scene.label}
+          </div>
         </div>
       </div>
     </div>

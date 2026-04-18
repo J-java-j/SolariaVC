@@ -33,6 +33,11 @@
     @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12;
   }
 
+  /* Defensive: prevent any descendant from creating horizontal scroll */
+  body, #root, main {
+    overflow-x: clip;
+  }
+
   .text-gradient-moss {
     background: linear-gradient(120deg, #ecfdf5 0%, #a7f3d0 30%, #34d399 60%, #059669 100%);
     -webkit-background-clip: text;
