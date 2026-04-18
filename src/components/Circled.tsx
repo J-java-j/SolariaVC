@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { useInView } from '../hooks/useInView';
 
 type Props = {
@@ -17,24 +17,23 @@ type Props = {
 /**
  * Wraps text in a hand-drawn-feel SVG ellipse that draws itself
  * around the content on scroll-in. The path is intentionally open
- * (start and end don't meet) and slightly imperfect.
- *
- * Implementation note: uses a large absolute strokeDasharray (rather
- * than pathLength=1 + dasharray=1, which normalises to "1 1" and
- * renders as a 50/50 dash/gap pattern instead of a fully solid line).
+ * (start and end don't meet) and a per-instance turbulence filter
+ * adds tiny pixel-level wobble so the line doesn't read as a perfect
+ * mathematical ellipse.
  */
 export default function Circled({
   children,
   color = '#34d399',
   width = 3,
   delay = 350,
-  duration = 1200,
+  duration = 1300,
   className = '',
 }: Props) {
-  const [ref, shown] = useInView<HTMLSpanElement>({ threshold: 0.25 });
+  const [ref, shown] = useInView<HTMLSpanElement>({ threshold: 0.2 });
+  const filterId = useId().replace(/:/g, '');
 
-  // Approximate length of the path below — generous so the dash
-  // pattern definitely covers it (>) at any viewport scale.
+  // Long absolute dasharray so the offset animation walks the dash
+  // pattern off the path once and the line draws cleanly.
   const PATH_LEN = 600;
 
   return (
@@ -56,20 +55,26 @@ export default function Circled({
         preserveAspectRatio="none"
         aria-hidden
       >
-        {/*
-          Open hand-drawn-feel ellipse. Starts at top (~10 o'clock),
-          travels clockwise, ends past the start with a small overshoot
-          so the ends don't meet — like a marker stroke that didn't
-          quite close. Asymmetric Bézier control points so the radius
-          wobbles slightly.
-        */}
+        <defs>
+          <filter id={`r${filterId}`} x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.018"
+              numOctaves="2"
+              seed={3}
+              result="noise"
+            />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" />
+          </filter>
+        </defs>
         <path
+          filter={`url(#r${filterId})`}
           d="
-            M 88 10
-            C 150 4, 198 20, 196 44
-            C 195 66, 138 81, 92 78
-            C 48 75, 5 66, 6 41
-            C 9 20, 56 8, 122 14
+            M 86 11
+            C 148 4, 198 18, 197 42
+            C 195 65, 138 81, 92 78
+            C 48 75, 4 66, 6 40
+            C 9 19, 56 7, 124 13
           "
           fill="none"
           stroke={color}
