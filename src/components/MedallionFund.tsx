@@ -20,7 +20,7 @@ const allocation = [
 const terms = [
   { k: 'Structure', v: 'Closed-end LLC' },
   { k: 'Vintage', v: '2026' },
-  { k: 'AUM', v: '$50K · growing' },
+  { k: 'Access', v: 'By introduction' },
   { k: 'Min. commitment', v: '$1,000' },
   { k: 'Lock-up', v: '12 months' },
   { k: 'Mgmt / Perf', v: '0 / 20' },
@@ -52,21 +52,22 @@ export default function MedallionFund() {
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
           <Reveal className="lg:col-span-5">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-amber-300/80">
-              The Medallion Fund
+            <div className="text-[11px] font-medium uppercase tracking-[0.24em] text-amber-300/80">
+              The Medallion Fund · Q2 2026
             </div>
-            <h2 className="mt-4 font-display text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
-              Closed-end portfolio,
-              <br /> systematic strategies.
+            <h2 className="mt-4 font-display text-2xl font-medium leading-tight tracking-tight sm:text-3xl lg:text-4xl">
+              Closed cohort.
+              <br /> Patient capital.
             </h2>
-            <p className="mt-6 text-white/70 leading-relaxed">
-              Four uncorrelated strategies. Closed-end. Reported quarterly.
+            <p className="mt-5 text-white/65 leading-relaxed">
+              Subscriptions are accepted by introduction. Limited to a small
+              partnership of accredited investors per vintage.
             </p>
 
             <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.06] pt-6 text-sm">
               {terms.map((t) => (
                 <div key={t.k}>
-                  <dt className="text-[10.5px] uppercase tracking-[0.2em] text-white/45">
+                  <dt className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/45">
                     {t.k}
                   </dt>
                   <dd className="num mt-1 text-white">{t.v}</dd>
@@ -76,9 +77,9 @@ export default function MedallionFund() {
 
             <a
               href="#contact"
-              className="mt-8 inline-flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200"
+              className="mt-8 inline-flex items-center gap-2 text-sm text-amber-300 transition-colors hover:text-amber-200"
             >
-              Request the prospectus <span aria-hidden>→</span>
+              Request an introduction <span aria-hidden>→</span>
             </a>
           </Reveal>
 
@@ -89,13 +90,13 @@ export default function MedallionFund() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    <th className="px-5 py-3 text-left text-[10.5px] font-medium uppercase tracking-[0.18em] text-white/45">
+                    <th className="px-4 py-3 text-left text-[10px] font-medium uppercase tracking-[0.18em] text-white/45 sm:px-5">
                       Returns
                     </th>
                     {TIMEFRAMES.map((t) => (
                       <th
                         key={t}
-                        className="num px-3 py-3 text-right text-[10.5px] font-medium uppercase tracking-[0.18em] text-white/45"
+                        className="num px-2 py-3 text-right text-[10px] font-medium uppercase tracking-[0.18em] text-white/45 sm:px-3"
                       >
                         {t}
                       </th>
@@ -103,15 +104,15 @@ export default function MedallionFund() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
-                  <Row label="Solaria Capital · M4 V3" values={fundReturns} accent />
-                  <Row label="S&P 500 (SPY)" values={spxReturns} muted />
+                  <Row label="Solaria Capital" values={fundReturns} accent />
+                  <Row label="S&P 500" values={spxReturns} muted />
                   <AlphaRow fund={fundReturns} bench={spxReturns} />
                 </tbody>
               </table>
             </div>
 
             <div className="space-y-3">
-              <div className="text-[10.5px] uppercase tracking-[0.2em] text-white/45">
+              <div className="text-[10px] font-medium uppercase tracking-[0.2em] text-white/45">
                 Strategy allocation
               </div>
               {allocation.map((a) => (
@@ -121,13 +122,82 @@ export default function MedallionFund() {
 
             <p className="text-[11px] text-white/40 leading-relaxed">
               Backtest figures are hypothetical, gross of fees, since April 2012.
-              Past performance is not indicative of future results. Live fund
-              inception Q1 2026.
+              Past performance is not indicative of future results.
             </p>
           </Reveal>
         </div>
       </div>
     </section>
+  );
+}
+
+function Row({
+  label,
+  values,
+  accent,
+  muted,
+}: {
+  label: string;
+  values: Record<Timeframe, number>;
+  accent?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <tr>
+      <td
+        className={`px-4 py-3 sm:px-5 ${
+          accent ? 'text-white' : muted ? 'text-white/65' : 'text-white/85'
+        }`}
+      >
+        {label}
+      </td>
+      {TIMEFRAMES.map((t) => {
+        const v = values[t];
+        const positive = v >= 0;
+        return (
+          <td
+            key={t}
+            className={`num px-2 py-3 text-right sm:px-3 ${
+              accent ? (positive ? 'text-amber-300' : 'text-rose-400') : 'text-white/55'
+            }`}
+          >
+            {positive ? '+' : ''}
+            {v >= 100 ? v.toFixed(1) : v.toFixed(2)}%
+          </td>
+        );
+      })}
+    </tr>
+  );
+}
+
+function AlphaRow({
+  fund,
+  bench,
+}: {
+  fund: Record<Timeframe, number>;
+  bench: Record<Timeframe, number>;
+}) {
+  return (
+    <tr className="bg-amber-500/[0.05]">
+      <td className="px-4 py-3 text-amber-200 sm:px-5">
+        Outperformance
+      </td>
+      {TIMEFRAMES.map((t) => {
+        const a = fund[t] - bench[t];
+        const positive = a >= 0;
+        return (
+          <td
+            key={t}
+            className={`num px-2 py-3 text-right sm:px-3 ${
+              positive ? 'text-amber-200' : 'text-rose-400'
+            }`}
+          >
+            {positive ? '+' : ''}
+            {Math.abs(a) >= 100 ? a.toFixed(1) : a.toFixed(2)}%
+          </td>
+        );
+      })}
+    </tr>
   );
 }
 
@@ -153,82 +223,9 @@ function BarTrack({ weight }: { weight: number }) {
       className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/[0.05]"
     >
       <div
-        className="h-full bg-moss-400/70 transition-[width] duration-[1100ms] ease-out"
+        className="h-full bg-amber-400/60 transition-[width] duration-[1100ms] ease-out"
         style={{ width: shown ? `${weight}%` : '0%' }}
       />
     </div>
-  );
-}
-
-function Row({
-  label,
-  values,
-  accent,
-  muted,
-}: {
-  label: string;
-  values: Record<Timeframe, number>;
-  accent?: boolean;
-  muted?: boolean;
-}) {
-  return (
-    <tr>
-      <td
-        className={`px-5 py-3 ${
-          accent ? 'text-white' : muted ? 'text-white/65' : 'text-white/85'
-        }`}
-      >
-        {label}
-      </td>
-      {TIMEFRAMES.map((t) => {
-        const v = values[t];
-        const positive = v >= 0;
-        return (
-          <td
-            key={t}
-            className={`num px-3 py-3 text-right ${
-              accent ? (positive ? 'text-moss-300' : 'text-rose-400') : 'text-white/55'
-            }`}
-          >
-            {positive ? '+' : ''}
-            {v >= 100 ? v.toFixed(1) : v.toFixed(2)}%
-          </td>
-        );
-      })}
-    </tr>
-  );
-}
-
-function AlphaRow({
-  fund,
-  bench,
-}: {
-  fund: Record<Timeframe, number>;
-  bench: Record<Timeframe, number>;
-}) {
-  return (
-    <tr className="bg-moss-500/[0.04]">
-      <td className="px-5 py-3 text-moss-200">
-        Outperformance{' '}
-        <span className="text-[10px] text-white/35">
-          (Solaria Capital − S&P, positive = beating the market)
-        </span>
-      </td>
-      {TIMEFRAMES.map((t) => {
-        const a = fund[t] - bench[t];
-        const positive = a >= 0;
-        return (
-          <td
-            key={t}
-            className={`num px-3 py-3 text-right ${
-              positive ? 'text-moss-200' : 'text-rose-400'
-            }`}
-          >
-            {positive ? '+' : ''}
-            {Math.abs(a) >= 100 ? a.toFixed(1) : a.toFixed(2)}%
-          </td>
-        );
-      })}
-    </tr>
   );
 }

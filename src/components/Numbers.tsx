@@ -67,8 +67,7 @@ function Scene({
             transform: shown ? 'translateY(0)' : 'translateY(20px)',
           }}
         >
-          {/* Tailwind responsive sizes — predictable at every breakpoint */}
-          <div className="num font-display font-medium leading-[1.05] tracking-[-0.04em] text-gradient-moss text-5xl sm:text-7xl md:text-8xl lg:text-[8rem] py-2">
+          <div className="num font-display font-medium leading-[1.05] tracking-[-0.04em] text-gradient-moss text-4xl sm:text-6xl md:text-7xl lg:text-8xl py-2">
             <AnimatedNumber
               value={scene.value}
               prefix={scene.prefix}
@@ -78,7 +77,7 @@ function Scene({
             />
           </div>
           <div
-            className="mt-3 text-base text-white/65 sm:mt-5 sm:text-lg"
+            className="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-white/55 sm:mt-5 sm:text-xs"
             style={{
               opacity: shown ? 1 : 0,
               transform: shown ? 'translateY(0)' : 'translateY(8px)',
