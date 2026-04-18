@@ -24,8 +24,7 @@ export default function Contact() {
               Tell us about yourself.
             </h2>
             <p className="mt-6 text-white/70 leading-relaxed">
-              Investor inquiries, founder pitches, and research collaborations all
-              land in the same partner inbox. Short notes are welcome.
+              Investor inquiries, founder pitches, research collaborations.
             </p>
 
             <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.06] pt-6 text-sm">

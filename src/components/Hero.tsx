@@ -5,7 +5,7 @@ export default function Hero() {
   return (
     <section
       id="top"
-      className="relative flex min-h-[88svh] items-center pt-28 pb-16 sm:pt-36 sm:pb-20"
+      className="relative flex min-h-[80svh] items-center pt-24 pb-12 sm:min-h-[88vh] sm:pt-36 sm:pb-20"
     >
       <div className="container-x w-full">
         <div className="max-w-4xl">

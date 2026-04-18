@@ -9,41 +9,24 @@ type Scene = {
   suffix?: string;
   decimals?: number;
   label: string;
-  context: string;
 };
 
 const scenes: Scene[] = [
-  {
-    n: 1,
-    value: BACKTEST_STATS.cagrPct,
-    suffix: '%',
-    decimals: 2,
-    label: 'Annualised return',
-    context: 'Across fourteen years of backtest.',
-  },
-  {
-    n: 2,
-    value: BACKTEST_STATS.totalReturnPct,
-    prefix: '+',
-    suffix: '%',
-    decimals: 0,
-    label: 'Total return',
-    context: 'A dollar in 2012 is sixteen today.',
-  },
-  {
-    n: 3,
-    value: BACKTEST_STATS.sharpe,
-    decimals: 2,
-    label: 'Sharpe ratio',
-    context: 'Returns above the noise.',
-  },
+  { n: 1, value: BACKTEST_STATS.cagrPct,         suffix: '%',          decimals: 2, label: 'Annualised return' },
+  { n: 2, value: BACKTEST_STATS.totalReturnPct,  prefix: '+', suffix: '%', decimals: 0, label: 'Total return' },
+  { n: 3, value: BACKTEST_STATS.sharpe,                                 decimals: 2, label: 'Sharpe ratio' },
 ];
 
 export default function Numbers() {
   return (
     <section className="relative">
       {scenes.map((scene, i) => (
-        <Scene key={scene.n} scene={scene} total={scenes.length} isLast={i === scenes.length - 1} />
+        <Scene
+          key={scene.n}
+          scene={scene}
+          total={scenes.length}
+          isLast={i === scenes.length - 1}
+        />
       ))}
     </section>
   );
@@ -63,37 +46,29 @@ function Scene({
   return (
     <div
       ref={ref}
-      className={`relative flex min-h-[70svh] sm:min-h-[78vh] items-center justify-center px-5 sm:px-6 ${
+      className={`relative flex min-h-[60svh] items-center justify-center px-4 sm:min-h-[78vh] sm:px-6 ${
         isLast ? '' : 'border-b border-white/[0.05]'
       }`}
     >
-      {/* index counter top-right */}
-      <div className="absolute right-4 top-6 sm:right-12 sm:top-12 num text-[10px] sm:text-[11px] uppercase tracking-[0.22em] sm:tracking-[0.24em] text-white/30">
+      <div className="absolute right-4 top-5 num text-[10px] uppercase tracking-[0.22em] text-white/30 sm:right-12 sm:top-12 sm:text-[11px] sm:tracking-[0.24em]">
         {String(scene.n).padStart(2, '0')} / {String(total).padStart(2, '0')}
       </div>
 
-      {/* small "BACKTEST" stamp top-left */}
-      <div className="absolute left-4 top-6 sm:left-12 sm:top-12 inline-flex items-center gap-2 text-[10px] sm:text-[11px] uppercase tracking-[0.2em] sm:tracking-[0.22em] text-moss-300/70">
-        <span className="h-px w-5 sm:w-6 bg-moss-500/50" />
-        Backtest
-      </div>
-
       <div
-        className="w-full max-w-full text-center transition-all duration-[900ms] ease-out"
+        className="w-full text-center transition-all duration-[900ms] ease-out"
         style={{
           opacity: shown ? 1 : 0,
           transform: shown ? 'translateY(0) scale(1)' : 'translateY(28px) scale(0.96)',
         }}
       >
-        {/* Number — clamp tightly enough that even "+1,520%" fits the
-            iPhone SE viewport (320px) with comfortable padding */}
         <div
-          className="num font-display font-medium tracking-[-0.04em] text-gradient-moss px-2"
+          className="num font-display font-medium tracking-[-0.04em] text-gradient-moss"
           style={{
-            fontSize: 'clamp(3rem, 14vw, 11rem)',
+            // tighter clamp so even "+1,520%" fits comfortably on a 320px viewport
+            fontSize: 'clamp(2.5rem, 13vw, 10rem)',
             lineHeight: 1.05,
-            paddingTop: '0.25em',
-            paddingBottom: '0.15em',
+            paddingTop: '0.22em',
+            paddingBottom: '0.12em',
           }}
         >
           <AnimatedNumber
@@ -105,7 +80,7 @@ function Scene({
           />
         </div>
         <div
-          className="mt-5 sm:mt-10 font-display text-lg sm:text-2xl text-white/85"
+          className="mt-4 text-base text-white/70 sm:mt-8 sm:text-xl"
           style={{
             opacity: shown ? 1 : 0,
             transform: shown ? 'translateY(0)' : 'translateY(12px)',
@@ -113,16 +88,6 @@ function Scene({
           }}
         >
           {scene.label}
-        </div>
-        <div
-          className="mt-2 mx-auto max-w-md text-[13px] sm:text-sm text-white/45 px-4 sm:px-0"
-          style={{
-            opacity: shown ? 1 : 0,
-            transform: shown ? 'translateY(0)' : 'translateY(8px)',
-            transition: 'all 700ms ease-out 600ms',
-          }}
-        >
-          {scene.context}
         </div>
       </div>
     </div>

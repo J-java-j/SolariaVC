@@ -60,9 +60,7 @@ export default function MedallionFund() {
               <br /> systematic strategies.
             </h2>
             <p className="mt-6 text-white/70 leading-relaxed">
-              The Fund deploys capital across four uncorrelated strategies — three
-              quantitative and one frontier-venture sleeve. Closed-end means we raise
-              once per vintage, invest patiently, and report quarterly.
+              Four uncorrelated strategies. Closed-end. Reported quarterly.
             </p>
 
             <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.06] pt-6 text-sm">

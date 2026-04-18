@@ -46,9 +46,8 @@ export default function Ventures() {
               <br /> scored by our models.
             </h2>
             <p className="mt-6 text-white/70 leading-relaxed">
-              The venture arm writes early checks into technical founders shipping
-              across AI, energy, bio, robotics, defense, and data. Sourced through
-              our network, scored by our models, underwritten by the partners.
+              Early checks into technical founders. Sourced through our network,
+              scored by our models.
             </p>
 
             <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.06] pt-6 text-sm">

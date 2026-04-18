@@ -24,8 +24,7 @@ export default function Research() {
               Quant models, applied to venture.
             </h2>
             <p className="mt-6 text-white/70 leading-relaxed">
-              We publish the models behind our investment decisions. Open methodology,
-              reproducible back-tests, honest priors.
+              Quantitative notes published quarterly. Open methodology, honest priors.
             </p>
 
             <Subscribe />

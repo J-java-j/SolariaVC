@@ -15,7 +15,7 @@ const desks: Desk[] = [
     n: '01',
     name: 'Capital',
     short: 'The Medallion Fund',
-    body: 'Closed-end quantitative portfolio. Four uncorrelated strategies — three quantitative, one frontier-venture — combined into a monthly-rebalanced book. Raise once per vintage, deploy patiently, report quarterly.',
+    body: 'A closed-end quantitative portfolio. Patient capital, systematic strategies.',
     metric: { label: 'Backtest CAGR', value: '20.53%' },
     href: '#fund',
     cta: 'View the Fund',
@@ -24,17 +24,17 @@ const desks: Desk[] = [
     n: '02',
     name: 'Ventures',
     short: 'Solaria Ventures',
-    body: 'Pre-seed and seed venture arm. Sourced through our network, scored by our models, underwritten by the partners. Concentrated, technical-founder-only, zero-coverage approach.',
-    metric: { label: 'Companies tracked', value: '08' },
+    body: 'Pre-seed and seed checks into technical founders. Scored by our models.',
+    metric: { label: 'Tracked', value: '08' },
     href: '#ventures',
-    cta: 'View the portfolio',
+    cta: 'View portfolio',
   },
   {
     n: '03',
     name: 'Research',
     short: 'Solaria Research',
-    body: 'Quantitative research published openly. Factor models, market microstructure, alternative data, portfolio theory. The same models that drive the Fund and Ventures decisions are the ones we publish.',
-    metric: { label: 'Notes published', value: '12' },
+    body: 'The quantitative work behind the Fund and Ventures, published openly.',
+    metric: { label: 'Notes', value: '12' },
     href: '#research',
     cta: 'Read the notes',
   },
@@ -53,13 +53,8 @@ export default function ThreeDesks() {
               The Firm
             </div>
             <h2 className="mt-4 font-display text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
-              Three desks under one roof.
+              Three desks. One team.
             </h2>
-            <p className="mt-5 text-white/65 leading-relaxed sm:text-lg">
-              Solaria Capital is structured around three connected products. Capital
-              deploys money. Ventures sources and scores private deals. Research
-              builds and publishes the models that drive both.
-            </p>
           </div>
         </Reveal>
 
