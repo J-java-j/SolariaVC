@@ -5,11 +5,22 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   body {
     background: #04080a;
     color: #fff;
-    font-feature-settings: 'ss01', 'cv11';
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'ss01', 'cv11', 'cv02';
+    font-optical-sizing: auto;
+  }
+  /* Display headings get tight tracking + variable optical sizing for that
+     editorial-institutional feel. */
+  h1, h2, h3 {
+    font-feature-settings: 'liga', 'kern';
+    font-optical-sizing: auto;
   }
   ::selection {
     background: rgba(16, 185, 129, 0.35);
@@ -61,13 +72,23 @@
   }
 
   .num {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
-    font-feature-settings: 'tnum', 'zero';
-    letter-spacing: -0.01em;
+    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+    font-feature-settings: 'tnum', 'zero', 'ss05';
+    letter-spacing: -0.005em;
   }
 
   .label {
-    @apply text-[11px] font-medium uppercase tracking-[0.22em] text-moss-300/80;
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.24em] text-moss-300/80;
+    font-feature-settings: 'tnum';
+  }
+
+  /* Display heading utility — applies the editorial tracking + optical
+     sizing the headline serif is designed for. */
+  .display {
+    font-family: 'Newsreader', 'Times New Roman', serif;
+    letter-spacing: -0.025em;
+    font-optical-sizing: auto;
+    font-feature-settings: 'liga', 'kern';
   }
 
   .flash-up {
