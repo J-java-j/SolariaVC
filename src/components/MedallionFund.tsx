@@ -52,7 +52,7 @@ export default function MedallionFund() {
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
           <Reveal className="lg:col-span-5">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
+            <div className="text-[11px] uppercase tracking-[0.24em] text-amber-300/80">
               The Medallion Fund
             </div>
             <h2 className="mt-4 font-display text-3xl font-medium leading-tight tracking-tight sm:text-4xl">
@@ -78,7 +78,7 @@ export default function MedallionFund() {
 
             <a
               href="#contact"
-              className="mt-8 inline-flex items-center gap-2 text-sm text-moss-300 hover:text-moss-200"
+              className="mt-8 inline-flex items-center gap-2 text-sm text-amber-300 hover:text-amber-200"
             >
               Request the prospectus <span aria-hidden>→</span>
             </a>

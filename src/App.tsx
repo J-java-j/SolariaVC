@@ -2,6 +2,7 @@ import Nav from './components/Nav';
 import Hero from './components/Hero';
 import Numbers from './components/Numbers';
 import ThreeDesks from './components/ThreeDesks';
+import MedallionIntro from './components/MedallionIntro';
 import MedallionFund from './components/MedallionFund';
 import Ventures from './components/Ventures';
 import Research from './components/Research';
@@ -17,6 +18,7 @@ export default function App() {
         <Hero />
         <Numbers />
         <ThreeDesks />
+        <MedallionIntro />
         <MedallionFund />
         <Ventures />
         <Research />
