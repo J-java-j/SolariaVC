@@ -101,15 +101,11 @@ export default function Strategy() {
           }`}
         >
           <Eyebrow>Strategy · M4 model stack</Eyebrow>
-          <SectionTitle className="mt-5">
+          <SectionTitle className="mt-6">
             Four sleeves.
             <br />
-            <span className="text-accent italic font-light">One correlation of 0.055.</span>
+            <span className="text-accent italic font-light">ρ = 0.055.</span>
           </SectionTitle>
-          <p className="mt-5 sm:mt-6 max-w-2xl text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted">
-            Every sleeve is rules-defined, back-tested on a six-year out-of-sample hold-out, and ships
-            with a written thesis and a falsification condition. Click through to inspect each.
-          </p>
         </div>
 
         <div className="mt-10 sm:mt-14 grid gap-6 sm:gap-8 lg:grid-cols-12">
@@ -184,9 +180,8 @@ export default function Strategy() {
 
               <div className="p-6 sm:p-8">
                 <h3 className="font-display text-[1.7rem] sm:text-[2rem] tracking-tight text-fg">{s.name}</h3>
-                <p className="mt-3 text-[14.5px] sm:text-[15px] leading-relaxed text-fg-muted">{s.desc}</p>
 
-                <div className="mt-7 grid grid-cols-4 gap-4 sm:gap-6 border-y border-line py-5">
+                <div className="mt-6 grid grid-cols-4 gap-4 sm:gap-6 border-y border-line py-5">
                   {(
                     [
                       ['CAGR', cagr + '%', true],
@@ -244,18 +239,6 @@ export default function Strategy() {
                     })()}
                   </svg>
                 </div>
-              </div>
-            </div>
-
-            <div className="mt-4 rounded-xl border border-line-strong bg-fg-b px-5 py-4 flex items-center justify-between gap-4">
-              <div>
-                <div className="font-mono text-[9.5px] tracking-[0.22em] uppercase text-fg-muted">
-                  Average pairwise correlation
-                </div>
-                <div className="mt-1 text-[12px] text-fg-muted">Between the four sleeves, Apr 2012 → Apr 2026</div>
-              </div>
-              <div className="font-display text-[1.6rem] sm:text-[1.9rem] tabular-nums font-semibold text-accent">
-                ρ = 0.055
               </div>
             </div>
           </div>

@@ -51,6 +51,28 @@ html[data-theme='gold'] {
   --selection: rgba(230, 168, 42, 0.45);
 }
 
+/* Noir zone — black + emerald green for everything AFTER Record */
+html[data-theme='noir'] {
+  --bg-a: #070a08;
+  --bg-b: #0d1210;
+  --bg-c: #141b17;
+  --fg: #eef7f1;
+  --fg-muted: rgba(238, 247, 241, 0.62);
+  --fg-faint: rgba(238, 247, 241, 0.36);
+  --line: rgba(110, 231, 183, 0.10);
+  --line-strong: rgba(110, 231, 183, 0.28);
+  --accent-50:  #eafbf2;
+  --accent-100: #c7f2db;
+  --accent-200: #8ee0b4;
+  --accent-300: #52c98d;
+  --accent-400: #34d399;
+  --accent-500: #10b981;
+  --accent-600: #047857;
+  --accent-rgb: 52, 201, 141;
+  --ambient: rgba(52, 201, 141, 0.22);
+  --selection: rgba(52, 201, 141, 0.40);
+}
+
 html, body {
   transition:
     background-color 1400ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -87,6 +109,8 @@ html, body {
   .text-accent-strong   { color: var(--accent-300); transition: color 1400ms cubic-bezier(0.22,1,0.36,1); }
   html[data-theme='gold'] .text-accent        { color: var(--accent-300); }
   html[data-theme='gold'] .text-accent-strong { color: var(--accent-200); }
+  html[data-theme='noir'] .text-accent        { color: var(--accent-300); }
+  html[data-theme='noir'] .text-accent-strong { color: var(--accent-200); }
 
   .bg-accent     { background-color: var(--accent-400); color: var(--bg-a); transition: background-color 1400ms cubic-bezier(0.22,1,0.36,1), color 1400ms cubic-bezier(0.22,1,0.36,1); }
   .bg-fg-a       { background-color: var(--bg-a); transition: background-color 1400ms cubic-bezier(0.22,1,0.36,1); }
@@ -131,6 +155,11 @@ html, body {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
     mix-blend-mode: overlay;
     opacity: 0.4;
+  }
+  html[data-theme='noir'] body::before {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.03 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+    opacity: 0.35;
   }
 }
 

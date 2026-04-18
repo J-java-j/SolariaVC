@@ -105,16 +105,14 @@ export default function Record() {
           }`}
         >
           <Eyebrow>The record · M4 V3 backtest</Eyebrow>
-          <SectionTitle className="mt-5">
+          <SectionTitle className="mt-6">
             Fourteen years.
             <br />
             <span className="text-accent italic">One dollar became sixteen.</span>
           </SectionTitle>
-          <p className="mt-5 sm:mt-6 max-w-2xl text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted">
-            The same strategy the live fund deploys today, run on monthly data from April 2012 through
-            April 2026, with a six-year out-of-sample hold-out. The broad market turned the same
-            dollar into $6.55. Scroll to watch it grow.
-          </p>
+          <div className="mt-6 font-mono text-[11px] tracking-[0.18em] uppercase text-fg-muted">
+            Apr 2012 → Apr 2026 · S&P 500 grew $1 to $6.55
+          </div>
         </div>
 
         <div

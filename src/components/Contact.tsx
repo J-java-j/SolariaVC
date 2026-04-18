@@ -72,11 +72,7 @@ export default function Contact() {
             }`}
           >
             <Eyebrow>Contact</Eyebrow>
-            <SectionTitle className="mt-5">Open the channel.</SectionTitle>
-            <p className="mt-6 max-w-xl text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted">
-              Investor inquiries, founder pitches, and research collaborations all land in the same
-              partner inbox. Short notes welcome — we'd rather reply to a paragraph than skim a deck.
-            </p>
+            <SectionTitle className="mt-6">Open the channel.</SectionTitle>
             <dl className="mt-10 space-y-4 max-w-md">
               {(
                 [
