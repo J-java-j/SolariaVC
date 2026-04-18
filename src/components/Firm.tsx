@@ -1,3 +1,5 @@
+import Reveal from './Reveal';
+
 type Member = {
   name: string;
   role: string;
@@ -29,7 +31,7 @@ export default function Firm() {
     >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-5">
+          <Reveal className="lg:col-span-5">
             <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
               The Firm
             </div>
@@ -52,9 +54,9 @@ export default function Firm() {
                 </div>
               ))}
             </dl>
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-7">
+          <Reveal delay={120} className="lg:col-span-7">
             <div className="text-[10.5px] uppercase tracking-[0.2em] text-white/45 mb-4">
               The Team
             </div>
@@ -80,7 +82,7 @@ export default function Firm() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

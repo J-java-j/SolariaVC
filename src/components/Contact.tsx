@@ -1,4 +1,5 @@
 import ContactForm from './ContactForm';
+import Reveal from './Reveal';
 
 const facts = [
   { k: 'Response',     v: '≤ 2 business days' },
@@ -15,7 +16,7 @@ export default function Contact() {
     >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-5">
+          <Reveal className="lg:col-span-5">
             <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
               Contact
             </div>
@@ -37,11 +38,11 @@ export default function Contact() {
                 </div>
               ))}
             </dl>
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-7">
+          <Reveal delay={120} className="lg:col-span-7">
             <ContactForm />
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

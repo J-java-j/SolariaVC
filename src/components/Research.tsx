@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Reveal from './Reveal';
 
 const notes = [
   { id: 'SR-026', date: '2026 · Q2', cat: 'Venture Quant',          title: 'A factor model for pre-seed investing',                  excerpt: 'Five orthogonal factors — founder velocity, market entropy, capital efficiency, technical moat, and timing — back-tested against 2,400 outcomes since 2018.' },
@@ -15,7 +16,7 @@ export default function Research() {
     >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-4">
+          <Reveal className="lg:col-span-4">
             <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
               Solaria Research
             </div>
@@ -28,9 +29,9 @@ export default function Research() {
             </p>
 
             <Subscribe />
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-8">
+          <Reveal delay={120} className="lg:col-span-8">
             <ul className="divide-y divide-white/[0.06] border-y border-white/[0.06]">
               {notes.map((n) => (
                 <li key={n.id}>
@@ -55,7 +56,7 @@ export default function Research() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

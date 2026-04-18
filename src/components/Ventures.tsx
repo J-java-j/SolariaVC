@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import Reveal from './Reveal';
 
 type Company = {
   name: string;
@@ -36,7 +37,7 @@ export default function Ventures() {
     >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-5">
+          <Reveal className="lg:col-span-5">
             <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
               Solaria Ventures
             </div>
@@ -63,9 +64,9 @@ export default function Ventures() {
             >
               Pitch us <span aria-hidden>→</span>
             </a>
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-7">
+          <Reveal delay={120} className="lg:col-span-7">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div className="flex flex-wrap gap-1.5">
                 {sectors.map((s) => {
@@ -124,7 +125,7 @@ export default function Ventures() {
                 No companies in this sector yet.
               </div>
             )}
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>

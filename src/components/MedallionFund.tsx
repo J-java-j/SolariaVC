@@ -1,4 +1,7 @@
 import FundChart from './FundChart';
+import Reveal from './Reveal';
+import AnimatedNumber from './AnimatedNumber';
+import { useInView } from '../hooks/useInView';
 import {
   TIMEFRAMES,
   type Timeframe,
@@ -48,7 +51,7 @@ export default function MedallionFund() {
     >
       <div className="container-x">
         <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-5">
+          <Reveal className="lg:col-span-5">
             <div className="text-[11px] uppercase tracking-[0.24em] text-moss-300/80">
               The Medallion Fund
             </div>
@@ -79,9 +82,9 @@ export default function MedallionFund() {
             >
               Request the prospectus <span aria-hidden>→</span>
             </a>
-          </div>
+          </Reveal>
 
-          <div className="lg:col-span-7 space-y-8">
+          <Reveal delay={120} className="lg:col-span-7 space-y-8">
             <FundChart />
 
             <div className="rounded-md border border-white/[0.08] bg-ink-900/40 overflow-x-auto">
@@ -114,18 +117,7 @@ export default function MedallionFund() {
                 Strategy allocation
               </div>
               {allocation.map((a) => (
-                <div key={a.strategy}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-white/85">{a.strategy}</span>
-                    <span className="num text-white/65">{a.weight}%</span>
-                  </div>
-                  <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/[0.05]">
-                    <div
-                      className="h-full bg-moss-400/70"
-                      style={{ width: `${a.weight}%` }}
-                    />
-                  </div>
-                </div>
+                <AllocationBar key={a.strategy} strategy={a.strategy} weight={a.weight} />
               ))}
             </div>
 
@@ -134,10 +126,39 @@ export default function MedallionFund() {
               Past performance is not indicative of future results. Live fund
               inception Q1 2026.
             </p>
-          </div>
+          </Reveal>
         </div>
       </div>
     </section>
+  );
+}
+
+function AllocationBar({ strategy, weight }: { strategy: string; weight: number }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-white/85">{strategy}</span>
+        <span className="num text-white/65">
+          <AnimatedNumber value={weight} suffix="%" duration={1100} />
+        </span>
+      </div>
+      <BarTrack weight={weight} />
+    </div>
+  );
+}
+
+function BarTrack({ weight }: { weight: number }) {
+  const [ref, shown] = useInView<HTMLDivElement>({ threshold: 0.4 });
+  return (
+    <div
+      ref={ref}
+      className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/[0.05]"
+    >
+      <div
+        className="h-full bg-moss-400/70 transition-[width] duration-[1100ms] ease-out"
+        style={{ width: shown ? `${weight}%` : '0%' }}
+      />
+    </div>
   );
 }
 
