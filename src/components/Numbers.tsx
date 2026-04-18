@@ -86,8 +86,13 @@ function Scene({
         }}
       >
         <div
-          className="num font-display font-medium leading-[0.9] tracking-[-0.04em] text-gradient-moss"
-          style={{ fontSize: 'clamp(4.5rem, 16vw, 12rem)' }}
+          className="num font-display font-medium tracking-[-0.04em] text-gradient-moss py-2"
+          style={{
+            fontSize: 'clamp(4.5rem, 16vw, 12rem)',
+            // line-height >= 1 so the gradient-clipped text isn't cropped at
+            // its cap height; py-2 adds breathing room for ascenders/descenders
+            lineHeight: 1.05,
+          }}
         >
           <AnimatedNumber
             value={scene.value}
