@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useReveal } from '../hooks/useReveal';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 /**
  * Hand-drawn-feel SVG ellipse around a short word. Path is generous
@@ -81,19 +82,52 @@ function LiveTicker() {
 
 export default function Hero() {
   const [revealRef, inView] = useReveal();
+  const reduced = useReducedMotion();
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const [scrollY, setScrollY] = useState(0);
+
+  // Tiny scroll-driven parallax on the hero text. Max ~10px offset per
+  // layer; the skill flagged scroll-jacking / forced parallax as a
+  // HIGH-severity accessibility issue, so this is opt-out via
+  // prefers-reduced-motion and the offsets are deliberately small.
+  useEffect(() => {
+    if (reduced) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const r = sectionRef.current?.getBoundingClientRect();
+        if (!r) return;
+        // 0..1 within the hero
+        const p = Math.max(0, Math.min(1, -r.top / Math.max(1, r.height)));
+        setScrollY(p);
+      });
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [reduced]);
+
+  // Each layer translates Y by k * scrollY * px. Small k → subtle drift.
+  const py = (k: number) => (reduced ? 0 : scrollY * k);
 
   return (
     <section id="top" className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10 ambient-accent" />
 
       <div
-        ref={revealRef}
+        ref={(el) => {
+          revealRef.current = el;
+          sectionRef.current = el;
+        }}
         className="relative z-10 mx-auto max-w-[1200px] px-5 pt-32 pb-32 sm:px-10 sm:pt-44 sm:pb-44 lg:px-16 lg:pt-56 lg:pb-56"
       >
         <div
           className={`flex justify-center transition-all duration-700 ${
             inView ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
           }`}
+          style={{ transform: `translateY(${-py(40)}px)`, willChange: 'transform' }}
         >
           <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-fg-faint">
             Solaria Capital · Est. 2026
@@ -104,7 +138,11 @@ export default function Hero() {
           className={`mx-auto mt-10 sm:mt-14 max-w-[14ch] text-center font-display leading-[1.02] tracking-[-0.015em] text-[3rem] sm:text-[5.2rem] lg:text-[7.2rem] text-fg transition-all duration-1000 delay-100 ${
             inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           }`}
-          style={{ textWrap: 'balance' as never }}
+          style={{
+            textWrap: 'balance' as never,
+            transform: `translateY(${-py(70)}px)`,
+            willChange: 'transform',
+          }}
         >
           Built on{' '}
           <span className="relative inline-block text-accent">
@@ -118,6 +156,7 @@ export default function Hero() {
           className={`mx-auto mt-8 sm:mt-10 max-w-[36ch] text-center text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted transition-all duration-700 delay-300 ${
             inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           }`}
+          style={{ transform: `translateY(${-py(110)}px)`, willChange: 'transform' }}
         >
           A closed-end quant fund, a seed venture arm, and open research — from one desk.
         </p>

@@ -1,7 +1,9 @@
 import { useReveal } from '../hooks/useReveal';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { useCountUp } from '../hooks/useCountUp';
+import { useTilt } from '../hooks/useTilt';
 import { BACKTEST_STATS } from '../lib/fundData';
+import Medallion3D from './Medallion3D';
 
 /**
  * Medallion Fund — the gold-themed flagship section. Three movements:
@@ -25,23 +27,42 @@ export default function Fund() {
 
   return (
     <section id="fund" className="relative border-t border-line overflow-hidden">
-      {/* === MOVEMENT 1: title with massive MEDALLION watermark === */}
+      {/* === MOVEMENT 1: title with 3D coin behind === */}
       <div ref={titleRef} className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-10">
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden">
+        {/* 3D rotating medallion — replaces the flat watermark */}
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          style={{
+            opacity: titleIn ? 1 : 0,
+            transform: titleIn ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.92)',
+            transition:
+              'opacity 1600ms cubic-bezier(0.22,1,0.36,1), transform 1800ms cubic-bezier(0.22,1,0.36,1)',
+          }}
+        >
+          {/* The coin itself is interactive on desktop. Sized responsively
+              with clamp so it stays comfortably behind the title text. */}
           <div
-            className="font-display tracking-[-0.02em] whitespace-nowrap select-none"
+            className="pointer-events-auto"
             style={{
-              fontSize: 'clamp(6rem, 22vw, 22rem)',
-              color: 'var(--accent-500)',
-              opacity: titleIn ? 0.08 : 0,
-              transition:
-                'opacity 1600ms cubic-bezier(0.22,1,0.36,1), transform 1800ms cubic-bezier(0.22,1,0.36,1)',
-              transform: titleIn ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.96)',
+              width: 'clamp(280px, 38vw, 520px)',
+              height: 'clamp(280px, 38vw, 520px)',
+              opacity: 0.92,
+              filter: 'blur(0.4px)',
             }}
           >
-            MEDALLION
+            <Medallion3D size={520} />
           </div>
         </div>
+
+        {/* radial wash so the title floats above the coin */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(ellipse 45% 35% at 50% 50%, rgba(10, 7, 4, 0.55), transparent 75%)',
+          }}
+          aria-hidden
+        />
 
         <div className="relative text-center max-w-3xl">
           <div
@@ -136,37 +157,15 @@ export default function Fund() {
         </p>
       </div>
 
-      {/* === MOVEMENT 3: three big numbers (springy, staggered) === */}
+      {/* === MOVEMENT 3: three big numbers — pointer-tracking 3D tilt === */}
       <div
         ref={numbersRef}
         className="relative mx-auto max-w-[1400px] px-5 pb-24 sm:px-10 sm:pb-40 lg:px-16 lg:pb-48"
       >
         <div className="grid gap-14 sm:gap-16 lg:gap-24 sm:grid-cols-3">
-          {[
-            { label: 'Backtest CAGR', value: `${cagr}%`, sub: 'S&P 500 · 13.45%', accent: true, delay: 0 },
-            { label: 'Sharpe ratio', value: sharpe, sub: 'HF benchmark · 0.60', accent: false, delay: 220 },
-            { label: 'Max drawdown', value: `${dd}%`, sub: 'S&P 500 · −33.8%', accent: false, delay: 440 },
-          ].map((m) => (
-            <div
-              key={m.label}
-              className="text-center"
-              style={{
-                opacity: numbersIn ? 1 : 0,
-                transform: numbersIn ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.92)',
-                transition: `opacity 900ms cubic-bezier(0.22,1,0.36,1) ${m.delay}ms, transform 1100ms cubic-bezier(0.34, 1.56, 0.64, 1) ${m.delay}ms`,
-              }}
-            >
-              <div className="font-mono text-[10px] tracking-[0.28em] uppercase text-fg-faint">{m.label}</div>
-              <div
-                className={`mt-4 sm:mt-6 font-display leading-[0.95] tabular-nums text-[3.4rem] sm:text-[5.6rem] lg:text-[7rem] ${
-                  m.accent ? 'text-accent' : 'text-fg'
-                }`}
-              >
-                {m.value}
-              </div>
-              <div className="mt-3 sm:mt-4 font-mono text-[10.5px] tabular-nums text-fg-faint">{m.sub}</div>
-            </div>
-          ))}
+          <StatTile label="Backtest CAGR" value={`${cagr}%`} sub="S&P 500 · 13.45%" accent shown={numbersIn} delay={0} />
+          <StatTile label="Sharpe ratio" value={String(sharpe)} sub="HF benchmark · 0.60" shown={numbersIn} delay={220} />
+          <StatTile label="Max drawdown" value={`${dd}%`} sub="S&P 500 · −33.8%" shown={numbersIn} delay={440} />
         </div>
 
         <div
@@ -192,5 +191,62 @@ export default function Fund() {
         </div>
       </div>
     </section>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  sub,
+  accent,
+  shown,
+  delay,
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  accent?: boolean;
+  shown: boolean;
+  delay: number;
+}) {
+  const { ref, transform, glare, bind } = useTilt<HTMLDivElement>(7);
+  return (
+    <div
+      ref={ref}
+      {...bind}
+      className="relative text-center"
+      style={{
+        opacity: shown ? 1 : 0,
+        transform: shown
+          ? `translateY(0) scale(1) ${transform === 'none' ? '' : transform}`
+          : 'translateY(20px) scale(0.92)',
+        transformStyle: 'preserve-3d',
+        transition: shown
+          ? `transform 220ms cubic-bezier(0.22,1,0.36,1)`
+          : `opacity 900ms cubic-bezier(0.22,1,0.36,1) ${delay}ms, transform 1100ms cubic-bezier(0.34, 1.56, 0.64, 1) ${delay}ms`,
+      }}
+    >
+      {/* glare highlight that follows the cursor */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-0 rounded-3xl"
+        style={{
+          background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255, 240, 180, ${glare.opacity}), transparent 55%)`,
+          transition: 'background 200ms ease-out',
+        }}
+        aria-hidden
+      />
+      <div className="relative">
+        <div className="font-mono text-[10px] tracking-[0.28em] uppercase text-fg-faint">{label}</div>
+        <div
+          className={`mt-4 sm:mt-6 font-display leading-[0.95] tabular-nums text-[3.4rem] sm:text-[5.6rem] lg:text-[7rem] ${
+            accent ? 'text-accent' : 'text-fg'
+          }`}
+          style={{ transform: 'translateZ(28px)' }}
+        >
+          {value}
+        </div>
+        <div className="mt-3 sm:mt-4 font-mono text-[10.5px] tabular-nums text-fg-faint">{sub}</div>
+      </div>
+    </div>
   );
 }
