@@ -3,7 +3,6 @@ import { useTypewriter } from '../hooks/useTypewriter';
 import { useCountUp } from '../hooks/useCountUp';
 import { useTilt } from '../hooks/useTilt';
 import { BACKTEST_STATS } from '../lib/fundData';
-import Medallion3D from './Medallion3D';
 
 /**
  * Medallion Fund — the gold-themed flagship section. Three movements:
@@ -27,39 +26,42 @@ export default function Fund() {
 
   return (
     <section id="fund" className="relative border-t border-line overflow-hidden">
-      {/* === MOVEMENT 1: title with 3D coin behind === */}
+      {/* === MOVEMENT 1: title with engraved letterform watermark === */}
       <div ref={titleRef} className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-10">
-        {/* 3D rotating medallion — replaces the flat watermark */}
+        {/* Engraved gold "M" — stately, not a literal coin */}
         <div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          style={{
-            opacity: titleIn ? 1 : 0,
-            transform: titleIn ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.92)',
-            transition:
-              'opacity 1600ms cubic-bezier(0.22,1,0.36,1), transform 1800ms cubic-bezier(0.22,1,0.36,1)',
-          }}
+          className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
+          aria-hidden
         >
-          {/* The coin itself is interactive on desktop. Sized responsively
-              with clamp so it stays comfortably behind the title text. */}
-          <div
-            className="pointer-events-auto"
+          <span
+            className="font-display select-none"
             style={{
-              width: 'clamp(280px, 38vw, 520px)',
-              height: 'clamp(280px, 38vw, 520px)',
-              opacity: 0.92,
-              filter: 'blur(0.4px)',
+              fontSize: 'clamp(20rem, 48vw, 44rem)',
+              lineHeight: 0.85,
+              letterSpacing: '-0.06em',
+              background:
+                'linear-gradient(180deg, rgba(246, 210, 122, 0.22) 0%, rgba(212, 147, 22, 0.10) 45%, rgba(160, 109, 12, 0.04) 100%)',
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              color: 'transparent',
+              textShadow: 'none',
+              opacity: titleIn ? 1 : 0,
+              transform: titleIn ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.96)',
+              transition:
+                'opacity 1800ms cubic-bezier(0.22,1,0.36,1), transform 2000ms cubic-bezier(0.22,1,0.36,1)',
+              filter: 'drop-shadow(0 1px 0 rgba(255, 240, 180, 0.04))',
             }}
           >
-            <Medallion3D size={520} />
-          </div>
+            M
+          </span>
         </div>
 
-        {/* radial wash so the title floats above the coin */}
+        {/* radial wash so the title floats above the watermark */}
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              'radial-gradient(ellipse 45% 35% at 50% 50%, rgba(10, 7, 4, 0.55), transparent 75%)',
+              'radial-gradient(ellipse 55% 40% at 50% 50%, rgba(10, 7, 4, 0.45), transparent 75%)',
           }}
           aria-hidden
         />
