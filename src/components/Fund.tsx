@@ -26,42 +26,18 @@ export default function Fund() {
 
   return (
     <section id="fund" className="relative border-t border-line overflow-hidden">
-      {/* === MOVEMENT 1: title with engraved letterform watermark === */}
+      {/* === MOVEMENT 1: title — minimalist. No watermark, no coin.
+              Just a soft gold spotlight pool centered behind the words.
+              Typography and the gold accent carry the prestige. === */}
       <div ref={titleRef} className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-10">
-        {/* Engraved gold "M" — stately, not a literal coin */}
-        <div
-          className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
-          aria-hidden
-        >
-          <span
-            className="font-display select-none"
-            style={{
-              fontSize: 'clamp(20rem, 48vw, 44rem)',
-              lineHeight: 0.85,
-              letterSpacing: '-0.06em',
-              background:
-                'linear-gradient(180deg, rgba(246, 210, 122, 0.22) 0%, rgba(212, 147, 22, 0.10) 45%, rgba(160, 109, 12, 0.04) 100%)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-              textShadow: 'none',
-              opacity: titleIn ? 1 : 0,
-              transform: titleIn ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.96)',
-              transition:
-                'opacity 1800ms cubic-bezier(0.22,1,0.36,1), transform 2000ms cubic-bezier(0.22,1,0.36,1)',
-              filter: 'drop-shadow(0 1px 0 rgba(255, 240, 180, 0.04))',
-            }}
-          >
-            M
-          </span>
-        </div>
-
-        {/* radial wash so the title floats above the watermark */}
+        {/* gold ambient pool — focuses attention without ornamentation */}
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              'radial-gradient(ellipse 55% 40% at 50% 50%, rgba(10, 7, 4, 0.45), transparent 75%)',
+              'radial-gradient(ellipse 50% 40% at 50% 50%, rgba(230, 168, 42, 0.10), transparent 70%)',
+            opacity: titleIn ? 1 : 0,
+            transition: 'opacity 1800ms cubic-bezier(0.22,1,0.36,1)',
           }}
           aria-hidden
         />
