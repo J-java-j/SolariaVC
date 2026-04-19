@@ -36,13 +36,16 @@ function NaturalCircle({ inView }: { inView: boolean }) {
 }
 
 /* ============================================================
-   3D scroll scene — a perspective "market floor" that the
-   viewer dollies into as they scroll. CSS 3D only (no canvas,
-   no library). Quant-themed: grid floor + sparse candle bars
-   + a traced equity curve. Gated by prefers-reduced-motion.
+   3D scroll scene — minimal, premium. Receding perspective grid
+   + a single bold equity curve traced as you scroll + a few
+   horizontal "tape" levels for context. CSS 3D only.
+
+   PERF: scroll-driven transforms are written to a CSS custom
+   property `--p` on the scene root via a ref-bound rAF handler.
+   React never re-renders on scroll; the GPU handles compositing.
+   Gated by prefers-reduced-motion.
    ============================================================ */
 
-// Deterministic PRNG so candle positions stay stable across renders
 function mulberry32(seed: number) {
   return function () {
     let t = (seed += 0x6d2b79f5);
@@ -52,66 +55,80 @@ function mulberry32(seed: number) {
   };
 }
 
-type Candle = { x: number; z: number; h: number; up: boolean; w: number };
-const CANDLES: Candle[] = (() => {
-  const rng = mulberry32(0xc0ffee);
-  const arr: Candle[] = [];
-  for (let i = 0; i < 22; i++) {
-    arr.push({
-      x: (rng() - 0.5) * 1300,    // -650..650 px from center
-      z: -120 - rng() * 1700,     // -120..-1820 px (recedes into scene)
-      h: 36 + rng() * 130,        // bar height in px
-      w: 4 + rng() * 3,           // bar width
-      up: rng() > 0.30,           // ~70% bullish (green)
-    });
-  }
-  return arr;
-})();
-
-// Equity curve — exponential trend with realistic chop, traced left→right.
+// Equity curve — exponential trend with realistic chop. Traced left→right.
 const CURVE_PATH = (() => {
   const rng = mulberry32(7);
   const segs: string[] = [];
   for (let i = 0; i <= 80; i++) {
     const t = i / 80;
-    const trend = Math.pow(1.055, t * 12);            // compounding
+    const trend = Math.pow(1.055, t * 12);
     const wobble =
       Math.sin(t * 9.4) * 0.55 +
       Math.sin(t * 21.1) * 0.22 +
-      (rng() - 0.5) * 0.18;                            // noise
+      (rng() - 0.5) * 0.18;
     const x = t * 100;
-    const y = 48 - trend * 1.8 + wobble;
+    const y = 46 - trend * 1.8 + wobble;
     segs.push(i === 0 ? `M ${x.toFixed(2)} ${y.toFixed(2)}` : `L ${x.toFixed(2)} ${y.toFixed(2)}`);
   }
   return segs.join(' ');
 })();
 
-function Scene3D({ p, reduced }: { p: number; reduced: boolean }) {
-  // p: 0..1 scroll progress within the hero section.
-  // Camera dollies forward (translateZ negative) and tilts down very
-  // slightly. Curve traces in as you scroll. Reduced motion: static.
-  const cameraZ = reduced ? 0 : -p * 520;
-  const cameraY = reduced ? 0 : -p * 70;
-  const tilt = reduced ? 8 : 8 + p * 4;
-  const curveDraw = reduced ? 1 : Math.min(1, p * 1.7 + 0.05);
+// Horizontal "tape" lines — price-level gridlines floating at depth.
+const TAPE_LEVELS = [
+  { z: -120, w: 920, opacity: 0.20 },
+  { z: -360, w: 1040, opacity: 0.16 },
+  { z: -680, w: 1180, opacity: 0.12 },
+  { z: -1080, w: 1320, opacity: 0.08 },
+];
+
+function Scene3D({ reduced, sectionRef }: { reduced: boolean; sectionRef: React.RefObject<HTMLDivElement | null> }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  // Drive scroll progress via a CSS custom property on the wrapper —
+  // no React state, no re-render. rAF-throttled.
+  useEffect(() => {
+    if (reduced) return;
+    const wrap = wrapRef.current;
+    const section = sectionRef.current;
+    if (!wrap || !section) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const r = section.getBoundingClientRect();
+        const v = Math.max(0, Math.min(1, -r.top / Math.max(1, r.height * 0.9)));
+        wrap.style.setProperty('--p', v.toFixed(4));
+      });
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [reduced, sectionRef]);
 
   return (
     <div
+      ref={wrapRef}
       className="pointer-events-none absolute inset-0 overflow-hidden"
       aria-hidden
-      style={{ perspective: '1300px', perspectiveOrigin: '50% 38%' }}
+      style={
+        {
+          perspective: '1400px',
+          perspectiveOrigin: '50% 40%',
+          ['--p' as never]: 0,
+        } as React.CSSProperties
+      }
     >
-      {/* faint ambient light pool at the horizon */}
+      {/* horizon ambient pool */}
       <div
         className="absolute left-1/2 -translate-x-1/2 rounded-full"
         style={{
-          top: '38%',
+          top: '36%',
           width: '70%',
-          height: '40%',
+          height: '46%',
           background:
-            'radial-gradient(ellipse 60% 55% at 50% 50%, rgba(var(--accent-rgb), 0.18), transparent 70%)',
-          filter: 'blur(20px)',
-          opacity: 0.9,
+            'radial-gradient(ellipse 60% 55% at 50% 50%, rgba(var(--accent-rgb), 0.16), transparent 72%)',
+          filter: 'blur(24px)',
         }}
       />
 
@@ -119,14 +136,13 @@ function Scene3D({ p, reduced }: { p: number; reduced: boolean }) {
         className="absolute inset-0"
         style={{
           transformStyle: 'preserve-3d',
-          transform: `translate3d(0, ${cameraY}px, ${cameraZ}px) rotateX(${tilt}deg)`,
-          transition: reduced ? 'none' : 'transform 120ms linear',
+          transform: reduced
+            ? 'rotateX(8deg)'
+            : 'translate3d(0, calc(var(--p) * -64px), calc(var(--p) * -480px)) rotateX(calc(8deg + var(--p) * 4deg))',
           willChange: 'transform',
         }}
       >
-        {/* Perspective grid floor — lies flat, recedes into distance.
-            Implemented as a wide div with two crossed linear-gradients,
-            tilted backward 70° so its top edge falls away from camera. */}
+        {/* Perspective grid floor */}
         <div
           className="absolute"
           style={{
@@ -138,116 +154,90 @@ function Scene3D({ p, reduced }: { p: number; reduced: boolean }) {
             transform: 'rotateX(72deg)',
             backgroundImage:
               'linear-gradient(to right, rgba(var(--accent-rgb), 0.18) 1px, transparent 1px), linear-gradient(to bottom, rgba(var(--accent-rgb), 0.18) 1px, transparent 1px)',
-            backgroundSize: '90px 90px',
-            backgroundPosition: '0 0',
+            backgroundSize: '92px 92px',
             maskImage:
-              'linear-gradient(to bottom, transparent 0%, black 18%, black 55%, transparent 90%)',
+              'linear-gradient(to bottom, transparent 0%, black 18%, black 55%, transparent 92%)',
             WebkitMaskImage:
-              'linear-gradient(to bottom, transparent 0%, black 18%, black 55%, transparent 90%)',
+              'linear-gradient(to bottom, transparent 0%, black 18%, black 55%, transparent 92%)',
           }}
         />
 
-        {/* Candle bars — stand upright in scene-space (no extra rotation
-            on themselves; the parent handles tilt). Each is positioned
-            via translate3d so it sits at its own (x, z) on the floor. */}
-        {CANDLES.map((c, i) => {
-          const color = c.up ? 'rgba(var(--accent-rgb), 0.78)' : 'rgba(180, 70, 70, 0.55)';
-          const glow = c.up
-            ? 'rgba(var(--accent-rgb), 0.55)'
-            : 'rgba(180, 70, 70, 0.35)';
-          return (
-            <div
-              key={i}
-              className="absolute left-1/2 top-1/2 rounded-[1px]"
-              style={{
-                width: c.w,
-                height: c.h,
-                marginLeft: -c.w / 2,
-                marginTop: -c.h,
-                transform: `translate3d(${c.x}px, 80px, ${c.z}px)`,
-                background: `linear-gradient(180deg, ${color}, ${color.replace('0.78', '0.5').replace('0.55', '0.32')})`,
-                boxShadow: `0 0 14px ${glow}`,
-                opacity: 0.92,
-              }}
-            />
-          );
-        })}
+        {/* Horizontal tape levels — faint price-level gridlines at varying
+            depths. Reads as a chart canvas in 3D, far cleaner than a candle
+            scatter. Each is just a 1-px wide gradient line. */}
+        {TAPE_LEVELS.map((t, i) => (
+          <div
+            key={i}
+            className="absolute left-1/2 top-1/2"
+            style={{
+              width: t.w,
+              height: 1,
+              marginLeft: -t.w / 2,
+              transform: `translate3d(0, ${20 + i * 4}px, ${t.z}px)`,
+              background: `linear-gradient(90deg, transparent, rgba(var(--accent-rgb), ${t.opacity}) 18%, rgba(var(--accent-rgb), ${t.opacity}) 82%, transparent)`,
+            }}
+          />
+        ))}
 
-        {/* Floating data motes — tiny dots scattered through depth.
-            Pure flair; reads as dust in the light pool. */}
-        {Array.from({ length: 18 }).map((_, i) => {
-          const r = mulberry32(i * 919 + 1);
-          const x = (r() - 0.5) * 1500;
-          const y = (r() - 0.5) * 220;
-          const z = -100 - r() * 1500;
-          const s = 1.5 + r() * 2;
-          return (
-            <div
-              key={`d${i}`}
-              className="absolute left-1/2 top-1/2 rounded-full"
-              style={{
-                width: s,
-                height: s,
-                marginLeft: -s / 2,
-                marginTop: -s / 2,
-                transform: `translate3d(${x}px, ${y}px, ${z}px)`,
-                background: 'rgba(var(--accent-rgb), 0.85)',
-                boxShadow: '0 0 6px rgba(var(--accent-rgb), 0.7)',
-                opacity: 0.55,
-              }}
-            />
-          );
-        })}
-
-        {/* Equity curve — traced left→right as scroll progresses.
-            Sits in front of the candle field. Faces camera (no tilt
-            counter-rotation needed because we draw it at moderate Z
-            and accept slight perspective foreshortening, which actually
-            sells the depth). */}
+        {/* Equity curve — the protagonist. Bold, glowing, traced in as
+            you scroll. pathLength=1 lets us drive offset via calc(). */}
         <svg
           className="absolute left-1/2 top-1/2 overflow-visible"
           style={{
-            width: 1100,
-            height: 220,
-            marginLeft: -550,
-            marginTop: -110,
-            transform: 'translate3d(0, -10px, 220px)',
+            width: 1180,
+            height: 280,
+            marginLeft: -590,
+            marginTop: -140,
+            transform: 'translate3d(0, -8px, 240px)',
           }}
           viewBox="0 0 100 50"
           preserveAspectRatio="none"
         >
           <defs>
             <linearGradient id="heroCurveStroke" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(var(--accent-rgb), 0.0)" />
-              <stop offset="8%" stopColor="rgba(var(--accent-rgb), 0.85)" />
+              <stop offset="0%" stopColor="rgba(var(--accent-rgb), 0)" />
+              <stop offset="6%" stopColor="rgba(var(--accent-rgb), 0.9)" />
               <stop offset="100%" stopColor="rgba(var(--accent-rgb), 1)" />
             </linearGradient>
+            <linearGradient id="heroCurveFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(var(--accent-rgb), 0.18)" />
+              <stop offset="100%" stopColor="rgba(var(--accent-rgb), 0)" />
+            </linearGradient>
           </defs>
+          {/* soft area fill under the curve */}
+          <path
+            d={`${CURVE_PATH} L 100 50 L 0 50 Z`}
+            fill="url(#heroCurveFill)"
+            style={{
+              opacity: reduced ? 1 : 'calc(var(--p) * 1.6)' as never,
+            }}
+          />
           <path
             d={CURVE_PATH}
             fill="none"
             stroke="url(#heroCurveStroke)"
-            strokeWidth="0.45"
+            strokeWidth="0.55"
             strokeLinecap="round"
             strokeLinejoin="round"
             pathLength={1}
             style={{
               strokeDasharray: 1,
-              strokeDashoffset: 1 - curveDraw,
-              filter: 'drop-shadow(0 0 4px rgba(var(--accent-rgb), 0.55))',
-              transition: reduced ? 'none' : 'stroke-dashoffset 200ms linear',
+              strokeDashoffset: reduced
+                ? 0
+                : ('max(0, 0.95 - var(--p) * 1.7)' as never),
+              filter: 'drop-shadow(0 0 5px rgba(var(--accent-rgb), 0.55))',
             }}
           />
         </svg>
       </div>
 
-      {/* foreground vignette — keeps text legible */}
+      {/* foreground vignette — keeps text legible against the scene */}
       <div
         className="absolute inset-0"
         style={{
           background:
             'radial-gradient(ellipse 60% 50% at 50% 45%, transparent 30%, var(--bg-a) 95%)',
-          opacity: 0.55,
+          opacity: 0.6,
         }}
       />
     </div>
@@ -303,23 +293,23 @@ export default function Hero() {
   const [revealRef, inView] = useReveal();
   const reduced = useReducedMotion();
   const sectionRef = useRef<HTMLDivElement | null>(null);
-  const [p, setP] = useState(0);
+  const innerRef = useRef<HTMLDivElement | null>(null);
 
-  // Scroll-progress within the hero — drives the 3D scene + a tiny
-  // amount of text parallax. The skill flagged scroll-jacking as
-  // HIGH-severity, so the page scrolls normally and the scene just
-  // reacts. rAF-throttled.
+  // Text parallax — direct DOM mutation via ref, no React state, no
+  // re-render. Sets a single CSS var on the inner wrapper.
   useEffect(() => {
     if (reduced) return;
+    const inner = innerRef.current;
+    const section = sectionRef.current;
+    if (!inner || !section) return;
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        const r = sectionRef.current?.getBoundingClientRect();
-        if (!r) return;
+        const r = section.getBoundingClientRect();
         const v = Math.max(0, Math.min(1, -r.top / Math.max(1, r.height * 0.9)));
-        setP(v);
+        inner.style.setProperty('--p', v.toFixed(4));
       });
     };
     onScroll();
@@ -327,25 +317,26 @@ export default function Hero() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [reduced]);
 
-  // Subtle text parallax — small offsets, the depth comes from the scene now.
-  const py = (k: number) => (reduced ? 0 : p * k);
-
   return (
-    <section id="top" className="relative overflow-hidden">
-      <Scene3D p={p} reduced={reduced} />
+    <section ref={sectionRef} id="top" className="relative overflow-hidden">
+      <Scene3D reduced={reduced} sectionRef={sectionRef} />
 
       <div
         ref={(el) => {
           revealRef.current = el;
-          sectionRef.current = el;
+          innerRef.current = el;
         }}
         className="relative z-10 mx-auto max-w-[1200px] px-5 pt-32 pb-32 sm:px-10 sm:pt-44 sm:pb-44 lg:px-16 lg:pt-56 lg:pb-56"
+        style={{ ['--p' as never]: 0 } as React.CSSProperties}
       >
         <div
           className={`flex justify-center transition-all duration-700 ${
             inView ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
           }`}
-          style={{ transform: `translateY(${-py(24)}px)`, willChange: 'transform' }}
+          style={{
+            transform: reduced ? undefined : 'translateY(calc(var(--p) * -24px))',
+            willChange: 'transform',
+          }}
         >
           <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-fg-faint">
             Solaria Capital · Est. 2026
@@ -358,7 +349,7 @@ export default function Hero() {
           }`}
           style={{
             textWrap: 'balance' as never,
-            transform: `translateY(${-py(50)}px)`,
+            transform: reduced ? undefined : 'translateY(calc(var(--p) * -50px))',
             willChange: 'transform',
           }}
         >
@@ -374,7 +365,10 @@ export default function Hero() {
           className={`mx-auto mt-8 sm:mt-10 max-w-[36ch] text-center text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted transition-all duration-700 delay-300 ${
             inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
           }`}
-          style={{ transform: `translateY(${-py(80)}px)`, willChange: 'transform' }}
+          style={{
+            transform: reduced ? undefined : 'translateY(calc(var(--p) * -80px))',
+            willChange: 'transform',
+          }}
         >
           A closed-end quant fund, a seed venture arm, and open research — from one desk.
         </p>
