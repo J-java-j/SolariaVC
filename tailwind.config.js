@@ -4,36 +4,46 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        display: ['"Zodiak"', '"Tiempos Headline"', 'Georgia', 'serif'],
-        sans: ['"Switzer"', '"Söhne"', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        display: ['"Zodiak"', 'Georgia', 'serif'],
+        sans: ['"Cabinet Grotesk"', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       colors: {
-        ink:  { 950:'#04080a', 900:'#070d10', 850:'#0a1318', 800:'#0d191f' },
         moss: {
-          50:'#ecfdf5', 100:'#d1fae5', 200:'#a7f3d0', 300:'#6ee7b7',
-          400:'#34d399', 500:'#10b981', 600:'#059669', 700:'#047857',
-          800:'#065f46', 900:'#064e3b',
+          400: '#34d399',
+          300: '#6ee7b7',
         },
       },
       keyframes: {
         rise: {
-          'from': { opacity: '0', transform: 'translateY(16px)' },
+          'from': { opacity: '0', transform: 'translateY(14px)' },
           'to':   { opacity: '1', transform: 'translateY(0)' },
         },
         marquee: {
           'from': { transform: 'translate3d(0,0,0)' },
           'to':   { transform: 'translate3d(-50%,0,0)' },
         },
-        blink: {
-          '0%,50%': { opacity: '1' },
-          '51%,100%': { opacity: '0' },
+        chUp: {
+          'from': { opacity: '0', transform: 'translateY(0.4em)' },
+          'to':   { opacity: '1', transform: 'translateY(0)' },
+        },
+        scribbleDraw: {
+          'from': { strokeDashoffset: '2000' },
+          'to':   { strokeDashoffset: '0' },
+        },
+        pulseDot: {
+          '0%,100%': { opacity: '1', transform: 'scale(1)' },
+          '50%':     { opacity: '0.45', transform: 'scale(0.85)' },
+        },
+        breath: {
+          '0%,100%': { transform: 'scale(1)', opacity: '0.55' },
+          '50%':     { transform: 'scale(1.08)', opacity: '0.75' },
         },
       },
       animation: {
-        rise: 'rise .8s cubic-bezier(0.22,1,0.36,1) both',
-        marquee: 'marquee 70s linear infinite',
-        blink: 'blink 900ms steps(1) infinite',
+        rise: 'rise 1s cubic-bezier(0.22,1,0.36,1) both',
+        marquee: 'marquee 48s linear infinite',
+        breath: 'breath 9s ease-in-out infinite',
       },
     },
   },

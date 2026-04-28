@@ -1,230 +1,139 @@
-import { useReveal } from '../hooks/useReveal';
-import { useTypewriter } from '../hooks/useTypewriter';
-import { useCountUp } from '../hooks/useCountUp';
-import { useTilt } from '../hooks/useTilt';
-import { BACKTEST_STATS } from '../lib/fundData';
+import { useRef } from 'react';
+import { Eyebrow } from './primitives';
+import { useScrollProgress } from '../hooks/useScrollProgress';
 
-/**
- * Medallion Fund — the gold-themed flagship section. Three movements:
- *   1. Giant MEDALLION watermark + "The Flagship" intro
- *   2. Typewriter "One dollar became sixteen."
- *   3. Three big numbers (CAGR / Sharpe / Max DD)
- * The page-level ThemeManager engages the gold theme as this section
- * crosses 55% of the viewport.
- */
-export default function Fund() {
-  const [titleRef, titleIn] = useReveal(0.4);
-  const [dollarRef, dollarIn] = useReveal(0.5);
-  const [numbersRef, numbersIn] = useReveal(0.4);
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-  const phrase = useTypewriter('One dollar became ', dollarIn, 48, 300);
-  const showSixteen = phrase.length >= 18;
+const PTS: [number, number][] = [
+  [0, 220], [40, 210], [80, 204], [120, 192], [160, 188],
+  [200, 174], [240, 168], [280, 152], [320, 146], [360, 124],
+  [400, 112], [440, 96], [480, 78], [520, 58], [560, 36], [600, 18],
+];
 
-  const cagr = useCountUp(BACKTEST_STATS.cagrPct, numbersIn, 2200, 2);
-  const sharpe = useCountUp(BACKTEST_STATS.sharpe, numbersIn, 2200, 2);
-  const dd = useCountUp(BACKTEST_STATS.maxDrawdownPct, numbersIn, 2200, 1);
+const PATH_D = PTS.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt[0]} ${pt[1]}`).join(' ');
+
+function ScrollChart({ progress }: { progress: number }) {
+  const W = 600;
+  const H = 240;
+  const drawT = clamp01((progress - 0.15) / 0.55);
+  const idx = Math.min(PTS.length - 1, Math.floor(drawT * (PTS.length - 1)));
+  const t = drawT * (PTS.length - 1) - idx;
+  const a = PTS[idx];
+  const b = PTS[Math.min(PTS.length - 1, idx + 1)];
+  const dx = a[0] + (b[0] - a[0]) * t;
+  const dy = a[1] + (b[1] - a[1]) * t;
+  const areaPath = `${PATH_D} L ${W} ${H} L 0 ${H} Z`;
 
   return (
-    <section id="fund" className="relative border-t border-line overflow-hidden">
-      {/* === MOVEMENT 1: title — minimalist. No watermark, no coin.
-              Just a soft gold spotlight pool centered behind the words.
-              Typography and the gold accent carry the prestige. === */}
-      <div ref={titleRef} className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-10">
-        {/* gold ambient pool — focuses attention without ornamentation */}
-        <div
-          className="pointer-events-none absolute inset-0"
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" preserveAspectRatio="none">
+        {[60, 130, 200].map((y) => (
+          <line key={y} x1="0" x2={W} y1={y} y2={y} stroke="var(--ink-line)" strokeDasharray="2 4" />
+        ))}
+        <defs>
+          <linearGradient id="fundAreaGrad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="var(--moss)" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="var(--moss)" stopOpacity="0" />
+          </linearGradient>
+          <clipPath id="fundAreaClip">
+            <rect x="0" y="0" width={W * drawT} height={H} />
+          </clipPath>
+        </defs>
+        <path d={areaPath} fill="url(#fundAreaGrad)" clipPath="url(#fundAreaClip)" />
+        <path
+          d={PATH_D}
+          fill="none"
+          stroke="var(--moss)"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          pathLength={1}
           style={{
-            background:
-              'radial-gradient(ellipse 50% 40% at 50% 50%, rgba(230, 168, 42, 0.10), transparent 70%)',
-            opacity: titleIn ? 1 : 0,
-            transition: 'opacity 1800ms cubic-bezier(0.22,1,0.36,1)',
+            strokeDasharray: 1,
+            strokeDashoffset: 1 - drawT,
+            transition: 'stroke-dashoffset 120ms linear',
           }}
-          aria-hidden
         />
+        <circle cx={dx} cy={dy} r="11" fill="var(--moss)" opacity="0.18" />
+        <circle
+          cx={dx}
+          cy={dy}
+          r="5"
+          fill="var(--moss)"
+          style={{ opacity: drawT > 0.02 ? 1 : 0 }}
+        />
+      </svg>
 
-        <div className="relative text-center max-w-3xl">
-          <div
-            className="font-mono text-[10.5px] tracking-[0.35em] uppercase text-accent-strong"
-            style={{
-              opacity: titleIn ? 1 : 0,
-              transform: titleIn ? 'translateY(0)' : 'translateY(12px)',
-              transition: 'opacity 900ms cubic-bezier(0.22,1,0.36,1), transform 900ms cubic-bezier(0.22,1,0.36,1)',
-            }}
-          >
-            The Flagship
-          </div>
-          <h2
-            className="mt-6 sm:mt-8 font-display tracking-[-0.015em] leading-[0.98] text-[2.4rem] sm:text-[5.2rem] lg:text-[7rem] text-fg"
-            style={{
-              opacity: titleIn ? 1 : 0,
-              transform: titleIn ? 'translateY(0)' : 'translateY(30px)',
-              transition:
-                'opacity 1200ms cubic-bezier(0.22,1,0.36,1) 200ms, transform 1200ms cubic-bezier(0.22,1,0.36,1) 200ms',
-            }}
-          >
-            Medallion <span className="text-accent">Fund</span>
-          </h2>
-          <p
-            className="mt-7 mx-auto max-w-[38ch] text-[15.5px] sm:text-[17px] leading-relaxed text-fg-muted"
-            style={{
-              opacity: titleIn ? 1 : 0,
-              transform: titleIn ? 'translateY(0)' : 'translateY(20px)',
-              transition:
-                'opacity 1000ms cubic-bezier(0.22,1,0.36,1) 600ms, transform 1000ms cubic-bezier(0.22,1,0.36,1) 600ms',
-            }}
-          >
-            Closed-end. Multi-strategy. Fourteen years of evidence.
-          </p>
-        </div>
+      <div className="mt-4 flex justify-between font-mono text-[10.5px] tabular-nums text-[var(--ink-faint)]">
+        <span>$1 · 2012</span>
+        <span style={{ color: 'var(--moss)' }}>$16 · 2026</span>
       </div>
-
-      {/* === MOVEMENT 2: typewriter "One dollar became sixteen" === */}
-      <div
-        ref={dollarRef}
-        className="relative mx-auto max-w-[1400px] px-5 py-24 sm:px-10 sm:py-36 lg:px-16 lg:py-44 text-center"
-      >
-        <h3
-          className="font-display tracking-[-0.01em] leading-[1.05] text-[1.9rem] sm:text-[3.6rem] lg:text-[5rem] text-fg"
-          style={{ textWrap: 'balance' as never }}
-        >
-          <span className="inline-block">{phrase}</span>
-          <span
-            className="inline-block text-accent relative"
-            style={{
-              opacity: showSixteen ? 1 : 0,
-              transform: showSixteen ? 'scale(1)' : 'scale(0.5)',
-              transition:
-                'opacity 700ms cubic-bezier(0.22,1,0.36,1), transform 900ms cubic-bezier(0.34, 1.56, 0.64, 1)',
-              transformOrigin: 'left center',
-              marginLeft: showSixteen ? '0.2em' : '0',
-            }}
-          >
-            sixteen
-          </span>
-          <span
-            className="inline-block"
-            style={{
-              opacity: showSixteen ? 1 : 0,
-              transition: 'opacity 400ms 400ms',
-            }}
-          >
-            .
-          </span>
-          <span
-            className="inline-block w-[0.08em] bg-current align-baseline"
-            style={{
-              height: '0.9em',
-              marginLeft: '0.05em',
-              opacity: !showSixteen && phrase.length > 0 ? 1 : 0,
-              animation: !showSixteen && phrase.length > 0 ? 'blink 900ms steps(1) infinite' : 'none',
-            }}
-          />
-        </h3>
-
-        <p
-          className="mt-8 mx-auto max-w-[42ch] text-[14.5px] sm:text-[16px] text-fg-muted leading-relaxed"
-          style={{
-            opacity: showSixteen ? 1 : 0,
-            transform: showSixteen ? 'translateY(0)' : 'translateY(10px)',
-            transition:
-              'opacity 800ms cubic-bezier(0.22,1,0.36,1) 700ms, transform 800ms cubic-bezier(0.22,1,0.36,1) 700ms',
-          }}
-        >
-          Apr 2012 → Apr 2026. Net of modeled fees. Past performance is backtested and not indicative
-          of future results.
-        </p>
-      </div>
-
-      {/* === MOVEMENT 3: three big numbers — pointer-tracking 3D tilt === */}
-      <div
-        ref={numbersRef}
-        className="relative mx-auto max-w-[1400px] px-5 pb-24 sm:px-10 sm:pb-40 lg:px-16 lg:pb-48"
-      >
-        <div className="grid gap-14 sm:gap-16 lg:gap-24 sm:grid-cols-3">
-          <StatTile label="Backtest CAGR" value={`${cagr}%`} sub="S&P 500 · 13.45%" accent shown={numbersIn} delay={0} />
-          <StatTile label="Sharpe ratio" value={String(sharpe)} sub="HF benchmark · 0.60" shown={numbersIn} delay={220} />
-          <StatTile label="Max drawdown" value={`${dd}%`} sub="S&P 500 · −33.8%" shown={numbersIn} delay={440} />
-        </div>
-
-        <div
-          className="mt-20 sm:mt-28 flex justify-center"
-          style={{
-            opacity: numbersIn ? 1 : 0,
-            transition: 'opacity 1000ms cubic-bezier(0.22,1,0.36,1) 800ms',
-          }}
-        >
-          <a href="#contact" className="group inline-flex items-center gap-3 text-[13px] hover:opacity-80 transition-opacity">
-            <span className="font-mono tracking-[0.24em] uppercase text-[11px] text-accent-strong">
-              Request prospectus
-            </span>
-            <span
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border"
-              style={{ borderColor: 'var(--line-strong)', color: 'var(--accent-300)' }}
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </a>
-        </div>
-      </div>
-    </section>
+    </div>
   );
 }
 
-function StatTile({
-  label,
-  value,
-  sub,
-  accent,
-  shown,
-  delay,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  accent?: boolean;
-  shown: boolean;
-  delay: number;
-}) {
-  const { ref, transform, glare, bind } = useTilt<HTMLDivElement>(7);
+function Counter({ value, label }: { value: string; label: string }) {
   return (
-    <div
-      ref={ref}
-      {...bind}
-      className="relative text-center"
-      style={{
-        opacity: shown ? 1 : 0,
-        transform: shown
-          ? `translateY(0) scale(1) ${transform === 'none' ? '' : transform}`
-          : 'translateY(20px) scale(0.92)',
-        transformStyle: 'preserve-3d',
-        transition: shown
-          ? `transform 220ms cubic-bezier(0.22,1,0.36,1)`
-          : `opacity 900ms cubic-bezier(0.22,1,0.36,1) ${delay}ms, transform 1100ms cubic-bezier(0.34, 1.56, 0.64, 1) ${delay}ms`,
-      }}
-    >
-      {/* glare highlight that follows the cursor */}
+    <div className="bg-[var(--bg)] py-7 px-2 text-center">
       <div
-        className="pointer-events-none absolute inset-0 -z-0 rounded-3xl"
-        style={{
-          background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255, 240, 180, ${glare.opacity}), transparent 55%)`,
-          transition: 'background 200ms ease-out',
-        }}
-        aria-hidden
-      />
-      <div className="relative">
-        <div className="font-mono text-[10px] tracking-[0.28em] uppercase text-fg-faint">{label}</div>
-        <div
-          className={`mt-4 sm:mt-6 font-display leading-[0.95] tabular-nums text-[3.4rem] sm:text-[5.6rem] lg:text-[7rem] ${
-            accent ? 'text-accent' : 'text-fg'
-          }`}
-          style={{ transform: 'translateZ(28px)' }}
-        >
-          {value}
-        </div>
-        <div className="mt-3 sm:mt-4 font-mono text-[10.5px] tabular-nums text-fg-faint">{sub}</div>
+        className="editorial-h text-[1.8rem] sm:text-[2.2rem] tabular-nums"
+        style={{ color: 'var(--moss)' }}
+      >
+        {value}
+      </div>
+      <div className="mt-2 font-mono text-[9.5px] tracking-[0.22em] uppercase text-[var(--ink-faint)]">
+        {label}
       </div>
     </div>
+  );
+}
+
+export default function Fund() {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const p = useScrollProgress(ref);
+
+  const cagr = (20.53 * clamp01((p - 0.2) / 0.4)).toFixed(2);
+  const sharpe = (1.46 * clamp01((p - 0.25) / 0.4)).toFixed(2);
+  const dd = (18.4 * clamp01((p - 0.3) / 0.4)).toFixed(1);
+
+  return (
+    <section id="fund" className="relative">
+      <div
+        ref={ref}
+        className="mx-auto max-w-[1320px] px-6 py-32 sm:px-10 sm:py-44 lg:px-14 lg:py-56"
+      >
+        <div className="grid gap-16 lg:grid-cols-12 lg:gap-20">
+          <div className="lg:col-span-5">
+            <Eyebrow num="§ 02">The Fund</Eyebrow>
+            <h2 className="editorial-h mt-10 text-[2.4rem] sm:text-[3.6rem] lg:text-[4.4rem] leading-[1.02]">
+              <div>$1</div>
+              <div style={{ color: 'var(--ink-faint)' }}>becomes</div>
+              <div style={{ color: 'var(--moss)' }}>$16.</div>
+            </h2>
+            <p className="mt-10 max-w-[26ch] font-mono text-[10.5px] tracking-[0.22em] uppercase text-[var(--ink-faint)]">
+              14 years · 4 sleeves · 1 fund
+            </p>
+          </div>
+
+          <div className="lg:col-span-7">
+            <ScrollChart progress={p} />
+
+            <div className="mt-14 grid grid-cols-3 gap-px bg-[var(--ink-line)]">
+              <Counter value={cagr + '%'} label="Backtest CAGR" />
+              <Counter value={sharpe} label="Sharpe ratio" />
+              <Counter value={'−' + dd + '%'} label="Max drawdown" />
+            </div>
+
+            <p className="mt-10 max-w-md font-mono text-[10.5px] leading-relaxed text-[var(--ink-faint)]">
+              Apr 2012 → Apr 2026. Hypothetical, net of modeled fees. Past performance not indicative
+              of future results.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div className="mx-auto max-w-[1320px] px-6 sm:px-10 lg:px-14">
+        <div className="rule" />
+      </div>
+    </section>
   );
 }
