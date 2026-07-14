@@ -1,95 +1,188 @@
 import { useReveal } from '../hooks/useReveal';
-import { Eyebrow } from './primitives';
+import { SectionIntro } from './primitives';
+import { sectionSurface } from '../lib/sectionTheme';
 
-const partners = [
-  { name: 'Johnson Jiang', role: 'Founder · Managing Partner' },
-  { name: 'Karl Li', role: 'Co-Founder · Partner' },
+type PortraitFit = {
+  /** Horizontal object-position — higher values shift the subject left in the frame. */
+  x?: number;
+  /** Vertical object-position — tuned so the hairline sits the same distance from the frame top. */
+  y: number;
+  scale: number;
+  /** 1 = Karl Li reference exposure; higher values brighten underexposed source photos. */
+  brightness?: number;
+  /** Darkens image edges to tone down bright backgrounds (0–1). */
+  vignette?: number;
+};
+
+/** Karl Li is the brightness reference (brightness 1). */
+const PORTRAIT_BRIGHTNESS_REFERENCE = 1;
+const PORTRAIT_BRIGHTNESS_DEFAULT = 1.1;
+
+/** Esteban Reyes is the shoulder-margin reference (scale 1.24). */
+const PORTRAIT_FIT_BY_IMAGE: Record<string, PortraitFit> = {
+  '/team/esteban-reyes.png': { y: 6, scale: 1.24, brightness: 1.1, vignette: 0.34 },
+  '/team/monica.png': { x: 58, y: 5, scale: 1.45, brightness: 1.1 },
+  '/team/daniel-zhang.png': { x: 56, y: 5, scale: 1.56, brightness: 1.1 },
+  '/team/hiraku.png': { y: 21, scale: 1.24, brightness: 1.1 },
+  '/team/johnson-jiang.png': { y: 6, scale: 1.24, brightness: 1.1 },
+  '/team/kail-li.png': { x: 58, y: 13, scale: 1.45, brightness: PORTRAIT_BRIGHTNESS_REFERENCE },
+  '/team/jack-zhang.png': { x: 63, y: 7, scale: 1.24, brightness: 1.1 },
+  '/team/greesh.png': { y: 6, scale: 1.24, brightness: 1.12 },
+  '/team/placeholder.png': { y: 6, scale: 1.24, brightness: 1.48 },
+  '/team/placeholder-3.png': { y: 6, scale: 1.24, brightness: 1.15 },
+};
+
+function portraitFitFor(imageUrl?: string): PortraitFit {
+  if (imageUrl && PORTRAIT_FIT_BY_IMAGE[imageUrl]) {
+    return PORTRAIT_FIT_BY_IMAGE[imageUrl];
+  }
+  return { y: 8, scale: 1.24, brightness: PORTRAIT_BRIGHTNESS_DEFAULT };
+}
+
+function portraitImageFilter(brightness: number): string | undefined {
+  if (brightness <= PORTRAIT_BRIGHTNESS_REFERENCE) return undefined;
+  const contrast = 1 + Math.min((brightness - PORTRAIT_BRIGHTNESS_REFERENCE) * 0.2, 0.08);
+  return `brightness(${brightness}) contrast(${contrast})`;
+}
+
+type TeamMember = {
+  name: string;
+  role?: string;
+  imageUrl?: string;
+};
+
+const partners: TeamMember[] = [
+  { name: 'Johnson Jiang', role: 'President / Co-Founder', imageUrl: '/team/johnson-jiang.png' },
+  { name: 'Karl Li', role: 'Vice President / Co-Founder', imageUrl: '/team/kail-li.png' },
 ];
 
-const team = [
-  { name: 'Esteban Reyes', role: 'Head of R&D' },
-  { name: 'Tahir Eygoren', role: 'Research' },
-  { name: 'Monica Lin', role: 'Operations' },
-  { name: 'Elliot Yaroslavsky', role: 'Legal' },
+type DeskGroup = {
+  label: string;
+  members: TeamMember[];
+};
+
+const deskGroups: DeskGroup[] = [
+  {
+    label: 'Board',
+    members: [
+      { name: 'Daniel Zhang', role: 'Chief Technology Officer', imageUrl: '/team/daniel-zhang.png' },
+      { name: 'Elliott Yaroslavsky', role: 'Chief Legal Officer' },
+      { name: 'Jack Zhang', role: 'Chief Human Resources Officer', imageUrl: '/team/jack-zhang.png' },
+      { name: 'Hiraku Aoki', role: 'Chief Marketing Officer', imageUrl: '/team/hiraku.png' },
+      { name: 'Aayush Sen', role: 'Head of Investment Department' },
+      { name: 'Esteban Reyes', role: 'Head of Research Department', imageUrl: '/team/esteban-reyes.png' },
+      {
+        name: 'Greeshma Doppalapudi',
+        role: 'Head of Venture Capital Department',
+        imageUrl: '/team/greesh.png',
+      },
+      { name: 'Ella Ma', role: 'Head of External Relations Department' },
+    ],
+  },
+  {
+    label: 'Staff',
+    members: [
+      { name: 'Jacob De Palma', role: 'Department of Investment', imageUrl: '/team/placeholder-3.png' },
+      { name: 'Tahir Eygoren', role: 'Department of Research', imageUrl: '/team/placeholder.png' },
+      { name: 'Monica Lin', role: 'Department of Marketing', imageUrl: '/team/monica.png' },
+    ],
+  },
 ];
 
-function PortraitTile({ size = 'lg' }: { size?: 'lg' | 'sm' }) {
-  const dims = size === 'lg' ? 'h-56 w-44' : 'h-44 w-36';
+function PortraitTile({
+  size = 'lg',
+  imageUrl,
+  name,
+}: {
+  size?: 'lg' | 'sm';
+  imageUrl?: string;
+  name: string;
+}) {
+  const dims = size === 'lg' ? 'h-60 w-44' : 'h-48 w-36';
+  const fit = portraitFitFor(imageUrl);
+
   return (
-    <div className={`relative ${dims} mb-6 overflow-hidden`}>
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(155deg, var(--bg-warm) 0%, var(--bg-soft) 100%)',
-        }}
-      />
-      <svg
-        viewBox="0 0 144 176"
-        className="absolute inset-0 h-full w-full"
-        preserveAspectRatio="xMidYMid slice"
-      >
-        <circle cx="72" cy="68" r="32" fill="var(--bg)" opacity="0.6" />
-        <path d="M 16 176 Q 72 110, 128 176 Z" fill="var(--bg)" opacity="0.6" />
-      </svg>
+    <div
+      className={`${dims} relative mb-5 overflow-hidden border border-[var(--border-strong)] bg-[var(--bg-soft)]`}
+      aria-hidden={!imageUrl}
+    >
+      {imageUrl ? (
+        <>
+          <img
+            src={imageUrl}
+            alt={`Portrait of ${name}`}
+            className="h-full w-full max-w-none object-cover"
+            style={{
+              objectPosition: `${fit.x ?? 50}% ${fit.y}%`,
+              transform: `scale(${fit.scale})`,
+              transformOrigin: `${fit.x ?? 50}% top`,
+              filter: portraitImageFilter(fit.brightness ?? PORTRAIT_BRIGHTNESS_DEFAULT),
+            }}
+          />
+          {fit.vignette ? (
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: `radial-gradient(ellipse 90% 100% at 50% 30%, transparent 38%, rgba(0, 0, 0, ${fit.vignette}) 100%)`,
+              }}
+              aria-hidden
+            />
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
 
 export default function People() {
-  const [ref, inView] = useReveal();
+  const [ref, inView] = useReveal(0.08);
+
   return (
-    <section id="people" className="relative">
+    <section id="people" data-theme="dark" className={`relative scroll-mt-24 ${sectionSurface.dark}`}>
       <div
         ref={ref}
-        className={`mx-auto max-w-[1320px] px-6 py-32 sm:px-10 sm:py-44 lg:px-14 lg:py-56 transition-all duration-1000 ${
-          inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+        className={`container-x section-py transition-all duration-700 ease-out ${
+          inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
         }`}
       >
-        <Eyebrow num="§ 04">People</Eyebrow>
-        <h2 className="editorial-h mt-10 text-[2.4rem] sm:text-[3.6rem] lg:text-[4.4rem]">
-          Two partners. <span style={{ color: 'var(--ink-soft)' }}>Every call.</span>
-        </h2>
+        <SectionIntro
+          eyebrow="Team"
+          title="Partners on every call."
+          description="A small, hands-on team — founders and operators who work directly with companies in the portfolio."
+        />
 
-        <div className="mt-20 sm:mt-24 grid gap-14 sm:grid-cols-2 sm:gap-16 sm:gap-x-20">
+        <div className="section-grid grid gap-14 sm:grid-cols-2 sm:gap-16">
           {partners.map((p) => (
             <div key={p.name}>
-              <PortraitTile size="lg" />
-              <div className="editorial-h text-[1.9rem] leading-[1.05] tracking-tight">
-                {p.name}
-              </div>
-              <div
-                className="mt-2 font-mono text-[10.5px] tracking-[0.18em] uppercase"
-                style={{ color: 'var(--moss)' }}
-              >
-                {p.role}
-              </div>
+              <PortraitTile size="lg" imageUrl={p.imageUrl} name={p.name} />
+              <div className="text-[21px] font-medium leading-snug text-[var(--fg)]">{p.name}</div>
+              {p.role ? <div className="mt-2 text-[16px] text-[var(--fg-muted)]">{p.role}</div> : null}
             </div>
           ))}
         </div>
 
-        <div className="mt-24 sm:mt-32 border-t border-[var(--ink-line)] pt-12">
-          <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-[var(--ink-faint)]">
-            The desk
-          </div>
-          <div className="mt-12 grid gap-y-12 sm:grid-cols-2 sm:gap-y-14 sm:gap-x-16 lg:grid-cols-4 lg:gap-x-14">
-            {team.map((p) => (
-              <div key={p.name}>
-                <PortraitTile size="sm" />
-                <div className="editorial-h text-[1.4rem] leading-[1.1] tracking-tight">
-                  {p.name}
-                </div>
-                <div
-                  className="mt-1.5 font-mono text-[10.5px] tracking-[0.18em] uppercase"
-                  style={{ color: 'var(--moss)' }}
-                >
-                  {p.role}
-                </div>
+        <div className="mt-16 border-t border-[var(--border)] pt-12 lg:mt-20">
+          {deskGroups.map((group, groupIndex) => (
+            <div key={group.label} className={groupIndex > 0 ? 'mt-12' : ''}>
+              <p className="text-[14px] font-medium uppercase tracking-[0.05em] text-[var(--fg-faint)]">
+                {group.label}
+              </p>
+              <div className="mt-8 grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
+                {group.members.map((member, i) => (
+                  <div key={member.imageUrl ?? `${member.name}-${i}`}>
+                    <PortraitTile size="sm" imageUrl={member.imageUrl} name={member.name} />
+                    <div className="text-[17px] font-medium text-[var(--fg)]">{member.name}</div>
+                    {member.role ? (
+                      <div className="mt-1.5 text-[15px] text-[var(--fg-muted)]">{member.role}</div>
+                    ) : null}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
-      <div className="mx-auto max-w-[1320px] px-6 sm:px-10 lg:px-14">
+      <div className="container-x">
         <div className="rule" />
       </div>
     </section>

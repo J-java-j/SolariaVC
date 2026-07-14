@@ -10,14 +10,35 @@ export function Eyebrow({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
-      <span className="eyebrow-rule" />
+    <div className={`flex items-center gap-2 ${className}`}>
       {num && (
-        <span className="font-mono text-[10.5px] tabular-nums text-[var(--ink-faint)]">{num}</span>
+        <span className="font-mono text-[14px] tabular-nums text-[var(--fg-muted)]">{num}</span>
       )}
-      <span className="font-mono text-[10px] tracking-[0.28em] uppercase text-[var(--moss)]">
+      <span className="text-[16px] font-medium uppercase tracking-[0.05em] text-[var(--fg-muted)]">
         {children}
       </span>
+    </div>
+  );
+}
+
+export function SectionIntro({
+  eyebrow,
+  title,
+  description,
+  headingId,
+}: {
+  eyebrow: string;
+  title: string;
+  description?: string;
+  headingId?: string;
+}) {
+  return (
+    <div className="section-intro">
+      <Eyebrow>{eyebrow}</Eyebrow>
+      <h2 id={headingId} className="display-h section-intro__title text-display-md">
+        {title}
+      </h2>
+      {description && <p className="section-intro__lede">{description}</p>}
     </div>
   );
 }
@@ -30,30 +51,31 @@ export function SectionTitle({
   className?: string;
 }) {
   return (
-    <h2
-      className={`editorial-h text-[2.4rem] sm:text-[3.6rem] lg:text-[4.4rem] ${className}`}
-    >
+    <h2 className={`display-h text-display-md ${className}`}>
       {children}
     </h2>
   );
 }
 
 /**
- * Solaria sun mark — concentric ring + accent chord.
+ * Solaria logo mark.
  */
 export function Mark({ size = 22 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      <circle cx="32" cy="32" r="22" stroke="currentColor" strokeWidth="1.4" opacity="0.7" />
-      <circle cx="32" cy="32" r="5" fill="currentColor" opacity="0.85" />
-      <path
-        d="M14 40 Q 32 8, 50 40"
-        stroke="var(--moss)"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        fill="none"
-      />
-    </svg>
+    <img
+      src="/logo.png"
+      alt=""
+      width={size}
+      height={size}
+      className="shrink-0 object-contain"
+      style={{
+        height: size,
+        width: 'auto',
+        maxWidth: size * 1.35,
+        transition: 'height 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+      }}
+      aria-hidden
+    />
   );
 }
 
@@ -77,7 +99,7 @@ export function StaggerWord({
           className="ch"
           style={{ animationDelay: `${delay + i * 28}ms` }}
         >
-          {c === ' ' ? ' ' : c}
+          {c === ' ' ? '\u00a0' : c}
         </span>
       ))}
     </span>
