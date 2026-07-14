@@ -1,23 +1,30 @@
 import Nav from './components/Nav';
 import Hero from './components/Hero';
 import Approach from './components/Approach';
-import Fund from './components/Fund';
-import Ventures from './components/Ventures';
-import Quote from './components/Quote';
+import Portfolio from './components/Portfolio';
+import Community from './components/Community';
 import People from './components/People';
+import Experience from './components/Experience';
+import InvestmentPortfolio from './components/InvestmentPortfolio';
+import Research from './components/Research';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
+import { useNavTheme } from './hooks/useNavTheme';
 
 export default function App() {
+  useNavTheme();
+
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen isolate">
       <Nav />
       <main>
         <Hero />
         <Approach />
-        <Fund />
-        <Ventures />
-        <Quote />
+        <Experience />
+        <InvestmentPortfolio />
+        <Research />
+        <Portfolio />
+        <Community />
         <People />
         <Contact />
       </main>
