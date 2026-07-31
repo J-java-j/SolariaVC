@@ -8,13 +8,6 @@ export type ContactPayload = {
   website?: string;
 };
 
-/** Maps UI roles to backend inquiry types. */
-const KIND_TO_API: Record<ContactKind, string> = {
-  founder: 'ventures',
-  investor: 'other',
-  other: 'other',
-};
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function validateContact(payload: ContactPayload): string | null {
@@ -39,7 +32,7 @@ export async function submitContact(payload: ContactPayload): Promise<void> {
       name: payload.name.trim(),
       email: payload.email.trim(),
       message: payload.message.trim(),
-      kind: KIND_TO_API[payload.kind],
+      kind: payload.kind,
       website: payload.website?.trim() || '',
     }),
   });

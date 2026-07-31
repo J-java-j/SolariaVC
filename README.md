@@ -64,23 +64,25 @@ docker run --rm -p 8080:8080 -e PORT=8080 solaria-vc
 
 ## Enabling the contact form (one-time, ~2 minutes)
 
-The form works immediately — without any setup, submissions are logged
-to Cloud Run stdout (viewable in the GCP console). To turn that into
-real email delivery:
+The contact form posts to `POST /api/contact`, which emails
+`contact@solariavc.com` via Resend. Delivery requires an API key:
 
 1. Sign up at https://resend.com (free, no domain required).
 2. Create an API key (Dashboard → API Keys → Create).
-3. In Google Cloud Console → your Cloud Run service → **Edit & deploy new
-   revision** → **Variables & Secrets**, add:
-   - `RESEND_API_KEY` = `re_xxxxxxxxxxxx` (the key from step 2)
-   - optional: `CONTACT_TO_EMAIL` = `joj059@ucsd.edu` (default already)
-4. Deploy. New submissions now land in your inbox as formatted email
-   with a reply-to header set to the sender, so hitting Reply writes
-   back to them directly.
+3. **Production (Cloud Run):** Edit & deploy a new revision →
+   **Variables & Secrets**, add:
+   - `RESEND_API_KEY` = `re_xxxxxxxxxxxx` (required)
+   - optional: `CONTACT_TO_EMAIL` = `contact@solariavc.com` (default already)
+   - optional: `CONTACT_FROM_EMAIL` = `Solaria Capital <onboarding@resend.dev>`
+4. **Local:** copy `.env.example` → `.env`, set `RESEND_API_KEY`, then run
+   `npm run server` (and `npm run dev` for the Vite UI; `/api` is proxied).
+5. Deploy. Submissions arrive as formatted email with Reply-To set to the
+   sender.
 
 Resend's free tier includes 3,000 emails/month and uses
 `onboarding@resend.dev` as the sender by default — no domain
-verification needed.
+verification needed. To send from `@solariavc.com`, verify the domain
+in Resend and set `CONTACT_FROM_EMAIL` accordingly.
 
 ## Structure
 

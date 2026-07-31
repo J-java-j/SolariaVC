@@ -59,7 +59,7 @@ export default function Footer() {
           <div className="sm:col-span-3">
             <p className="text-[14px] text-[var(--ink-soft)]">Contact</p>
             <ul className="mt-5 space-y-2.5 text-[16px] text-[var(--ink-soft)]">
-              <li>hello@solariavc.com</li>
+              <li>contact@solariavc.com</li>
               <li>La Jolla, CA</li>
               <li>
                 <a
