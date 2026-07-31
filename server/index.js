@@ -8,13 +8,36 @@
 // and the contact form never exposes the partner email address to the DOM.
 
 import http from 'node:http';
-import { promises as fs } from 'node:fs';
+import { promises as fs, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const PORT = parseInt(process.env.PORT || '8080', 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
+
+// Optional local .env (Cloud Run sets env vars directly; this is for `npm run server`).
+function loadDotEnv() {
+  const envPath = path.resolve(__dirname, '..', '.env');
+  if (!existsSync(envPath)) return;
+  for (const line of readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    let val = trimmed.slice(eq + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = val;
+  }
+}
+loadDotEnv();
+
+const PORT = parseInt(process.env.PORT || '8080', 10);
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -238,13 +261,15 @@ async function fetchCoinGecko(ids) {
 }
 
 // ---- contact form: POST /api/contact → email partner inbox via Resend ---
-// To enable real delivery, set RESEND_API_KEY in the Cloud Run service env.
-// Without a key, submissions are logged to stdout (visible in Cloud Run logs).
-const CONTACT_TO = process.env.CONTACT_TO_EMAIL || 'joj059@ucsd.edu';
+// To enable real delivery, set RESEND_API_KEY in the Cloud Run service env
+// (or in a local .env file — see loadDotEnv below).
+const CONTACT_TO = process.env.CONTACT_TO_EMAIL || 'contact@solariavc.com';
 const CONTACT_FROM = process.env.CONTACT_FROM_EMAIL || 'Solaria Capital <onboarding@resend.dev>';
 const KIND_LABEL = {
   fund: 'Medallion Fund',
-  ventures: 'Ventures',
+  ventures: 'Founder',
+  founder: 'Founder',
+  investor: 'Investor',
   research: 'Research',
   subscribe: 'Research · Subscribe',
   other: 'General',
@@ -333,9 +358,9 @@ function renderContactText(p) {
 async function sendViaResend(payload) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.log('[contact] RESEND_API_KEY not set — logging submission:');
-    console.log(JSON.stringify(payload, null, 2));
-    return { sent: false, logged: true };
+    console.error('[contact] RESEND_API_KEY not set — cannot send email');
+    console.error('[contact] submission:', JSON.stringify(payload, null, 2));
+    throw new Error('email delivery is not configured');
   }
   const kindLabel = KIND_LABEL[payload.kind] || KIND_LABEL.other;
   const res = await fetch('https://api.resend.com/emails', {
@@ -392,7 +417,15 @@ async function handleContact(req, res) {
   const email = String(p.email || '').trim();
   const organization = String(p.organization || '').trim().slice(0, 200);
   const message = String(p.message || '').trim();
-  const kind = ['fund', 'ventures', 'research', 'subscribe', 'other'].includes(p.kind)
+  const kind = [
+    'fund',
+    'ventures',
+    'founder',
+    'investor',
+    'research',
+    'subscribe',
+    'other',
+  ].includes(p.kind)
     ? p.kind
     : 'other';
 
@@ -411,8 +444,10 @@ async function handleContact(req, res) {
     return jsonRes(res, 200, { ok: true, ...result });
   } catch (err) {
     console.error('[contact] send failed:', err);
-    // Still return 200 so the user gets a clean "received" state — log captures it.
-    return jsonRes(res, 200, { ok: true, sent: false, logged: true });
+    return jsonRes(res, 502, {
+      ok: false,
+      error: 'Could not send your message. Please try again shortly.',
+    });
   }
 }
 
