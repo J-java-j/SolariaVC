@@ -23,7 +23,6 @@ const PORTRAIT_FIT_BY_IMAGE: Record<string, PortraitFit> = {
   '/team/esteban-reyes.png': { y: 6, scale: 1.24, brightness: 1.1, vignette: 0.34 },
   '/team/monica.png': { x: 58, y: 5, scale: 1.45, brightness: 1.1 },
   '/team/daniel-zhang.png': { x: 56, y: 5, scale: 1.56, brightness: 1.1 },
-  '/team/hiraku.png': { y: 21, scale: 1.24, brightness: 1.1 },
   '/team/johnson-jiang.png': { y: 6, scale: 1.24, brightness: 1.1 },
   '/team/kail-li.png': { x: 58, y: 13, scale: 1.45, brightness: PORTRAIT_BRIGHTNESS_REFERENCE },
   '/team/jack-zhang.png': { x: 63, y: 7, scale: 1.24, brightness: 1.1 },
@@ -31,7 +30,6 @@ const PORTRAIT_FIT_BY_IMAGE: Record<string, PortraitFit> = {
   '/team/placeholder.png': { y: 6, scale: 1.24, brightness: 1.48 },
   '/team/placeholder-3.png': { y: 6, scale: 1.24, brightness: 1.15 },
   '/team/elliott-yaroslavsky.png': { y: 50, scale: 1, brightness: 1 },
-  '/team/aayush-sen.png': { y: 12, scale: 1, brightness: 1 },
 };
 
 function portraitFitFor(imageUrl?: string): PortraitFit {
@@ -70,15 +68,13 @@ const deskGroups: DeskGroup[] = [
       { name: 'Daniel Zhang', role: 'Chief Technology Officer', imageUrl: '/team/daniel-zhang.png' },
       { name: 'Elliott Yaroslavsky', role: 'Chief Legal Officer', imageUrl: '/team/elliott-yaroslavsky.png' },
       { name: 'Jack Zhang', role: 'Chief Human Resources Officer', imageUrl: '/team/jack-zhang.png' },
-      { name: 'Hiraku Aoki', role: 'Chief Marketing Officer', imageUrl: '/team/hiraku.png' },
-      { name: 'Aayush Sen', role: 'Head of Investment Department', imageUrl: '/team/aayush-sen.png' },
       { name: 'Esteban Reyes', role: 'Head of Research Department', imageUrl: '/team/esteban-reyes.png' },
       {
         name: 'Greeshma Doppalapudi',
         role: 'Head of Venture Capital Department',
         imageUrl: '/team/greesh.png',
       },
-      { name: 'Ella Ma', role: 'Head of External Relations Department' },
+      { name: 'Elle Ma', role: 'Head of External Relations Department' },
     ],
   },
   {

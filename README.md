@@ -72,8 +72,9 @@ The contact form posts to `POST /api/contact`, which emails
 3. **Production (Cloud Run):** Edit & deploy a new revision →
    **Variables & Secrets**, add:
    - `RESEND_API_KEY` = `re_xxxxxxxxxxxx` (required)
-   - optional: `CONTACT_TO_EMAIL` = `contact@solariavc.com` (default already)
    - optional: `CONTACT_FROM_EMAIL` = `Solaria Capital <onboarding@resend.dev>`
+   - remove any old `CONTACT_TO_EMAIL` if present (recipient is hardcoded to
+     `contact@solariavc.com`)
 4. **Local:** copy `.env.example` → `.env`, set `RESEND_API_KEY`, then run
    `npm run server` (and `npm run dev` for the Vite UI; `/api` is proxied).
 5. Deploy. Submissions arrive as formatted email with Reply-To set to the
