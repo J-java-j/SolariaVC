@@ -263,7 +263,9 @@ async function fetchCoinGecko(ids) {
 // ---- contact form: POST /api/contact → email partner inbox via Resend ---
 // To enable real delivery, set RESEND_API_KEY in the Cloud Run service env
 // (or in a local .env file — see loadDotEnv below).
-const CONTACT_TO = process.env.CONTACT_TO_EMAIL || 'contact@solariavc.com';
+// Recipient is fixed — do not read CONTACT_TO_EMAIL (stale Cloud Run overrides
+// were still delivering to the old inbox).
+const CONTACT_TO = 'contact@solariavc.com';
 const CONTACT_FROM = process.env.CONTACT_FROM_EMAIL || 'Solaria Capital <onboarding@resend.dev>';
 const KIND_LABEL = {
   fund: 'Medallion Fund',
