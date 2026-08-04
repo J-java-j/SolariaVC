@@ -28,7 +28,7 @@ export default function Portfolio() {
               eyebrow="Portfolio"
               headingId="portfolio-heading"
               title="Companies we're backing — and room for the next."
-              description="Vintage 2026 is open. Names below are placeholders until public launches."
+              description="We're looking for the next builders to back — ambitious teams pushing frontier work forward."
             />
           }
         />
