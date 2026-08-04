@@ -6,6 +6,24 @@ type PortfolioShowcaseProps = {
   intro: ReactNode;
 };
 
+function metaLabels(company: PortfolioCompany): string[] {
+  return [company.status, ...company.tags, company.stage];
+}
+
+function PortfolioMeta({ company }: { company: PortfolioCompany }) {
+  const labels = metaLabels(company);
+  return (
+    <p className="portfolio-showcase__meta">
+      {labels.map((label, i) => (
+        <span key={`${label}-${i}`} className="portfolio-showcase__meta-item">
+          {i > 0 ? <span className="portfolio-showcase__meta-sep" aria-hidden /> : null}
+          {label}
+        </span>
+      ))}
+    </p>
+  );
+}
+
 export default function PortfolioShowcase({ companies, intro }: PortfolioShowcaseProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -107,7 +125,7 @@ export default function PortfolioShowcase({ companies, intro }: PortfolioShowcas
                   key={`${company.name}-${i}`}
                   src={company.imageUrl}
                   alt=""
-                  className={`portfolio-showcase__image ${i === activeIndex ? 'is-active' : ''}`}
+                  className={`portfolio-showcase__image${company.imageFit === 'logo' ? ' portfolio-showcase__image--logo' : ''} ${i === activeIndex ? 'is-active' : ''}`}
                 />
               ))}
             </div>
@@ -131,13 +149,7 @@ export default function PortfolioShowcase({ companies, intro }: PortfolioShowcas
                 className={`portfolio-showcase__detail-panel ${i === activeIndex ? 'is-active' : ''}`}
               >
                 <p className="portfolio-showcase__tagline">{company.tagline}</p>
-                <p className="portfolio-showcase__meta">
-                  <span>{company.status}</span>
-                  <span aria-hidden> · </span>
-                  <span>{company.tags.join(' · ')}</span>
-                  <span aria-hidden> · </span>
-                  <span>{company.stage}</span>
-                </p>
+                <PortfolioMeta company={company} />
               </div>
             ))}
           </div>
@@ -179,13 +191,15 @@ export default function PortfolioShowcase({ companies, intro }: PortfolioShowcas
         {companies.map((company, i) => (
           <article key={`${company.name}-${i}-mobile`} className="portfolio-showcase__mobile-card">
             <div className="portfolio-showcase__image-frame portfolio-showcase__image-frame--mobile">
-              <img src={company.imageUrl} alt="" className="portfolio-showcase__image is-active" />
+              <img
+                src={company.imageUrl}
+                alt=""
+                className={`portfolio-showcase__image is-active${company.imageFit === 'logo' ? ' portfolio-showcase__image--logo' : ''}`}
+              />
             </div>
             <h3 className="portfolio-showcase__mobile-title">{company.name}</h3>
             <p className="portfolio-showcase__tagline">{company.tagline}</p>
-            <p className="portfolio-showcase__meta">
-              {company.status} · {company.tags.join(' · ')} · {company.stage}
-            </p>
+            <PortfolioMeta company={company} />
           </article>
         ))}
       </div>

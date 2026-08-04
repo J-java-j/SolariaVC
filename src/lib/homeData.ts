@@ -5,34 +5,39 @@ export type PortfolioCompany = {
   status: 'Pipeline' | 'Diligence' | 'Portfolio' | 'Open';
   stage: string;
   imageUrl: string;
+  /** Logo mark — contain + center on dark frame instead of photo cover crop. */
+  imageFit?: 'cover' | 'logo';
 };
 
 /** Set false when real portfolio companies are ready — removes overlay and restores scroll depth. */
-export const PORTFOLIO_COMING_SOON = true;
+export const PORTFOLIO_COMING_SOON = false;
 
 export const portfolioCompanies: PortfolioCompany[] = [
   {
-    name: 'Stealth',
-    tagline: 'Infrastructure for applied AI systems',
-    tags: ['AI', 'B2B'],
-    status: 'Pipeline',
+    name: 'Ssam.ai',
+    tagline:
+      'An AI study workspace that reads handwritten work, understands where students get stuck, and delivers personalized hints instead of answers—keeping students engaged in the learning process.',
+    tags: ['EdTech', 'B2C', 'B2B'],
+    status: 'Portfolio',
     stage: 'Pre-seed',
-    imageUrl:
-      'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=900&q=80',
+    imageUrl: '/portfolio/ssam-ai.png',
+    imageFit: 'logo',
+  },
+  {
+    name: 'Match\u2019a',
+    tagline:
+      "An AI agent-to-agent social matching platform that introduces the right people before they ever meet. Match'a builds rich context, evaluates mutual compatibility and intent, and delivers explained introductions across dating, friendship, and professional networking.",
+    tags: ['Consumer AI', 'Social', 'B2C'],
+    status: 'Portfolio',
+    stage: 'Pre-seed',
+    imageUrl: '/portfolio/matcha.png',
+    imageFit: 'logo',
   },
   {
     name: 'Stealth',
-    tagline: 'Hardware-aware climate modeling',
-    tags: ['Climate', 'Deep tech'],
-    status: 'Diligence',
-    stage: 'Seed',
-    imageUrl:
-      'https://images.unsplash.com/photo-1611273426858-450d8e3c9fce?auto=format&fit=crop&w=900&q=80',
-  },
-  {
-    name: 'Stealth',
-    tagline: 'Tools for shipping frontier software',
-    tags: ['Developer tools'],
+    tagline:
+      'Currently operating in stealth while building an ambitious new product. The team is focused on validating the technology and preparing for public launch.',
+    tags: ['Stealth'],
     status: 'Portfolio',
     stage: 'Pre-seed',
     imageUrl:
@@ -40,7 +45,7 @@ export const portfolioCompanies: PortfolioCompany[] = [
   },
   {
     name: 'Your company',
-    tagline: 'The next slot in our vintage',
+    tagline: 'The next breakthrough.',
     tags: ['Frontier tech'],
     status: 'Open',
     stage: 'Pre-seed / Seed',

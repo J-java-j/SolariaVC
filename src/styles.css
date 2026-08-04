@@ -358,7 +358,8 @@ html[data-site-theme="light"] {
   /* Portfolio scroll showcase (YC-style) */
   .portfolio-showcase {
     --portfolio-step: 200px;
-    --portfolio-sticky-top: 5.5rem;
+    /* Clear fixed nav + a little air so the Portfolio eyebrow stays fully visible */
+    --portfolio-sticky-top: 7.25rem;
     --portfolio-track-offset: 20rem;
     position: relative;
     display: grid;
@@ -469,7 +470,7 @@ html[data-site-theme="light"] {
   }
 
   .portfolio-showcase__step--release {
-    height: max(8rem, calc(100svh - var(--portfolio-sticky-top) - 28rem));
+    height: max(3.5rem, calc(100svh - var(--portfolio-sticky-top) - 35rem));
   }
 
   .portfolio-showcase__grid {
@@ -495,8 +496,9 @@ html[data-site-theme="light"] {
     max-width: 22rem;
     overflow: hidden;
     border-radius: 1rem;
-    border: 1px solid var(--border-strong);
-    background: var(--bg-soft);
+    border: none;
+    /* Must match section --bg exactly; a hardcoded near-black showed as a gray box. */
+    background: transparent;
   }
 
   .portfolio-showcase__image {
@@ -510,6 +512,14 @@ html[data-site-theme="light"] {
     transition:
       opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
       transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .portfolio-showcase__image--logo {
+    object-fit: contain;
+    object-position: center;
+    box-sizing: border-box;
+    transform: scale(1);
+    background: transparent;
   }
 
   .portfolio-showcase__image.is-active {
@@ -578,10 +588,32 @@ html[data-site-theme="light"] {
   }
 
   .portfolio-showcase__meta {
-    margin: 1rem 0 0;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+    margin: 1.35rem 0 0;
     font-size: 0.9375rem;
-    line-height: 1.5;
+    line-height: 1.55;
+    letter-spacing: 0.01em;
     color: var(--fg-muted);
+    white-space: nowrap;
+  }
+
+  .portfolio-showcase__meta-item {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .portfolio-showcase__meta-sep {
+    display: inline-block;
+    width: 0.2rem;
+    height: 0.2rem;
+    margin: 0 0.7rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--fg-muted) 70%, transparent);
+    flex-shrink: 0;
   }
 
   .portfolio-showcase__mobile-intro {
