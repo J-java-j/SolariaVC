@@ -240,9 +240,9 @@
 
     /* vertical coordinates on the card edge */
     .fr-edge {
-      position: absolute; right: 9px; top: 50%;
-      transform: rotate(90deg) translateX(-50%);
-      transform-origin: right top;
+      position: absolute; top: 0; bottom: 0; right: 11px;
+      writing-mode: vertical-rl;
+      display: flex; align-items: center; justify-content: center;
       font-family: var(--mono);
       font-size: 6.5px; letter-spacing: 0.22em;
       color: var(--ink-dim);
@@ -555,6 +555,12 @@
 
   <script>
     (function () {
+      // Always open at the top — Safari restores the old scroll offset when
+      // the NFC banner reopens an existing tab on the same URL.
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      window.scrollTo(0, 0);
+      window.addEventListener('pageshow', function () { window.scrollTo(0, 0); });
+
       var now = new Date();
 
       // back-face mark reuses the front's embedded image — no duplicate payload
