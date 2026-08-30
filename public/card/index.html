@@ -571,7 +571,7 @@
         window.addEventListener(ev, function () { userActed = true; }, { passive: true, once: true });
       });
       function pinTop() {
-        var stopAt = Date.now() + 1200;
+        var stopAt = Date.now() + 3000;
         (function tick() {
           if (userActed || Date.now() > stopAt) return;
           if (window.scrollY !== 0) window.scrollTo(0, 0);
@@ -586,11 +586,16 @@
       document.addEventListener('visibilitychange', function () {
         if (document.visibilityState === 'hidden') {
           hiddenAt = Date.now();
-        } else if (hiddenAt && Date.now() - hiddenAt > 60000) {
+          // Park the hidden tab at the top: the browser saves the current
+          // offset as the tab's position and restores it on reopen — make
+          // sure what it saves IS the top.
+          window.scrollTo(0, 0);
+        } else if (hiddenAt && Date.now() - hiddenAt > 5000) {
           userActed = false;
           pinTop();
         }
       });
+      window.addEventListener('pagehide', function () { window.scrollTo(0, 0); });
 
       var now = new Date();
 
