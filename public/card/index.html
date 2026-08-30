@@ -97,8 +97,13 @@
     }
 
     @media (min-width: 600px) {
-      body { justify-content: center; }
-      .page { max-width: 560px; min-height: 0; margin: 40px 0; }
+      /* margin:auto centers when there's room but stays scrollable from the
+         top when the window is shorter than the page (justify-content:center
+         would clip the header above the scroll origin) */
+      .page {
+        max-width: 560px; min-height: 0; margin: auto 0;
+        padding-top: 44px; padding-bottom: 36px;
+      }
     }
 
     /* ---- header ---- */
