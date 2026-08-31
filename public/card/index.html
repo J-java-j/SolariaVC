@@ -231,6 +231,17 @@
       pointer-events: none;
     }
 
+    /* dynamic reflection — driven by the gyroscope on phones, pointer on desktop */
+    .gloss {
+      position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(105deg, transparent 40%, rgba(244, 237, 224, 0.09) 50%, transparent 60%);
+      background-size: 260% 100%;
+      background-position: var(--gx, 160%) 0;
+      opacity: 0;
+      transition: opacity 900ms var(--ease);
+    }
+    .stage.motion .gloss { opacity: 1; }
+
     /* ---- front ---- */
     .front {
       padding: clamp(17px, 5.6vw, 27px) clamp(19px, 6.2vw, 31px);
@@ -428,45 +439,59 @@
     }
     .hint.done { color: var(--moss); font-weight: 400; }
 
-    /* ---- contact rows ---- */
+    /* ---- contact ledger panel ---- */
     .contact { margin-top: 46px; }
-    .sect {
+    .panel {
+      border: 1px solid var(--ink-line);
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgba(244, 237, 224, 0.025) 0%, rgba(244, 237, 224, 0.008) 34%, transparent 100%);
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 13px 18px 12px 16px;
+      border-bottom: 1px solid var(--ink-line);
       font-family: var(--mono);
       font-size: 9px; font-weight: 500;
       letter-spacing: 0.26em;
       text-transform: uppercase;
       color: var(--ink-dim);
-      display: flex; align-items: center; gap: 14px;
-      margin-bottom: 6px;
     }
-    .sect::before {
-      content: '';
-      width: 36px; height: 1px;
-      background: var(--ink-rule);
-      display: inline-block;
-    }
+    .panel-head .n { color: rgba(52, 211, 153, 0.6); letter-spacing: 0.2em; }
 
     .rows { list-style: none; }
-    .rows li { border-bottom: 1px solid var(--ink-line); }
+    .rows li + li { border-top: 1px solid var(--ink-line); }
 
     .row {
-      display: flex; align-items: center; justify-content: space-between; gap: 14px;
-      padding: 15px 2px;
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 16px 13px 13px;
       text-decoration: none;
       color: var(--ink);
+      transition: background 300ms var(--ease);
     }
-    .row .meta { min-width: 0; }
+    .row:hover { background: rgba(52, 211, 153, 0.045); }
+    .ric {
+      flex: none; width: 36px; height: 36px;
+      border: 1px solid var(--ink-line);
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink-faint);
+      background: rgba(244, 237, 224, 0.02);
+      transition: color 300ms var(--ease), border-color 300ms var(--ease);
+    }
+    .row:hover .ric { color: var(--moss); border-color: rgba(52, 211, 153, 0.42); }
+    .row .meta { min-width: 0; flex: 1; }
     .row .label {
       font-family: var(--mono);
-      font-size: 9.5px; font-weight: 500;
-      letter-spacing: 0.22em;
+      font-size: 8.5px; font-weight: 500;
+      letter-spacing: 0.24em;
       color: var(--ink-faint);
       text-transform: uppercase;
     }
     .row .value {
       display: block;
-      margin-top: 4px;
-      font-size: 15.5px;
+      margin-top: 3px;
+      font-size: 14.5px;
       font-weight: 400;
       letter-spacing: 0.005em;
       color: var(--ink);
@@ -475,7 +500,7 @@
     }
     .row .arrow {
       flex: none;
-      color: var(--ink-faint);
+      color: var(--ink-dim);
       transition: color 300ms var(--ease), transform 400ms var(--ease);
     }
     .row:hover .value { color: var(--moss-soft); }
@@ -563,6 +588,7 @@
                 <span>solariavc.com</span>
               </div>
               <span class="fr-edge" aria-hidden="true">32.8328° N — 117.2713° W</span>
+              <span class="gloss" aria-hidden="true"></span>
             </div>
             <div class="face back" aria-hidden="true">
               <div class="bk-l">
@@ -575,6 +601,7 @@
 </div>
                 <span class="bk-scan">Scan · solariavc.com/card</span>
               </div>
+              <span class="gloss" aria-hidden="true"></span>
             </div>
           </button>
         </div>
@@ -601,45 +628,54 @@
     <noscript><p class="hint">Enable JavaScript to save the card — or use the links below.</p></noscript>
 
     <section class="contact rise d4" aria-label="Contact details">
-      <div class="sect">Direct</div>
-      <ul class="rows">
-        <li>
-          <a class="row" href="https://www.linkedin.com/in/johnson-jiang-049b921b3?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_ios" target="_blank" rel="noopener">
-            <span class="meta">
-              <span class="label">LinkedIn</span>
-              <span class="value">Connect with me on LinkedIn</span>
-            </span>
-            <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
-          </a>
-        </li>
-        <li>
-          <a class="row" href="mailto:JohnsonJiang@solariavc.com">
-            <span class="meta">
-              <span class="label">Email</span>
-              <span class="value">JohnsonJiang@solariavc.com</span>
-            </span>
-            <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
-          </a>
-        </li>
-        <li>
-          <a class="row" href="tel:+17789981228">
-            <span class="meta">
-              <span class="label">Mobile</span>
-              <span class="value">+1 (778) 998-1228</span>
-            </span>
-            <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
-          </a>
-        </li>
-        <li>
-          <a class="row" href="https://solariavc.com/" target="_blank" rel="noopener">
-            <span class="meta">
-              <span class="label">Website</span>
-              <span class="value">solariavc.com</span>
-            </span>
-            <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
-          </a>
-        </li>
-      </ul>
+      <div class="panel">
+        <div class="panel-head">
+          <span>Direct lines</span>
+          <span class="n">04</span>
+        </div>
+        <ul class="rows">
+          <li>
+            <a class="row" href="https://www.linkedin.com/in/johnson-jiang-049b921b3?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_ios" target="_blank" rel="noopener">
+              <span class="ric"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="7.9" cy="7.9" r="0.4" fill="currentColor"/><path d="M7.9 11v6.2 M11.6 17.2v-3.7c0-1.4 1-2.5 2.3-2.5s2.3 1.1 2.3 2.5v3.7"/></svg></span>
+              <span class="meta">
+                <span class="label">LinkedIn</span>
+                <span class="value">Connect with me on LinkedIn</span>
+              </span>
+              <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
+            </a>
+          </li>
+          <li>
+            <a class="row" href="mailto:JohnsonJiang@solariavc.com">
+              <span class="ric"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m4.5 7.5 7.5 5.6 7.5-5.6"/></svg></span>
+              <span class="meta">
+                <span class="label">Email</span>
+                <span class="value">JohnsonJiang@solariavc.com</span>
+              </span>
+              <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
+            </a>
+          </li>
+          <li>
+            <a class="row" href="tel:+17789981228">
+              <span class="ric"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+              <span class="meta">
+                <span class="label">Mobile</span>
+                <span class="value">+1 (778) 998-1228</span>
+              </span>
+              <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
+            </a>
+          </li>
+          <li>
+            <a class="row" href="https://solariavc.com/" target="_blank" rel="noopener">
+              <span class="ric"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3.5 12h17 M12 3.3c2.6 2.6 2.6 14.8 0 17.4 M12 3.3c-2.6 2.6-2.6 14.8 0 17.4"/></svg></span>
+              <span class="meta">
+                <span class="label">Website</span>
+                <span class="value">solariavc.com</span>
+              </span>
+              <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
+            </a>
+          </li>
+        </ul>
+      </div>
     </section>
 
     <footer class="foot rise d5">
@@ -681,23 +717,66 @@
         flipper.querySelector('.front').setAttribute('aria-hidden', flipped ? 'true' : 'false');
       });
 
-      // ---- pointer tilt (hover devices only) ----
+      // ---- motion: tilt + dynamic reflection ----
+      // Phones: the gyroscope drives the card tilt and the sheen, like light
+      // moving across real glossy stock. Desktop: the pointer drives both.
       var tilt = document.getElementById('tilt');
       var canHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
       var noMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (canHover && !noMotion) {
-        stage.addEventListener('pointermove', function (e) {
-          var r = stage.getBoundingClientRect();
-          var px = (e.clientX - r.left) / r.width - 0.5;
-          var py = (e.clientY - r.top) / r.height - 0.5;
+      var raf = null;
+
+      function applyMotion(nx, ny) {
+        stage.classList.add('motion');
+        if (raf) return;
+        raf = requestAnimationFrame(function () {
+          raf = null;
           tilt.style.transform =
-            'rotateY(' + (px * 7).toFixed(2) + 'deg) rotateX(' + (-py * 7).toFixed(2) + 'deg)';
+            'rotateY(' + (nx * 7).toFixed(2) + 'deg) rotateX(' + (-ny * 7).toFixed(2) + 'deg)';
+          stage.style.setProperty('--gx', (50 - nx * 95).toFixed(1) + '%');
         });
-        stage.addEventListener('pointerleave', function () {
-          tilt.style.transition = 'transform 600ms cubic-bezier(0.22,1,0.36,1)';
-          tilt.style.transform = 'rotateY(0deg) rotateX(0deg)';
-          setTimeout(function () { tilt.style.transition = ''; }, 620);
-        });
+      }
+
+      function clampN(v) { return v < -1 ? -1 : v > 1 ? 1 : v; }
+
+      // Gyroscope path. The first reading becomes "flat", so the card rests
+      // naturally at whatever angle the phone is held.
+      var base = null;
+      function onOrient(e) {
+        if (e.beta == null || e.gamma == null) return;
+        if (base === null) { base = { b: e.beta, g: e.gamma }; return; }
+        applyMotion(clampN((e.gamma - base.g) / 24), clampN((e.beta - base.b) / 24));
+      }
+      function enableGyro() { window.addEventListener('deviceorientation', onOrient); }
+
+      if (!noMotion) {
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+          // iOS grants motion access only from a user gesture — ask on the
+          // first tap, silently fall back if declined.
+          window.addEventListener('touchend', function () {
+            DeviceOrientationEvent.requestPermission()
+              .then(function (s) { if (s === 'granted') enableGyro(); })
+              .catch(function () {});
+          }, { once: true, passive: true });
+        } else if ('ondeviceorientation' in window) {
+          enableGyro();
+        }
+
+        if (canHover) {
+          stage.addEventListener('pointermove', function (e) {
+            var r = stage.getBoundingClientRect();
+            applyMotion(
+              clampN(((e.clientX - r.left) / r.width - 0.5) * 2),
+              clampN(((e.clientY - r.top) / r.height - 0.5) * 2)
+            );
+          });
+          stage.addEventListener('pointerleave', function () {
+            tilt.style.transition = 'transform 600ms cubic-bezier(0.22,1,0.36,1)';
+            tilt.style.transform = 'rotateY(0deg) rotateX(0deg)';
+            stage.style.setProperty('--gx', '160%');
+            setTimeout(function () { tilt.style.transition = ''; }, 620);
+          });
+        }
       }
 
       // ---- vCard ----
