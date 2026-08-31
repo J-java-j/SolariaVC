@@ -231,39 +231,38 @@
       pointer-events: none;
     }
 
-    /* dynamic reflection — a soft specular bloom + faint band, driven by the
-       gyroscope on phones and the pointer on desktop, smoothed with inertia */
+    /* ---- lighting: mirror glint + ambient sheen + rim light. Blend modes
+       make the light brighten the card's own material rather than sit on
+       top of it like film. All positions/intensities are JS-driven vars. ---- */
     .gloss {
       position: absolute; inset: 0; pointer-events: none;
+      mix-blend-mode: screen;
       background:
-        radial-gradient(46% 64% at var(--sx, 50%) var(--sy, -30%),
-          rgba(244, 237, 224, 0.14) 0%,
-          rgba(244, 237, 224, 0.05) 42%,
-          transparent 72%),
-        linear-gradient(calc(105deg + var(--ga, 0deg)),
-          transparent 42%, rgba(244, 237, 224, 0.05) 50%, transparent 58%);
-      background-size: 100% 100%, 240% 100%;
-      background-position: 0 0, var(--gx, 160%) 0;
-      opacity: 0;
-      transition: opacity 900ms var(--ease);
+        radial-gradient(30% 42% at var(--gx, 50%) var(--gy, 24%),
+          rgba(255, 250, 238, 0.30) 0%, rgba(255, 250, 238, 0.09) 42%, transparent 72%),
+        radial-gradient(64% 90% at var(--gx, 50%) var(--gy, 24%),
+          rgba(213, 233, 221, 0.10) 0%, transparent 66%);
+      opacity: var(--si, 0.25);
     }
-    .stage.motion .gloss { opacity: 1; }
+    .sheen {
+      position: absolute; inset: 0; pointer-events: none;
+      mix-blend-mode: soft-light;
+      background:
+        radial-gradient(130% 160% at var(--ax, 50%) var(--ay, 40%),
+          rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.18) 46%, rgba(0, 0, 0, 0.28) 100%);
+      opacity: 0.6;
+    }
+    .edgelight {
+      position: absolute; inset: 0; pointer-events: none;
+      border-radius: 7px;
+      box-shadow: inset var(--ex, 0px) var(--ey, 0px) 20px -13px rgba(255, 250, 238, var(--ei, 0.05));
+    }
 
     /* ---- front ---- */
     .front {
       padding: clamp(17px, 5.6vw, 27px) clamp(19px, 6.2vw, 31px);
       display: flex; flex-direction: column;
     }
-    /* one specular sweep across the face after the card settles */
-    .front::after {
-      content: ''; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(105deg, transparent 42%, rgba(244, 237, 224, 0.075) 50%, transparent 58%);
-      background-size: 260% 100%;
-      background-position: 180% 0;
-      animation: shine 2s var(--ease) 1.5s both;
-    }
-    @keyframes shine { to { background-position: -80% 0; } }
-
     .fr-top { display: flex; align-items: center; justify-content: space-between; }
     .fr-mark {
       width: clamp(31px, 8.8vw, 39px); height: clamp(31px, 8.8vw, 39px);
@@ -615,7 +614,9 @@
                 <span>solariavc.com</span>
               </div>
               <span class="fr-edge" aria-hidden="true">32.8328° N — 117.2713° W</span>
+              <span class="sheen" aria-hidden="true"></span>
               <span class="gloss" aria-hidden="true"></span>
+              <span class="edgelight" aria-hidden="true"></span>
             </div>
             <div class="face back" aria-hidden="true">
               <div class="bk-l">
@@ -628,7 +629,9 @@
 </div>
                 <span class="bk-scan">Scan · solariavc.com/card</span>
               </div>
+              <span class="sheen" aria-hidden="true"></span>
               <span class="gloss" aria-hidden="true"></span>
+              <span class="edgelight" aria-hidden="true"></span>
             </div>
           </button>
         </div>
@@ -755,22 +758,48 @@
       var tilt = document.getElementById('tilt');
       var canHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
       var noMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      // Inertial motion: targets move instantly, the card eases toward them —
-      // the lag is what makes the light feel physical instead of stuck-on.
-      var tX = 0, tY = 0, cX = 0, cY = 0, looping = false;
+      // One virtual light above the viewer. The card (mass) and the glint
+      // (light) ease at different speeds: a mirror reflection moves about
+      // twice the surface rotation and leads, while the body lags — that
+      // ratio, plus brightness falloff, is what reads as "real".
+      var tX = 0, tY = 0;   // targets
+      var cX = 0, cY = 0;   // card orientation (slow mass)
+      var lX = 0, lY = 0;   // light response (fast mirror)
+      var looping = false;
 
       function step() {
-        cX += (tX - cX) * 0.09;
-        cY += (tY - cY) * 0.09;
+        cX += (tX - cX) * 0.085;
+        cY += (tY - cY) * 0.085;
+        lX += (tX - lX) * 0.17;
+        lY += (tY - lY) * 0.17;
+
         tilt.style.transform =
           'rotateY(' + (cX * 8).toFixed(2) + 'deg) rotateX(' + (-cY * 8).toFixed(2) + 'deg)';
-        // specular bloom drifts opposite the tilt, like a fixed light overhead
-        stage.style.setProperty('--sx', (50 - cX * 62).toFixed(1) + '%');
-        stage.style.setProperty('--sy', (26 - cY * 85).toFixed(1) + '%');
-        // faint band sweeps across and its angle leans with the card
-        stage.style.setProperty('--gx', (50 - cX * 105).toFixed(1) + '%');
-        stage.style.setProperty('--ga', (cX * 10).toFixed(2) + 'deg');
-        if (Math.abs(tX - cX) + Math.abs(tY - cY) > 0.001) {
+
+        // mirror glint: opposite the tilt at ~2x speed
+        var gx = 50 - lX * 115;
+        var gy = 24 - lY * 125;
+        // brightness falls away as the glint slides off the face
+        var fx = Math.max(0, 1 - Math.abs(gx - 50) / 90);
+        var fy = Math.max(0, 1 - Math.abs(gy - 35) / 100);
+        var si = 0.22 + 0.78 * fx * fy;
+        // ambient sheen: the environment, drifting gently WITH the tilt
+        var ax = 50 + cX * 20;
+        var ay = 40 + cY * 24;
+        // rim light swings to the raised edge, stronger with more tilt
+        var mag = Math.min(1, Math.sqrt(cX * cX + cY * cY));
+
+        stage.style.setProperty('--gx', gx.toFixed(1) + '%');
+        stage.style.setProperty('--gy', gy.toFixed(1) + '%');
+        stage.style.setProperty('--si', si.toFixed(3));
+        stage.style.setProperty('--ax', ax.toFixed(1) + '%');
+        stage.style.setProperty('--ay', ay.toFixed(1) + '%');
+        stage.style.setProperty('--ex', (-lX * 15).toFixed(1) + 'px');
+        stage.style.setProperty('--ey', (-lY * 15).toFixed(1) + 'px');
+        stage.style.setProperty('--ei', (0.05 + 0.11 * mag).toFixed(3));
+
+        if (Math.abs(tX - cX) + Math.abs(tY - cY) +
+            Math.abs(tX - lX) + Math.abs(tY - lY) > 0.002) {
           requestAnimationFrame(step);
         } else {
           looping = false;
@@ -778,7 +807,6 @@
       }
 
       function applyMotion(nx, ny) {
-        stage.classList.add('motion');
         tX = nx; tY = ny;
         if (!looping) { looping = true; requestAnimationFrame(step); }
       }
@@ -796,6 +824,11 @@
       function enableGyro() { window.addEventListener('deviceorientation', onOrient); }
 
       if (!noMotion) {
+        // entrance: the glint sweeps across using the same physics as live
+        // motion — the card arrives already lit
+        cX = lX = -1.5; cY = lY = -0.35;
+        setTimeout(function () { applyMotion(0, 0); }, 700);
+
         if (typeof DeviceOrientationEvent !== 'undefined' &&
             typeof DeviceOrientationEvent.requestPermission === 'function' &&
             'ontouchstart' in window) {
