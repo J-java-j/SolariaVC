@@ -384,6 +384,27 @@
       text-transform: uppercase;
     }
 
+    /* motion permission pill (iOS shows it when access needs a tap) */
+    .motion-pill {
+      margin: 16px auto 0;
+      display: flex; align-items: center; gap: 8px;
+      background: none;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      border-radius: 999px;
+      color: var(--moss);
+      font-family: var(--mono);
+      font-size: 8.5px; font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      padding: 8px 15px;
+      cursor: pointer;
+      transition: opacity 500ms var(--ease), border-color 300ms var(--ease), transform 200ms var(--ease);
+    }
+    .motion-pill:hover { border-color: rgba(52, 211, 153, 0.6); }
+    .motion-pill:active { transform: scale(0.96); }
+    .motion-pill.gone { opacity: 0; pointer-events: none; }
+    .motion-pill[hidden] { display: none; }
+
     /* spec line under the card */
     .specline {
       margin-top: 24px;
@@ -616,6 +637,11 @@
       </span>
     </div>
 
+    <button class="motion-pill" id="motionBtn" type="button" hidden>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3v3 M12 18v3 M3 12h3 M18 12h3 M5.6 5.6l2.1 2.1 M16.3 16.3l2.1 2.1 M18.4 5.6l-2.1 2.1 M7.7 16.3l-2.1 2.1"/></svg>
+      Enable card motion
+    </button>
+
     <button class="save rise d3" id="save" type="button">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="9.5" cy="7.5" r="3.6" />
@@ -750,14 +776,29 @@
 
       if (!noMotion) {
         if (typeof DeviceOrientationEvent !== 'undefined' &&
-            typeof DeviceOrientationEvent.requestPermission === 'function') {
-          // iOS grants motion access only from a user gesture — ask on the
-          // first tap, silently fall back if declined.
-          window.addEventListener('touchend', function () {
-            DeviceOrientationEvent.requestPermission()
-              .then(function (s) { if (s === 'granted') enableGyro(); })
-              .catch(function () {});
-          }, { once: true, passive: true });
+            typeof DeviceOrientationEvent.requestPermission === 'function' &&
+            'ontouchstart' in window) {
+          // iOS: motion access needs a real tap. A hidden ask fails silently
+          // when the first touch is a scroll, so use a visible pill instead.
+          var motionBtn = document.getElementById('motionBtn');
+          var hidePill = function () {
+            motionBtn.classList.add('gone');
+            setTimeout(function () { motionBtn.hidden = true; }, 520);
+          };
+          var showPill = function () {
+            motionBtn.hidden = false;
+            motionBtn.addEventListener('click', function () {
+              DeviceOrientationEvent.requestPermission().then(function (s) {
+                if (s === 'granted') enableGyro();
+                hidePill();
+              }, hidePill);
+            });
+          };
+          // Previously granted access resolves silently with no gesture;
+          // a fresh state rejects — then the pill does the asking.
+          DeviceOrientationEvent.requestPermission().then(function (s) {
+            if (s === 'granted') enableGyro(); else showPill();
+          }, showPill);
         } else if ('ondeviceorientation' in window) {
           enableGyro();
         }
