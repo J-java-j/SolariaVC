@@ -92,30 +92,38 @@
       background: radial-gradient(circle, rgba(52, 211, 153, 0.07) 0%, transparent 62%);
     }
 
+    /* One fixed screen: position:fixed glues the page to the viewport, so a
+       phantom scroll offset (Chrome iOS after an NFC open) can never push the
+       header out of view — there is simply nothing to scroll. */
     .page {
-      position: relative; z-index: 1;
+      position: fixed; inset: 0; z-index: 1;
       width: 100%;
       max-width: 430px;
-      min-height: 100svh;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
-      padding: 26px 24px calc(22px + env(safe-area-inset-bottom));
+      padding: 18px 24px calc(14px + env(safe-area-inset-bottom));
     }
 
     @media (min-width: 600px) {
-      /* margin:auto centers when there's room but stays scrollable from the
-         top when the window is shorter than the page (justify-content:center
-         would clip the header above the scroll origin) */
       .page {
-        max-width: 560px; min-height: 0; margin: auto 0;
-        padding-top: 44px; padding-bottom: 36px;
+        max-width: 560px; max-height: 860px; margin: auto;
+        padding-top: 26px; padding-bottom: 24px;
       }
+    }
+
+    /* Very short viewports (landscape phones): let the page scroll again */
+    @media (max-height: 520px) {
+      body { overflow: auto; }
+      .page { position: relative; inset: auto; min-height: 100svh; max-height: none; }
     }
 
     /* ---- header ---- */
     .head {
+      flex: none;
       display: flex; align-items: baseline; justify-content: space-between;
       gap: 16px;
+      padding-bottom: 16px;
     }
     .eyebrow, .head-r {
       font-family: var(--mono);
@@ -138,7 +146,7 @@
        THE CARD — 89 × 51 mm, rendered
        ============================================================ */
     .stage {
-      margin-top: 44px;
+      margin-top: auto;
       perspective: 1300px;
       position: relative;
     }
@@ -334,7 +342,7 @@
 
     /* spec line under the card */
     .specline {
-      margin-top: 22px;
+      margin-top: 13px;
       display: flex; justify-content: space-between; align-items: center;
       font-family: var(--mono);
       font-size: 8.5px; font-weight: 400;
@@ -347,13 +355,14 @@
 
     /* ---- primary action ---- */
     .save {
-      margin-top: 30px;
+      margin-top: auto;
+      flex: none;
       width: 100%;
       display: flex; align-items: center; justify-content: center; gap: 12px;
       background: var(--moss);
       color: #07110d;
       border: 0; border-radius: 2px;
-      height: 58px;
+      height: 54px;
       font-family: var(--mono);
       font-size: 12.5px; font-weight: 500;
       letter-spacing: 0.18em;
@@ -367,40 +376,38 @@
     .save svg { flex: none; }
 
     .hint {
-      margin-top: 13px;
-      font-size: 13px;
+      margin-top: 8px;
+      font-size: 12px;
       font-weight: 300;
       color: var(--ink-faint);
       letter-spacing: 0.02em;
       text-align: center;
-      min-height: 18px;
+      min-height: 16px;
       transition: color 400ms var(--ease);
     }
     .hint.done { color: var(--moss); font-weight: 400; }
 
-    /* ---- contact rows ---- */
-    .rows { margin-top: 30px; list-style: none; }
-    .rows li { border-top: 1px solid var(--ink-line); }
-    .rows li:last-child { border-bottom: 1px solid var(--ink-line); }
+    /* ---- contact rows: one compact line each ---- */
+    .rows { margin-top: auto; flex: none; list-style: none; border-top: 1px solid var(--ink-line); }
+    .rows li { border-bottom: 1px solid var(--ink-line); }
 
     .row {
-      display: flex; align-items: center; justify-content: space-between; gap: 14px;
-      padding: 14px 2px;
+      display: flex; align-items: center; gap: 12px;
+      padding: 9px 2px;
       text-decoration: none;
       color: var(--ink);
     }
-    .row .meta { min-width: 0; }
-    .row .label {
+    .row .rlbl {
+      flex: none; width: 76px;
       font-family: var(--mono);
-      font-size: 9.5px; font-weight: 500;
-      letter-spacing: 0.22em;
+      font-size: 8.5px; font-weight: 500;
+      letter-spacing: 0.2em;
       color: var(--ink-faint);
       text-transform: uppercase;
     }
-    .row .value {
-      display: block;
-      margin-top: 4px;
-      font-size: 15.5px;
+    .row .rval {
+      flex: 1; min-width: 0;
+      font-size: 13.5px;
       font-weight: 400;
       letter-spacing: 0.005em;
       color: var(--ink);
@@ -412,24 +419,10 @@
       color: var(--ink-faint);
       transition: color 300ms var(--ease), transform 400ms var(--ease);
     }
-    .row:hover .value { color: var(--moss-soft); }
+    .row:hover .rval { color: var(--moss-soft); }
     .row:hover .arrow { color: var(--moss); transform: translate(2px, -2px); }
     .row:active { opacity: 0.72; }
     .row:focus-visible { outline: 2px solid var(--moss); outline-offset: -2px; }
-
-    /* ---- footer ---- */
-    .foot {
-      margin-top: auto;
-      padding-top: 36px;
-      display: flex; align-items: center; justify-content: space-between;
-      font-family: var(--mono);
-      font-size: 9.5px; font-weight: 400;
-      letter-spacing: 0.2em;
-      color: var(--ink-faint);
-      text-transform: uppercase;
-    }
-    .foot a { color: inherit; text-decoration: none; transition: color 300ms var(--ease); }
-    .foot a:hover { color: var(--moss); }
 
     /* ---- entrance ---- */
     .rise { opacity: 0; animation: rise 1s var(--ease) both; }
@@ -522,84 +515,42 @@
     <ul class="rows rise d4">
       <li>
         <a class="row" href="https://www.linkedin.com/in/johnson-jiang-049b921b3?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_ios" target="_blank" rel="noopener">
-          <span class="meta">
-            <span class="label">LinkedIn</span>
-            <span class="value">Connect with me on LinkedIn</span>
-          </span>
-          <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
+          <span class="rlbl">LinkedIn</span>
+          <span class="rval">Connect with me on LinkedIn</span>
+          <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
         </a>
       </li>
       <li>
         <a class="row" href="mailto:JohnsonJiang@solariavc.com">
-          <span class="meta">
-            <span class="label">Email</span>
-            <span class="value">JohnsonJiang@solariavc.com</span>
-          </span>
-          <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
+          <span class="rlbl">Email</span>
+          <span class="rval">JohnsonJiang@solariavc.com</span>
+          <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
         </a>
       </li>
       <li>
         <a class="row" href="tel:+17789981228">
-          <span class="meta">
-            <span class="label">Mobile</span>
-            <span class="value">+1 (778) 998-1228</span>
-          </span>
-          <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
+          <span class="rlbl">Mobile</span>
+          <span class="rval">+1 (778) 998-1228</span>
+          <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
         </a>
       </li>
       <li>
         <a class="row" href="https://solariavc.com/" target="_blank" rel="noopener">
-          <span class="meta">
-            <span class="label">Website</span>
-            <span class="value">solariavc.com</span>
-          </span>
-          <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
+          <span class="rlbl">Website</span>
+          <span class="rval">solariavc.com</span>
+          <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
         </a>
       </li>
     </ul>
-
-    <footer class="foot rise d5">
-      <span>La Jolla, California</span>
-      <a href="https://solariavc.com/" target="_blank" rel="noopener">solariavc.com</a>
-    </footer>
   </main>
 
   <script>
     (function () {
-      // Open at the top, always. Chrome on iOS can apply a native scroll
-      // offset asynchronously after an external-app open (an NFC tap) and
-      // when its toolbars settle, so a single reset isn't enough: run short
-      // correction bursts during the first moments, stop the instant the
-      // reader scrolls themselves, and park at the top when leaving so any
-      // offset the browser saves for this tab IS the top. The page scrolls
-      // normally, so worst case a reader can always swipe up.
+      // The page is one fixed, non-scrolling screen — there is no scroll
+      // position to restore or correct, and no script ever moves the view.
+      // Keep only the basics for the small-viewport fallback mode.
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-      var userScrolled = false;
-      ['touchstart', 'wheel', 'keydown'].forEach(function (ev) {
-        window.addEventListener(ev, function () { userScrolled = true; }, { passive: true, once: true });
-      });
-      function toTop() {
-        window.scrollTo(0, 0);
-        if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
-      }
-      function settleTop() {
-        userScrolled = false;
-        [0, 120, 300, 600, 1000, 1600, 2400].forEach(function (ms) {
-          setTimeout(function () { if (!userScrolled) toTop(); }, ms);
-        });
-      }
-      settleTop();
-      window.addEventListener('pageshow', settleTop);
-      var openedAt = Date.now();
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', function () {
-          if (!userScrolled && Date.now() - openedAt < 3000) toTop();
-        });
-      }
-      document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'hidden') toTop();
-      });
-      window.addEventListener('pagehide', function () { toTop(); });
+      window.addEventListener('pageshow', function () { window.scrollTo(0, 0); });
 
       var now = new Date();
 
