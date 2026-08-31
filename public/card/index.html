@@ -64,11 +64,11 @@
       color: var(--ink);
       font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif;
       font-weight: 400;
-      height: 100svh;
+      min-height: 100svh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      overflow: hidden;
+      overflow-x: hidden;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -96,31 +96,26 @@
       position: relative; z-index: 1;
       width: 100%;
       max-width: 430px;
-      height: 100svh;
+      min-height: 100svh;
       display: flex;
       flex-direction: column;
-      padding: 20px 24px calc(16px + env(safe-area-inset-bottom));
+      padding: 26px 24px calc(22px + env(safe-area-inset-bottom));
     }
 
     @media (min-width: 600px) {
+      /* margin:auto centers when there's room but stays scrollable from the
+         top when the window is shorter than the page (justify-content:center
+         would clip the header above the scroll origin) */
       .page {
-        max-width: 560px; max-height: 860px; margin: auto 0;
-        padding-top: 28px; padding-bottom: 26px;
+        max-width: 560px; min-height: 0; margin: auto 0;
+        padding-top: 44px; padding-bottom: 36px;
       }
-    }
-
-    /* Very short viewports (landscape phones): allow scrolling again */
-    @media (max-height: 540px) {
-      body { height: auto; min-height: 100svh; overflow: auto; }
-      .page { height: auto; min-height: 100svh; max-height: none; }
     }
 
     /* ---- header ---- */
     .head {
-      flex: none;
       display: flex; align-items: baseline; justify-content: space-between;
       gap: 16px;
-      padding-bottom: 20px;
     }
     .eyebrow, .head-r {
       font-family: var(--mono);
@@ -143,7 +138,7 @@
        THE CARD — 89 × 51 mm, rendered
        ============================================================ */
     .stage {
-      margin-top: auto;
+      margin-top: 44px;
       perspective: 1300px;
       position: relative;
     }
@@ -339,7 +334,7 @@
 
     /* spec line under the card */
     .specline {
-      margin-top: 16px;
+      margin-top: 22px;
       display: flex; justify-content: space-between; align-items: center;
       font-family: var(--mono);
       font-size: 8.5px; font-weight: 400;
@@ -352,8 +347,7 @@
 
     /* ---- primary action ---- */
     .save {
-      margin-top: auto;
-      flex: none;
+      margin-top: 30px;
       width: 100%;
       display: flex; align-items: center; justify-content: center; gap: 12px;
       background: var(--moss);
@@ -373,8 +367,8 @@
     .save svg { flex: none; }
 
     .hint {
-      margin-top: 10px;
-      font-size: 12.5px;
+      margin-top: 13px;
+      font-size: 13px;
       font-weight: 300;
       color: var(--ink-faint);
       letter-spacing: 0.02em;
@@ -384,36 +378,58 @@
     }
     .hint.done { color: var(--moss); font-weight: 400; }
 
-    /* ---- compact contact strip ---- */
-    .actions {
-      margin-top: auto;
-      flex: none;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      border: 1px solid var(--ink-line);
-    }
-    .action {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 7px;
-      padding: 13px 4px 11px;
+    /* ---- contact rows ---- */
+    .rows { margin-top: 30px; list-style: none; }
+    .rows li { border-top: 1px solid var(--ink-line); }
+    .rows li:last-child { border-bottom: 1px solid var(--ink-line); }
+
+    .row {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      padding: 14px 2px;
       text-decoration: none;
-      color: var(--ink-soft);
-      border-left: 1px solid var(--ink-line);
-      transition: color 300ms var(--ease), background 300ms var(--ease);
+      color: var(--ink);
     }
-    .action:first-child { border-left: 0; }
-    .action .albl {
+    .row .meta { min-width: 0; }
+    .row .label {
       font-family: var(--mono);
-      font-size: 8.5px; font-weight: 500;
+      font-size: 9.5px; font-weight: 500;
       letter-spacing: 0.22em;
-      text-transform: uppercase;
       color: var(--ink-faint);
+      text-transform: uppercase;
+    }
+    .row .value {
+      display: block;
+      margin-top: 4px;
+      font-size: 15.5px;
+      font-weight: 400;
+      letter-spacing: 0.005em;
+      color: var(--ink);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       transition: color 300ms var(--ease);
     }
-    .action:hover { color: var(--moss); background: rgba(52, 211, 153, 0.05); }
-    .action:hover .albl { color: var(--moss); }
-    .action:active { opacity: 0.7; }
-    .action:focus-visible { outline: 2px solid var(--moss); outline-offset: -2px; }
+    .row .arrow {
+      flex: none;
+      color: var(--ink-faint);
+      transition: color 300ms var(--ease), transform 400ms var(--ease);
+    }
+    .row:hover .value { color: var(--moss-soft); }
+    .row:hover .arrow { color: var(--moss); transform: translate(2px, -2px); }
+    .row:active { opacity: 0.72; }
+    .row:focus-visible { outline: 2px solid var(--moss); outline-offset: -2px; }
+
+    /* ---- footer ---- */
+    .foot {
+      margin-top: auto;
+      padding-top: 36px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 9.5px; font-weight: 400;
+      letter-spacing: 0.2em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+    }
+    .foot a { color: inherit; text-decoration: none; transition: color 300ms var(--ease); }
+    .foot a:hover { color: var(--moss); }
 
     /* ---- entrance ---- */
     .rise { opacity: 0; animation: rise 1s var(--ease) both; }
@@ -503,63 +519,87 @@
     <p class="hint rise d3" id="hint" aria-live="polite">Adds phone, email, LinkedIn &amp; the day we met.</p>
     <noscript><p class="hint">Enable JavaScript to save the card — or use the links below.</p></noscript>
 
-    <nav class="actions rise d4" aria-label="Contact links">
-      <a class="action" href="https://www.linkedin.com/in/johnson-jiang-049b921b3?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_ios" target="_blank" rel="noopener">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="7.9" cy="7.9" r="0.4" fill="currentColor"/><path d="M7.9 11v6.2 M11.6 17.2v-3.7c0-1.4 1-2.5 2.3-2.5s2.3 1.1 2.3 2.5v3.7"/></svg>
-        <span class="albl">LinkedIn</span>
-      </a>
-      <a class="action" href="mailto:JohnsonJiang@solariavc.com">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m4.5 7.5 7.5 5.6 7.5-5.6"/></svg>
-        <span class="albl">Email</span>
-      </a>
-      <a class="action" href="tel:+17789981228">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        <span class="albl">Call</span>
-      </a>
-      <a class="action" href="https://solariavc.com/" target="_blank" rel="noopener">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3.5 12h17 M12 3.3c2.6 2.6 2.6 14.8 0 17.4 M12 3.3c-2.6 2.6-2.6 14.8 0 17.4"/></svg>
-        <span class="albl">Site</span>
-      </a>
-    </nav>
+    <ul class="rows rise d4">
+      <li>
+        <a class="row" href="https://www.linkedin.com/in/johnson-jiang-049b921b3?utm_source=share_via&amp;utm_content=profile&amp;utm_medium=member_ios" target="_blank" rel="noopener">
+          <span class="meta">
+            <span class="label">LinkedIn</span>
+            <span class="value">Connect with me on LinkedIn</span>
+          </span>
+          <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
+        </a>
+      </li>
+      <li>
+        <a class="row" href="mailto:JohnsonJiang@solariavc.com">
+          <span class="meta">
+            <span class="label">Email</span>
+            <span class="value">JohnsonJiang@solariavc.com</span>
+          </span>
+          <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
+        </a>
+      </li>
+      <li>
+        <a class="row" href="tel:+17789981228">
+          <span class="meta">
+            <span class="label">Mobile</span>
+            <span class="value">+1 (778) 998-1228</span>
+          </span>
+          <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
+        </a>
+      </li>
+      <li>
+        <a class="row" href="https://solariavc.com/" target="_blank" rel="noopener">
+          <span class="meta">
+            <span class="label">Website</span>
+            <span class="value">solariavc.com</span>
+          </span>
+          <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
+        </a>
+      </li>
+    </ul>
+
+    <footer class="foot rise d5">
+      <span>La Jolla, California</span>
+      <a href="https://solariavc.com/" target="_blank" rel="noopener">solariavc.com</a>
+    </footer>
   </main>
 
   <script>
     (function () {
-      // Always open at the top. Browsers re-apply a saved scroll offset
-      // asynchronously when an existing tab is reopened on the same URL
-      // (exactly what an NFC tap does), so a single scrollTo isn't enough:
-      // pin to the top for a moment, giving up the instant the user acts.
+      // Open at the top, always. Chrome on iOS can apply a native scroll
+      // offset asynchronously after an external-app open (an NFC tap) and
+      // when its toolbars settle, so a single reset isn't enough: run short
+      // correction bursts during the first moments, stop the instant the
+      // reader scrolls themselves, and park at the top when leaving so any
+      // offset the browser saves for this tab IS the top. The page scrolls
+      // normally, so worst case a reader can always swipe up.
       if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-      var userActed = false;
-      ['touchstart', 'wheel', 'keydown', 'pointerdown'].forEach(function (ev) {
-        window.addEventListener(ev, function () { userActed = true; }, { passive: true, once: true });
+      var userScrolled = false;
+      ['touchstart', 'wheel', 'keydown'].forEach(function (ev) {
+        window.addEventListener(ev, function () { userScrolled = true; }, { passive: true, once: true });
       });
-      function pinTop() {
-        var stopAt = Date.now() + 6000;
-        (function tick() {
-          if (userActed || Date.now() > stopAt) return;
-          window.scrollTo(0, 0);
-          requestAnimationFrame(tick);
-        })();
+      function toTop() {
+        window.scrollTo(0, 0);
+        if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
       }
-      pinTop();
-      window.addEventListener('pageshow', function () { userActed = false; pinTop(); });
-      // A re-foregrounded tab fires no load events at all — treat coming
-      // back after a while away as a fresh open.
-      var hiddenAt = 0;
+      function settleTop() {
+        userScrolled = false;
+        [0, 120, 300, 600, 1000, 1600, 2400].forEach(function (ms) {
+          setTimeout(function () { if (!userScrolled) toTop(); }, ms);
+        });
+      }
+      settleTop();
+      window.addEventListener('pageshow', settleTop);
+      var openedAt = Date.now();
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', function () {
+          if (!userScrolled && Date.now() - openedAt < 3000) toTop();
+        });
+      }
       document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'hidden') {
-          hiddenAt = Date.now();
-          // Park the hidden tab at the top: the browser saves the current
-          // offset as the tab's position and restores it on reopen — make
-          // sure what it saves IS the top.
-          window.scrollTo(0, 0);
-        } else if (hiddenAt && Date.now() - hiddenAt > 5000) {
-          userActed = false;
-          pinTop();
-        }
+        if (document.visibilityState === 'hidden') toTop();
       });
-      window.addEventListener('pagehide', function () { window.scrollTo(0, 0); });
+      window.addEventListener('pagehide', function () { toTop(); });
 
       var now = new Date();
 
