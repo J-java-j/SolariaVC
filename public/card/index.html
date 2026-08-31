@@ -454,7 +454,7 @@
   </style>
 </head>
 <body>
-  <main class="page">
+  <main class="page" id="top">
     <div class="head rise">
       <div class="eyebrow">Solaria&nbsp;Capital</div>
       <div class="head-r">Digital card</div>
@@ -579,7 +579,7 @@
         var stopAt = Date.now() + 6000;
         (function tick() {
           if (userActed || Date.now() > stopAt) return;
-          if (window.scrollY !== 0) window.scrollTo(0, 0);
+          window.scrollTo(0, 0);
           requestAnimationFrame(tick);
         })();
       }
