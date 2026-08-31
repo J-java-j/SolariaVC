@@ -240,15 +240,15 @@
       background:
         linear-gradient(calc(100deg + var(--ga, 0deg)),
           transparent 30%,
-          rgba(255, 250, 238, 0.045) 42%,
-          rgba(255, 250, 238, 0.16) 49%,
-          rgba(255, 250, 238, 0.32) 50%,
-          rgba(255, 250, 238, 0.16) 51%,
-          rgba(255, 250, 238, 0.045) 58%,
+          rgba(255, 250, 238, 0.03) 42%,
+          rgba(255, 250, 238, 0.085) 49%,
+          rgba(255, 250, 238, 0.17) 50%,
+          rgba(255, 250, 238, 0.085) 51%,
+          rgba(255, 250, 238, 0.03) 58%,
           transparent 70%),
         linear-gradient(calc(100deg + var(--ga, 0deg)),
           transparent 44%,
-          rgba(213, 233, 221, 0.10) 50%,
+          rgba(213, 233, 221, 0.06) 50%,
           transparent 56%);
       background-size: 280% 100%, 280% 100%;
       background-position: var(--gx, 26%) 0, calc(var(--gx, 26%) + 9%) 0;
@@ -261,7 +261,7 @@
       background:
         radial-gradient(130% 160% at var(--ax, 50%) var(--ay, 40%),
           rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.18) 46%, rgba(0, 0, 0, 0.28) 100%);
-      opacity: 0.6;
+      opacity: 0.45;
     }
     .edgelight {
       position: absolute; inset: 0; pointer-events: none;
@@ -418,7 +418,7 @@
     }
     .motion-pill:hover { opacity: 1; color: var(--moss); }
     .motion-pill:active { opacity: 1; }
-    .motion-pill.gone { opacity: 0; pointer-events: none; }
+    .motion-pill.is-on { color: var(--moss); opacity: 0.8; }
     .motion-pill[hidden] { display: none; }
 
     /* spec line under the card */
@@ -792,7 +792,7 @@
         var ga = lX * 8 - lY * 6;
         // brightness falls away as the streak slides off the face
         var f = Math.max(0, 1 - Math.abs(gx - 50) / 95);
-        var si = 0.35 + 0.65 * f;
+        var si = 0.22 + 0.42 * f;
         // ambient sheen: the environment, drifting gently WITH the tilt
         var ax = 50 + cX * 20;
         var ay = 40 + cY * 24;
@@ -806,7 +806,7 @@
         stage.style.setProperty('--ay', ay.toFixed(1) + '%');
         stage.style.setProperty('--ex', (-lX * 15).toFixed(1) + 'px');
         stage.style.setProperty('--ey', (-lY * 15).toFixed(1) + 'px');
-        stage.style.setProperty('--ei', (0.05 + 0.11 * mag).toFixed(3));
+        stage.style.setProperty('--ei', (0.035 + 0.08 * mag).toFixed(3));
 
         if (Math.abs(tX - cX) + Math.abs(tY - cY) +
             Math.abs(tX - lX) + Math.abs(tY - lY) > 0.002) {
@@ -831,7 +831,6 @@
         if (base === null) { base = { b: e.beta, g: e.gamma }; return; }
         applyMotion(clampN((e.gamma - base.g) / 24), clampN((e.beta - base.b) / 24));
       }
-      function enableGyro() { window.addEventListener('deviceorientation', onOrient); }
 
       if (!noMotion) {
         // entrance: the glint sweeps across using the same physics as live
@@ -839,32 +838,51 @@
         cX = lX = -1.5; cY = lY = -0.35;
         setTimeout(function () { applyMotion(0, 0); }, 700);
 
-        if (typeof DeviceOrientationEvent !== 'undefined' &&
-            typeof DeviceOrientationEvent.requestPermission === 'function' &&
-            'ontouchstart' in window) {
-          // iOS: motion access needs a real tap. A hidden ask fails silently
-          // when the first touch is a scroll, so use a visible pill instead.
-          var motionBtn = document.getElementById('motionBtn');
-          var hidePill = function () {
-            motionBtn.classList.add('gone');
-            setTimeout(function () { motionBtn.hidden = true; }, 520);
-          };
-          var showPill = function () {
-            motionBtn.hidden = false;
-            motionBtn.addEventListener('click', function () {
+        // The bottom easter egg is a toggle: turns motion on, turns it off.
+        var motionBtn = document.getElementById('motionBtn');
+        var isTouch = 'ontouchstart' in window;
+        var needsPerm = typeof DeviceOrientationEvent !== 'undefined' &&
+                        typeof DeviceOrientationEvent.requestPermission === 'function';
+        var gyroOn = false;
+
+        function syncBtn() { motionBtn.classList.toggle('is-on', gyroOn); }
+        function startGyro() {
+          if (gyroOn) return;
+          gyroOn = true;
+          base = null; // recalibrate to how the phone is held right now
+          window.addEventListener('deviceorientation', onOrient);
+          syncBtn();
+        }
+        function stopGyro() {
+          gyroOn = false;
+          window.removeEventListener('deviceorientation', onOrient);
+          applyMotion(0, 0);
+          syncBtn();
+        }
+
+        if (isTouch && (needsPerm || 'ondeviceorientation' in window)) {
+          motionBtn.hidden = false;
+          motionBtn.addEventListener('click', function () {
+            if (gyroOn) { stopGyro(); return; }
+            if (needsPerm) {
               DeviceOrientationEvent.requestPermission().then(function (s) {
-                if (s === 'granted') enableGyro();
-                hidePill();
-              }, hidePill);
-            });
-          };
-          // Previously granted access resolves silently with no gesture;
-          // a fresh state rejects — then the pill does the asking.
-          DeviceOrientationEvent.requestPermission().then(function (s) {
-            if (s === 'granted') enableGyro(); else showPill();
-          }, showPill);
-        } else if ('ondeviceorientation' in window) {
-          enableGyro();
+                if (s === 'granted') startGyro();
+              }, function () {});
+            } else {
+              startGyro();
+            }
+          });
+          if (needsPerm) {
+            // access granted on an earlier visit resolves silently — motion
+            // comes on by itself; a fresh state rejects and waits for the tap
+            DeviceOrientationEvent.requestPermission().then(function (s) {
+              if (s === 'granted') startGyro();
+            }, function () {});
+          } else {
+            startGyro();
+          }
+        } else if (!needsPerm && 'ondeviceorientation' in window) {
+          window.addEventListener('deviceorientation', onOrient);
         }
 
         if (canHover) {
