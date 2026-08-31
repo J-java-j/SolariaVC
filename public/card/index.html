@@ -238,11 +238,22 @@
       position: absolute; inset: 0; pointer-events: none;
       mix-blend-mode: screen;
       background:
-        radial-gradient(30% 42% at var(--gx, 50%) var(--gy, 24%),
-          rgba(255, 250, 238, 0.30) 0%, rgba(255, 250, 238, 0.09) 42%, transparent 72%),
-        radial-gradient(64% 90% at var(--gx, 50%) var(--gy, 24%),
-          rgba(213, 233, 221, 0.10) 0%, transparent 66%);
-      opacity: var(--si, 0.25);
+        linear-gradient(calc(100deg + var(--ga, 0deg)),
+          transparent 30%,
+          rgba(255, 250, 238, 0.045) 42%,
+          rgba(255, 250, 238, 0.16) 49%,
+          rgba(255, 250, 238, 0.32) 50%,
+          rgba(255, 250, 238, 0.16) 51%,
+          rgba(255, 250, 238, 0.045) 58%,
+          transparent 70%),
+        linear-gradient(calc(100deg + var(--ga, 0deg)),
+          transparent 44%,
+          rgba(213, 233, 221, 0.10) 50%,
+          transparent 56%);
+      background-size: 280% 100%, 280% 100%;
+      background-position: var(--gx, 26%) 0, calc(var(--gx, 26%) + 9%) 0;
+      background-repeat: no-repeat;
+      opacity: var(--si, 0.5);
     }
     .sheen {
       position: absolute; inset: 0; pointer-events: none;
@@ -776,13 +787,12 @@
         tilt.style.transform =
           'rotateY(' + (cX * 8).toFixed(2) + 'deg) rotateX(' + (-cY * 8).toFixed(2) + 'deg)';
 
-        // mirror glint: opposite the tilt at ~2x speed
-        var gx = 50 - lX * 115;
-        var gy = 24 - lY * 125;
-        // brightness falls away as the glint slides off the face
-        var fx = Math.max(0, 1 - Math.abs(gx - 50) / 90);
-        var fy = Math.max(0, 1 - Math.abs(gy - 35) / 100);
-        var si = 0.22 + 0.78 * fx * fy;
+        // mirror streak: opposite the tilt at ~2x, its angle leaning with it
+        var gx = 60 - lX * 60 - lY * 25;
+        var ga = lX * 8 - lY * 6;
+        // brightness falls away as the streak slides off the face
+        var f = Math.max(0, 1 - Math.abs(gx - 50) / 95);
+        var si = 0.35 + 0.65 * f;
         // ambient sheen: the environment, drifting gently WITH the tilt
         var ax = 50 + cX * 20;
         var ay = 40 + cY * 24;
@@ -790,7 +800,7 @@
         var mag = Math.min(1, Math.sqrt(cX * cX + cY * cY));
 
         stage.style.setProperty('--gx', gx.toFixed(1) + '%');
-        stage.style.setProperty('--gy', gy.toFixed(1) + '%');
+        stage.style.setProperty('--ga', ga.toFixed(2) + 'deg');
         stage.style.setProperty('--si', si.toFixed(3));
         stage.style.setProperty('--ax', ax.toFixed(1) + '%');
         stage.style.setProperty('--ay', ay.toFixed(1) + '%');
