@@ -571,7 +571,7 @@
         window.addEventListener(ev, function () { userActed = true; }, { passive: true, once: true });
       });
       function pinTop() {
-        var stopAt = Date.now() + 3000;
+        var stopAt = Date.now() + 6000;
         (function tick() {
           if (userActed || Date.now() > stopAt) return;
           if (window.scrollY !== 0) window.scrollTo(0, 0);
@@ -579,7 +579,7 @@
         })();
       }
       pinTop();
-      window.addEventListener('pageshow', pinTop);
+      window.addEventListener('pageshow', function () { userActed = false; pinTop(); });
       // A re-foregrounded tab fires no load events at all — treat coming
       // back after a while away as a fresh open.
       var hiddenAt = 0;
