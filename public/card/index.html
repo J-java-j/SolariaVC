@@ -1,8 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    // .js gates the entrance on font readiness; the hard cap guarantees the
+    // page can never stay hidden if the main script trips.
+    document.documentElement.className = 'js';
+    setTimeout(function () { document.documentElement.classList.add('ready'); }, 1400);
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="format-detection" content="telephone=no" />
   <meta name="theme-color" content="#0c0a08" />
   <meta name="robots" content="noindex, nofollow" />
 
@@ -22,13 +29,19 @@
   <meta property="og:title" content="Johnson Jiang — Founder, Solaria Capital" />
   <meta property="og:description" content="Save my contact and connect." />
   <meta property="og:url" content="https://solariavc.com/card" />
-  <meta property="og:image" content="https://solariavc.com/logo.png" />
+  <meta property="og:image" content="https://solariavc.com/card/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Johnson Jiang — Founder, Solaria Capital. Digital business card." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Johnson Jiang — Founder, Solaria Capital" />
+  <meta name="twitter:image" content="https://solariavc.com/card/og.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://api.fontshare.com" />
   <link
-    href="https://api.fontshare.com/v2/css?f[]=zodiak@300,400,500&f[]=cabinet-grotesk@300,400,500,700&display=swap"
+    href="https://api.fontshare.com/v2/css?f[]=zodiak@400&f[]=cabinet-grotesk@400&display=swap"
     rel="stylesheet"
   />
   <link
@@ -372,7 +385,7 @@
       user-select: none;
     }
     .stamp.on {
-      animation: stampIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 1.15s forwards;
+      animation: stampIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.45s forwards;
     }
     @keyframes stampIn {
       0%   { opacity: 0; transform: rotate(-8deg) scale(1.5); }
@@ -434,10 +447,10 @@
     .specline .flip-cue { color: var(--ink-faint); display: inline-flex; align-items: center; gap: 7px; }
     .flip-cue svg { opacity: 0.7; }
 
-    /* ---- primary action ---- */
+    /* ---- primary actions: save (a plain link to the native vCard) + share ---- */
+    .actions { margin-top: 44px; display: flex; gap: 10px; }
     .save {
-      margin-top: 44px;
-      width: 100%;
+      flex: 1; min-width: 0;
       display: flex; align-items: center; justify-content: center; gap: 12px;
       background: var(--moss);
       color: #07110d;
@@ -447,6 +460,7 @@
       font-size: 12.5px; font-weight: 500;
       letter-spacing: 0.18em;
       text-transform: uppercase;
+      text-decoration: none;
       cursor: pointer;
       position: relative; overflow: hidden;
       transition: background 300ms var(--ease), transform 200ms var(--ease), box-shadow 300ms var(--ease);
@@ -464,10 +478,26 @@
     .save:focus-visible { outline: 2px solid var(--moss-soft); outline-offset: 3px; }
     .save svg { flex: none; }
 
+    .share {
+      flex: none; width: 60px; height: 60px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(244, 237, 224, 0.03);
+      border: 1px solid var(--ink-rule);
+      border-radius: 2px;
+      color: var(--ink-soft);
+      cursor: pointer;
+      transition: color 300ms var(--ease), border-color 300ms var(--ease),
+                  background 300ms var(--ease), transform 200ms var(--ease);
+    }
+    .share:hover { color: var(--moss); border-color: rgba(52, 211, 153, 0.5); background: rgba(52, 211, 153, 0.06); }
+    .share:active { transform: scale(0.96); }
+    .share:focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+    .share[hidden] { display: none; }
+
     .hint {
       margin-top: 13px;
       font-size: 13px;
-      font-weight: 300;
+      font-weight: 400;
       color: var(--ink-faint);
       letter-spacing: 0.02em;
       text-align: center;
@@ -545,6 +575,103 @@
     .row:active { opacity: 0.72; }
     .row:focus-visible { outline: 2px solid var(--moss); outline-offset: -2px; }
 
+    /* ---- exchange: their details, straight to the partner inbox ---- */
+    .exchange { margin-top: 18px; }
+    .xh-head {
+      width: 100%;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 15px 18px 14px 16px;
+      background: none; border: 0;
+      font-family: var(--mono);
+      font-size: 9px; font-weight: 500;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      cursor: pointer; text-align: left;
+      transition: color 300ms var(--ease);
+    }
+    .xh-head:hover, .open .xh-head { color: var(--ink-soft); }
+    .xh-head:focus-visible { outline: 2px solid var(--moss); outline-offset: -2px; }
+    .xh-head .plus {
+      display: inline-flex; color: rgba(52, 211, 153, 0.7);
+      transition: transform 500ms var(--ease);
+    }
+    .open .xh-head .plus { transform: rotate(45deg); }
+    .xh-wrap {
+      display: grid; grid-template-rows: 0fr;
+      transition: grid-template-rows 550ms var(--ease);
+    }
+    .open .xh-wrap { grid-template-rows: 1fr; }
+    .xh-wrap > div { overflow: hidden; visibility: hidden; transition: visibility 0s 550ms; }
+    .open .xh-wrap > div { visibility: visible; transition-delay: 0s; }
+    .xh { padding: 2px 16px 18px; border-top: 1px solid var(--ink-line); }
+    .xh-lead {
+      padding: 15px 0 2px;
+      font-size: 13.5px; color: var(--ink-soft);
+      letter-spacing: 0.01em;
+    }
+    .field { display: block; padding-top: 12px; }
+    .field .label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 8.5px; font-weight: 500;
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+    .field .label em { font-style: normal; color: var(--ink-dim); margin-left: 8px; letter-spacing: 0.18em; }
+    .field input {
+      display: block; width: 100%;
+      margin-top: 1px; padding: 8px 0 9px;
+      background: none;
+      border: 0; border-bottom: 1px solid var(--ink-rule); border-radius: 0;
+      color: var(--ink);
+      font: inherit; font-size: 16px; /* 16px: iOS doesn't zoom the page on focus */
+      letter-spacing: 0.005em;
+      outline: 0;
+      -webkit-appearance: none; appearance: none;
+      transition: border-color 300ms var(--ease);
+    }
+    .field input::placeholder { color: var(--ink-dim); }
+    .field input:focus { border-bottom-color: var(--moss); }
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+    .xh-send {
+      margin-top: 24px; width: 100%; height: 52px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      background: none;
+      border: 1px solid var(--ink-rule); border-radius: 2px;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 11.5px; font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: border-color 300ms var(--ease), color 300ms var(--ease),
+                  background 300ms var(--ease), opacity 300ms var(--ease);
+    }
+    .xh-send:hover { border-color: rgba(52, 211, 153, 0.55); color: var(--moss-soft); background: rgba(52, 211, 153, 0.05); }
+    .xh-send:focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+    .xh-send[disabled] { opacity: 0.5; cursor: default; }
+    .xh-send svg { transition: transform 400ms var(--ease); }
+    .xh-send:hover svg { transform: translateX(3px); }
+    .xh-status {
+      margin-top: 12px; min-height: 18px;
+      font-size: 13px; color: var(--ink-faint);
+      text-align: center;
+    }
+    .xh-status.err { color: #e6b48d; }
+    .xh-status a { color: var(--moss); text-decoration: none; border-bottom: 1px solid rgba(52, 211, 153, 0.35); }
+    /* sent: the form gives way to a stamp, twin to the one on the card's back */
+    .xh-done { display: none; padding: 28px 16px 30px; border-top: 1px solid var(--ink-line); text-align: center; }
+    .sent .xh { display: none; }
+    .sent .xh-done { display: block; }
+    .xh-done .stamp {
+      display: inline-block; margin: 0;
+      font-size: 10px; padding: 8px 12px 7px;
+      animation: stampIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.1s forwards;
+    }
+    .xh-done p { margin-top: 18px; font-size: 13.5px; color: var(--ink-soft); }
+
     /* ---- footer ---- */
     .foot {
       margin-top: auto;
@@ -570,16 +697,24 @@
       50%      { opacity: 0.45; transform: scale(0.85); }
     }
 
-    /* ---- entrance ---- */
+    /* ---- entrance: held until the display faces are in (900 ms cap), so the
+       name never swaps typefaces mid-rise on a cold NFC tap ---- */
     .rise { opacity: 0; animation: rise 1s var(--ease) both; }
+    .js:not(.ready) .rise { animation-play-state: paused; }
     .d1 { animation-delay: 0.1s; }
     .d2 { animation-delay: 0.28s; }
     .d3 { animation-delay: 0.42s; }
     .d4 { animation-delay: 0.56s; }
-    .d5 { animation-delay: 0.7s; }
+    .d5 { animation-delay: 0.68s; }
+    .d6 { animation-delay: 0.8s; }
     @keyframes rise {
       from { opacity: 0; transform: translateY(16px); }
       to   { opacity: 1; transform: translateY(0); }
+    }
+    .stage.rise { animation-name: stageIn; animation-duration: 1.15s; }
+    @keyframes stageIn {
+      from { opacity: 0; transform: translateY(22px) scale(0.965); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -621,7 +756,7 @@
               </div>
               <div class="fr-foot">
                 <span>JohnsonJiang@solariavc.com</span>
-                <span>+1&#8202;778&#8202;998&#8202;1228</span>
+                <span>+1 778 998 1228</span>
                 <span>solariavc.com</span>
               </div>
               <span class="fr-edge" aria-hidden="true">32.8328° N — 117.2713° W</span>
@@ -657,16 +792,23 @@
       </span>
     </div>
 
-    <button class="save rise d3" id="save" type="button">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="9.5" cy="7.5" r="3.6" />
-        <path d="M3.2 20.2c0-3.4 2.9-5.7 6.3-5.7s6.3 2.3 6.3 5.7" />
-        <path d="M18.6 8.2v6.2 M15.5 11.3h6.2" />
-      </svg>
-      Save contact
-    </button>
+    <div class="actions rise d3">
+      <a class="save" id="save" href="/card/johnson-jiang.vcf">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9.5" cy="7.5" r="3.6" />
+          <path d="M3.2 20.2c0-3.4 2.9-5.7 6.3-5.7s6.3 2.3 6.3 5.7" />
+          <path d="M18.6 8.2v6.2 M15.5 11.3h6.2" />
+        </svg>
+        Save contact
+      </a>
+      <button class="share" id="share" type="button" aria-label="Share this card" title="Share this card">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 14.5V3.5 M8 7.5l4-4 4 4" />
+          <path d="M5 12.5v7.5h14v-7.5" />
+        </svg>
+      </button>
+    </div>
     <p class="hint rise d3" id="hint" aria-live="polite">Adds phone, email, LinkedIn &amp; the day we met.</p>
-    <noscript><p class="hint">Enable JavaScript to save the card — or use the links below.</p></noscript>
 
     <section class="contact rise d4" aria-label="Contact details">
       <div class="panel">
@@ -719,7 +861,51 @@
       </div>
     </section>
 
-    <footer class="foot rise d5">
+    <section class="exchange rise d5" aria-label="Send Johnson your details">
+      <div class="panel" id="xhPanel">
+        <button class="xh-head" id="xhToggle" type="button" aria-expanded="false" aria-controls="xhWrap">
+          <span>Send me yours</span>
+          <span class="plus" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14 M5 12h14" /></svg>
+          </span>
+        </button>
+        <div class="xh-wrap" id="xhWrap">
+          <div>
+            <form class="xh" id="xhForm" novalidate>
+              <p class="xh-lead">Leave your details and I'll follow up.</p>
+              <label class="field">
+                <span class="label">Name</span>
+                <input name="name" type="text" autocomplete="name" required maxlength="120" />
+              </label>
+              <label class="field">
+                <span class="label">Email</span>
+                <input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" required maxlength="200" />
+              </label>
+              <label class="field">
+                <span class="label">Phone<em>optional</em></span>
+                <input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40" />
+              </label>
+              <label class="field">
+                <span class="label">Note<em>optional</em></span>
+                <input name="note" type="text" maxlength="500" placeholder="Where we met, what you're working on…" />
+              </label>
+              <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+              <button class="xh-send" id="xhSend" type="submit">
+                Send to Johnson
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6" /></svg>
+              </button>
+              <p class="xh-status" id="xhStatus" aria-live="polite"></p>
+            </form>
+            <div class="xh-done" aria-live="polite">
+              <span class="stamp" id="xhStamp">SENT</span>
+              <p>Thank you — I'll be in touch shortly.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot rise d6">
       <span class="status"><span class="live-dot"></span>Open to connect</span>
       <a href="https://solariavc.com/" target="_blank" rel="noopener">La Jolla · solariavc.com</a>
     </footer>
@@ -750,17 +936,19 @@
         .toUpperCase();
       var stamp = document.getElementById('stamp');
       stamp.textContent = 'MET — ' + stampDate;
-      stamp.classList.add('on');
 
-      // ---- flip ----
+      // ---- flip: the stamp slams in the first time the back is seen ----
       var stage = document.getElementById('stage');
       var flipper = document.getElementById('flipper');
       var flipped = false;
+      var stamped = false;
       flipper.addEventListener('click', function () {
         flipped = !flipped;
         stage.classList.toggle('flipped', flipped);
         flipper.querySelector('.back').setAttribute('aria-hidden', flipped ? 'false' : 'true');
         flipper.querySelector('.front').setAttribute('aria-hidden', flipped ? 'true' : 'false');
+        if (flipped && !stamped) { stamped = true; stamp.classList.add('on'); }
+        if (navigator.vibrate) navigator.vibrate(8); // a tick of card stock on Android
       });
 
       // ---- motion: tilt + dynamic reflection ----
@@ -833,10 +1021,11 @@
       }
 
       if (!noMotion) {
-        // entrance: the glint sweeps across using the same physics as live
-        // motion — the card arrives already lit
+        // entrance: the card rises already turned toward the light, then the
+        // glint sweeps across on the same physics as live motion (kicked off
+        // by onReady below, once the fonts are in)
         cX = lX = -1.5; cY = lY = -0.35;
-        setTimeout(function () { applyMotion(0, 0); }, 700);
+        applyMotion(cX, cY);
 
         // The bottom easter egg is a toggle: turns motion on, turns it off.
         var motionBtn = document.getElementById('motionBtn');
@@ -899,68 +1088,133 @@
         }
       }
 
-      // ---- vCard ----
-      function escV(v) {
-        return String(v)
-          .replace(/\\/g, '\\\\')
-          .replace(/\n/g, '\\n')
-          .replace(/,/g, '\\,')
-          .replace(/;/g, '\\;');
+      // ---- entrance gate: wait for the display faces (900 ms cap) so the
+      // name rises in Zodiak rather than swapping mid-animation ----
+      var root = document.documentElement;
+      var readyFired = false;
+      function onReady() {
+        if (readyFired) return;
+        readyFired = true;
+        root.classList.add('ready');
+        if (!noMotion) setTimeout(function () { applyMotion(0, 0); }, 650);
       }
-      // Fold long lines per RFC 2426 (continuation lines start with a space)
-      function fold(line) {
-        var out = [line.slice(0, 75)];
-        var rest = line.slice(75);
-        while (rest.length) {
-          out.push(' ' + rest.slice(0, 74));
-          rest = rest.slice(74);
-        }
-        return out.join('\r\n');
-      }
-
-      function buildVcf() {
-        var when = new Date();
-        var met = when.toLocaleDateString('en-US', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
-        var photo = (markImg.src.split(',')[1] || '').trim();
-        var lines = [
-          'BEGIN:VCARD',
-          'VERSION:3.0',
-          'N:Jiang;Johnson;;;',
-          'FN:Johnson Jiang',
-          'ORG:Solaria Capital',
-          'TITLE:Founder',
-          'TEL;TYPE=CELL,VOICE:+17789981228',
-          'EMAIL;TYPE=INTERNET,WORK:JohnsonJiang@solariavc.com',
-          'item1.URL:https://solariavc.com',
-          'item1.X-ABLabel:Website',
-          'item2.URL:https://www.linkedin.com/in/johnson-jiang-049b921b3',
-          'item2.X-ABLabel:LinkedIn',
-          'X-SOCIALPROFILE;TYPE=linkedin:https://www.linkedin.com/in/johnson-jiang-049b921b3',
-          'NOTE:' + escV('Met on ' + met + ' — Solaria Capital digital card.'),
-          'REV:' + when.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
-        ];
-        if (photo) lines.push('PHOTO;ENCODING=b;TYPE=JPEG:' + photo);
-        lines.push('END:VCARD');
-        return lines.map(fold).join('\r\n') + '\r\n';
+      if (document.fonts && document.fonts.load) {
+        var cap = setTimeout(onReady, 900);
+        Promise.all([
+          document.fonts.load('400 32px Zodiak'),
+          document.fonts.load('500 10px "JetBrains Mono"'),
+          document.fonts.load('400 14px "Cabinet Grotesk"')
+        ]).then(function () { clearTimeout(cap); onReady(); },
+                function () { clearTimeout(cap); onReady(); });
+      } else {
+        onReady();
       }
 
+      // ---- save: a plain link to the server-made vCard. iOS opens its own
+      // "Create New Contact" sheet on the spot; Android and desktop download a
+      // named .vcf. The link carries the recipient's local date for the note.
       var save = document.getElementById('save');
       var hint = document.getElementById('hint');
-
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+                  (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      save.href = save.getAttribute('href') + '?met=' +
+        now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+      // a home-screen install has no vCard viewer of its own — hand off to Safari
+      if (navigator.standalone) save.target = '_blank';
       save.addEventListener('click', function () {
-        var blob = new Blob([buildVcf()], { type: 'text/vcard;charset=utf-8' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'Johnson Jiang.vcf';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(function () { URL.revokeObjectURL(url); }, 20000);
-        hint.textContent = 'Downloaded — open the file to add Johnson to your contacts.';
+        hint.textContent = isIOS
+          ? 'Tap \u201cCreate New Contact\u201d to finish.'
+          : 'Open the downloaded .vcf to add me to your contacts.';
         hint.classList.add('done');
+      });
+
+      // ---- share: the native sheet where there is one, else copy the link ----
+      var share = document.getElementById('share');
+      var shareData = {
+        title: 'Johnson Jiang \u2014 Solaria Capital',
+        text: 'Johnson Jiang, Founder of Solaria Capital',
+        url: 'https://solariavc.com/card'
+      };
+      var canCopy = !!(navigator.clipboard && navigator.clipboard.writeText);
+      if (!navigator.share && !canCopy) share.hidden = true;
+      share.addEventListener('click', function () {
+        if (navigator.share) {
+          navigator.share(shareData).catch(function () {});
+        } else if (canCopy) {
+          navigator.clipboard.writeText(shareData.url).then(function () {
+            hint.textContent = 'Link copied \u2014 solariavc.com/card';
+            hint.classList.add('done');
+          }, function () {});
+        }
+      });
+
+      // ---- exchange: their details go to the partner inbox via /api/contact ----
+      var xhPanel = document.getElementById('xhPanel');
+      var xhToggle = document.getElementById('xhToggle');
+      var xhForm = document.getElementById('xhForm');
+      var xhSend = document.getElementById('xhSend');
+      var xhStatus = document.getElementById('xhStatus');
+      var metLong = now.toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+
+      xhToggle.addEventListener('click', function () {
+        var open = !xhPanel.classList.contains('open');
+        xhPanel.classList.toggle('open', open);
+        xhToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+
+      xhForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var f = xhForm.elements;
+        var name = f.name.value.trim();
+        var email = f.email.value.trim();
+        var phone = f.phone.value.trim();
+        var note = f.note.value.trim();
+
+        xhStatus.classList.remove('err');
+        if (!name) {
+          xhStatus.classList.add('err');
+          xhStatus.textContent = 'Your name, please.';
+          f.name.focus();
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          xhStatus.classList.add('err');
+          xhStatus.textContent = 'That email doesn\u2019t look right.';
+          f.email.focus();
+          return;
+        }
+
+        xhSend.disabled = true;
+        xhStatus.textContent = 'Sending\u2026';
+        var message = 'Met via the Solaria digital card on ' + metLong + '.' +
+          (note ? '\n\n' + note : '');
+
+        fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name, email: email, phone: phone, message: message,
+            kind: 'card', website: f.website.value
+          })
+        }).then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (j) {
+            if (!r.ok || j.ok === false) throw new Error(j.error || 'send failed');
+          });
+        }).then(function () {
+          document.getElementById('xhStamp').textContent = 'SENT \u2014 ' + stampDate;
+          xhPanel.classList.add('sent');
+          xhStatus.textContent = '';
+        }).catch(function () {
+          xhSend.disabled = false;
+          xhStatus.classList.add('err');
+          xhStatus.innerHTML = 'Couldn\u2019t send just now \u2014 ' +
+            '<a href="mailto:JohnsonJiang@solariavc.com?subject=' +
+            encodeURIComponent('Met via your digital card') + '">email me instead</a>.';
+        });
       });
     })();
   </script>

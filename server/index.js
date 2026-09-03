@@ -266,6 +266,12 @@ async function fetchCoinGecko(ids) {
 // Recipient is fixed — do not read CONTACT_TO_EMAIL (stale Cloud Run overrides
 // were still delivering to the old inbox).
 const CONTACT_TO = 'contact@solariavc.com';
+// Digital-card exchanges are personal: they go straight to Johnson, not the
+// partner inbox.
+const CARD_TO = 'JohnsonJiang@solariavc.com';
+function recipientFor(kind) {
+  return kind === 'card' ? CARD_TO : CONTACT_TO;
+}
 const CONTACT_FROM = process.env.CONTACT_FROM_EMAIL || 'Solaria Capital <onboarding@resend.dev>';
 const KIND_LABEL = {
   fund: 'Medallion Fund',
@@ -274,6 +280,7 @@ const KIND_LABEL = {
   investor: 'Investor',
   research: 'Research',
   subscribe: 'Research · Subscribe',
+  card: 'Digital card · New connection',
   other: 'General',
 };
 
@@ -319,11 +326,12 @@ function renderContactHtml(p) {
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #04080a; color: #e5e7eb; padding: 28px 24px; max-width: 620px; margin: 0 auto;">
       <div style="border-left: 3px solid #10b981; padding-left: 12px; margin-bottom: 22px;">
-        <div style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #34d399;">Solaria Capital · New inquiry</div>
+        <div style="font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: #34d399;">Solaria Capital · ${p.kind === 'card' ? 'New connection' : 'New inquiry'}</div>
         <div style="font-size: 22px; font-weight: 600; margin-top: 6px;">${esc(kindLabel)}</div>
       </div>
       <table style="width: 100%; border-collapse: collapse;">
         <tr><td style="padding: 6px 0; color: #9ca3af; width: 140px;">From</td><td style="padding: 6px 0;">${esc(p.name)} &lt;${esc(p.email)}&gt;</td></tr>
+        ${p.phone ? `<tr><td style="padding: 6px 0; color: #9ca3af;">Phone</td><td style="padding: 6px 0;"><a href="tel:${esc(p.phone.replace(/[^+\d]/g, ''))}" style="color: #6ee7b7;">${esc(p.phone)}</a></td></tr>` : ''}
         ${p.organization ? `<tr><td style="padding: 6px 0; color: #9ca3af;">Organization</td><td style="padding: 6px 0;">${esc(p.organization)}</td></tr>` : ''}
         <tr><td style="padding: 6px 0; color: #9ca3af;">Inquiry</td><td style="padding: 6px 0;">${esc(kindLabel)}</td></tr>
         <tr><td style="padding: 6px 0; color: #9ca3af;">Submitted</td><td style="padding: 6px 0;">${new Date().toISOString()}</td></tr>
@@ -333,7 +341,7 @@ function renderContactHtml(p) {
         <div style="margin-top: 10px; white-space: pre-wrap; line-height: 1.55;">${esc(p.message)}</div>
       </div>
       <div style="margin-top: 28px; font-size: 11px; color: #6b7280;">
-        Sent from the Solaria Capital contact form. Reply directly to this email to respond to ${esc(p.name)}.
+        Sent from ${p.kind === 'card' ? "Johnson's digital card" : 'the Solaria Capital contact form'}. Reply directly to this email to respond to ${esc(p.name)}.
       </div>
     </div>
   `;
@@ -342,9 +350,10 @@ function renderContactHtml(p) {
 function renderContactText(p) {
   const kindLabel = KIND_LABEL[p.kind] || KIND_LABEL.other;
   return [
-    `Solaria Capital — new ${kindLabel} inquiry`,
+    `Solaria Capital — ${p.kind === 'card' ? 'new connection via digital card' : `new ${kindLabel} inquiry`}`,
     '',
     `From:         ${p.name} <${p.email}>`,
+    p.phone ? `Phone:        ${p.phone}` : null,
     p.organization ? `Organization: ${p.organization}` : null,
     `Inquiry:      ${kindLabel}`,
     `Submitted:    ${new Date().toISOString()}`,
@@ -359,9 +368,10 @@ function renderContactText(p) {
 
 async function sendViaResend(payload) {
   const apiKey = process.env.RESEND_API_KEY;
+  const to = recipientFor(payload.kind);
   if (!apiKey) {
     console.error('[contact] RESEND_API_KEY not set — cannot send email');
-    console.error('[contact] submission:', JSON.stringify(payload, null, 2));
+    console.error(`[contact] submission (to ${to}):`, JSON.stringify(payload, null, 2));
     throw new Error('email delivery is not configured');
   }
   const kindLabel = KIND_LABEL[payload.kind] || KIND_LABEL.other;
@@ -373,7 +383,7 @@ async function sendViaResend(payload) {
     },
     body: JSON.stringify({
       from: CONTACT_FROM,
-      to: [CONTACT_TO],
+      to: [to],
       reply_to: payload.email,
       subject: `[Solaria Capital · ${kindLabel}] ${payload.name}`,
       html: renderContactHtml(payload),
@@ -418,6 +428,7 @@ async function handleContact(req, res) {
   const name = String(p.name || '').trim();
   const email = String(p.email || '').trim();
   const organization = String(p.organization || '').trim().slice(0, 200);
+  const phone = String(p.phone || '').trim().slice(0, 40);
   const message = String(p.message || '').trim();
   const kind = [
     'fund',
@@ -426,6 +437,7 @@ async function handleContact(req, res) {
     'investor',
     'research',
     'subscribe',
+    'card',
     'other',
   ].includes(p.kind)
     ? p.kind
@@ -442,7 +454,7 @@ async function handleContact(req, res) {
   }
 
   try {
-    const result = await sendViaResend({ name, email, organization, message, kind });
+    const result = await sendViaResend({ name, email, phone, organization, message, kind });
     return jsonRes(res, 200, { ok: true, ...result });
   } catch (err) {
     console.error('[contact] send failed:', err);
@@ -451,6 +463,104 @@ async function handleContact(req, res) {
       error: 'Could not send your message. Please try again shortly.',
     });
   }
+}
+
+// ---- digital business card: GET /card/johnson-jiang.vcf ------------------
+// The card page links straight to this URL. Served as a real text/vcard
+// response, iOS Safari opens the native "Create New Contact" sheet on the
+// spot, and Android / desktop download a correctly named .vcf. (A Blob
+// download built in the page can't do that on iOS — it lands in Files.)
+// No Content-Disposition on purpose: "attachment" makes iOS save to Files
+// instead of opening Contacts; browsers that can't render vCards download
+// anyway, naming the file after the URL.
+const CARD_VCF_PATH = '/card/johnson-jiang.vcf';
+const CARD = {
+  first: 'Johnson',
+  last: 'Jiang',
+  org: 'Solaria Capital',
+  title: 'Founder',
+  tel: '+17789981228',
+  email: 'JohnsonJiang@solariavc.com',
+  site: 'https://solariavc.com',
+  page: 'https://solariavc.com/card',
+  linkedin: 'https://www.linkedin.com/in/johnson-jiang-049b921b3',
+};
+
+function vcfEscape(v) {
+  return String(v)
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;');
+}
+
+// RFC 2426 line folding: 75 chars, continuation lines start with a space.
+function vcfFold(line) {
+  const out = [line.slice(0, 75)];
+  let rest = line.slice(75);
+  while (rest.length) {
+    out.push(' ' + rest.slice(0, 74));
+    rest = rest.slice(74);
+  }
+  return out.join('\r\n');
+}
+
+// Contact photo = the mark embedded in the card page itself, so the saved
+// contact shows exactly what the card shows. Read once, kept in memory.
+let cardPhotoB64 = null;
+function cardPhoto() {
+  if (cardPhotoB64 !== null) return cardPhotoB64;
+  try {
+    const html = readFileSync(path.join(DIST, 'card', 'index.html'), 'utf8');
+    const m = html.match(/data:image\/jpeg;base64,([A-Za-z0-9+/=]+)/);
+    cardPhotoB64 = m ? m[1] : '';
+  } catch {
+    cardPhotoB64 = '';
+  }
+  return cardPhotoB64;
+}
+
+// `met` is the recipient's local calendar date (YYYY-MM-DD), sent by the
+// page so the note says the day *they* tapped, not the server's UTC day.
+function buildCardVcf(metParam) {
+  const fmt = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  let met = '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(metParam || '')) {
+    const d = new Date(`${metParam}T12:00:00Z`);
+    if (!Number.isNaN(d.getTime())) met = d.toLocaleDateString('en-US', { ...fmt, timeZone: 'UTC' });
+  }
+  if (!met) met = new Date().toLocaleDateString('en-US', { ...fmt, timeZone: 'America/Los_Angeles' });
+
+  const lines = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    `N:${vcfEscape(CARD.last)};${vcfEscape(CARD.first)};;;`,
+    `FN:${vcfEscape(`${CARD.first} ${CARD.last}`)}`,
+    `ORG:${vcfEscape(CARD.org)}`,
+    `TITLE:${vcfEscape(CARD.title)}`,
+    `TEL;TYPE=CELL,VOICE:${CARD.tel}`,
+    `EMAIL;TYPE=INTERNET,WORK:${CARD.email}`,
+    `item1.URL:${CARD.site}`,
+    'item1.X-ABLabel:Website',
+    `item2.URL:${CARD.linkedin}`,
+    'item2.X-ABLabel:LinkedIn',
+    `X-SOCIALPROFILE;TYPE=linkedin:${CARD.linkedin}`,
+    `NOTE:${vcfEscape(`Met on ${met} — Solaria Capital digital card (${CARD.page}).`)}`,
+    `REV:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+  ];
+  const photo = cardPhoto();
+  if (photo) lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${photo}`);
+  lines.push('END:VCARD');
+  return lines.map(vcfFold).join('\r\n') + '\r\n';
+}
+
+function handleCardVcf(req, res, url) {
+  const body = buildCardVcf(url.searchParams.get('met'));
+  res.writeHead(200, {
+    'Content-Type': 'text/vcard; charset=utf-8',
+    'Cache-Control': 'no-store',
+  });
+  res.end(body);
 }
 
 // ---- static file serving --------------------------------------------------
@@ -526,6 +636,11 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/contact' && req.method === 'POST') {
       await handleContact(req, res);
+      return;
+    }
+
+    if (pathname === CARD_VCF_PATH) {
+      handleCardVcf(req, res, url);
       return;
     }
 
