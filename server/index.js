@@ -505,17 +505,22 @@ function vcfFold(line) {
   return out.join('\r\n');
 }
 
-// Contact photo = the mark embedded in the card page itself, so the saved
-// contact shows exactly what the card shows. Read once, kept in memory.
+// Contact photo = Johnson's headshot shipped with the card page (the same
+// portrait shown on the card's back). Falls back to the mark embedded in the
+// page if the file is missing. Read once, kept in memory.
 let cardPhotoB64 = null;
 function cardPhoto() {
   if (cardPhotoB64 !== null) return cardPhotoB64;
   try {
-    const html = readFileSync(path.join(DIST, 'card', 'index.html'), 'utf8');
-    const m = html.match(/data:image\/jpeg;base64,([A-Za-z0-9+/=]+)/);
-    cardPhotoB64 = m ? m[1] : '';
+    cardPhotoB64 = readFileSync(path.join(DIST, 'card', 'portrait.jpg')).toString('base64');
   } catch {
-    cardPhotoB64 = '';
+    try {
+      const html = readFileSync(path.join(DIST, 'card', 'index.html'), 'utf8');
+      const m = html.match(/data:image\/jpeg;base64,([A-Za-z0-9+/=]+)/);
+      cardPhotoB64 = m ? m[1] : '';
+    } catch {
+      cardPhotoB64 = '';
+    }
   }
   return cardPhotoB64;
 }
