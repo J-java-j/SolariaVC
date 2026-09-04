@@ -525,16 +525,19 @@ function cardPhoto() {
   return cardPhotoB64;
 }
 
-// `met` is the recipient's local calendar date (YYYY-MM-DD), sent by the
-// page so the note says the day *they* tapped, not the server's UTC day.
-function buildCardVcf(metParam) {
+// `saved` is the recipient's local calendar date (YYYY-MM-DD), sent by the
+// page so the note records when they saved the card, without implying a meeting.
+function buildCardVcf(savedParam) {
   const fmt = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  let met = '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(metParam || '')) {
-    const d = new Date(`${metParam}T12:00:00Z`);
-    if (!Number.isNaN(d.getTime())) met = d.toLocaleDateString('en-US', { ...fmt, timeZone: 'UTC' });
+  let saved = '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(savedParam || '')) {
+    const d = new Date(`${savedParam}T12:00:00Z`);
+    // Date normalizes impossible days (for example February 30); reject them.
+    if (!Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === savedParam) {
+      saved = d.toLocaleDateString('en-US', { ...fmt, timeZone: 'UTC' });
+    }
   }
-  if (!met) met = new Date().toLocaleDateString('en-US', { ...fmt, timeZone: 'America/Los_Angeles' });
+  if (!saved) saved = new Date().toLocaleDateString('en-US', { ...fmt, timeZone: 'America/Los_Angeles' });
 
   const lines = [
     'BEGIN:VCARD',
@@ -550,7 +553,7 @@ function buildCardVcf(metParam) {
     `item2.URL:${CARD.linkedin}`,
     'item2.X-ABLabel:LinkedIn',
     `X-SOCIALPROFILE;TYPE=linkedin:${CARD.linkedin}`,
-    `NOTE:${vcfEscape(`Met on ${met} — Solaria Capital digital card (${CARD.page}).`)}`,
+    `NOTE:${vcfEscape(`Saved on ${saved} — Solaria Capital digital card (${CARD.page}).`)}`,
     `REV:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
   ];
   const photo = cardPhoto();
@@ -560,7 +563,8 @@ function buildCardVcf(metParam) {
 }
 
 function handleCardVcf(req, res, url) {
-  const body = buildCardVcf(url.searchParams.get('met'));
+  // Keep links from earlier versions of the card working; `saved` takes priority.
+  const body = buildCardVcf(url.searchParams.get('saved') ?? url.searchParams.get('met'));
   res.writeHead(200, {
     'Content-Type': 'text/vcard; charset=utf-8',
     'Cache-Control': 'no-store',
