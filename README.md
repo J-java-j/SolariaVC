@@ -99,8 +99,7 @@ linked from the site.
   assuming an in-person meeting. Legacy `?met=YYYY-MM-DD` links still work;
   `saved` takes priority when both parameters are present. Missing or invalid
   dates fall back to the current date in `America/Los_Angeles`.
-  The contact photo is Johnson's headshot from `public/card/portrait.jpg`,
-  with the mark embedded in the card page as a fallback if the photo is missing.
+  The saved contact contains no photo.
 - **Send me yours** posts to `POST /api/contact` with `kind: "card"` (plus an
   optional `phone`). Card submissions are emailed to
   `JohnsonJiang@solariavc.com` directly (the site's contact form still goes

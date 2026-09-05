@@ -505,26 +505,6 @@ function vcfFold(line) {
   return out.join('\r\n');
 }
 
-// Contact photo = Johnson's headshot shipped with the card page (the same
-// portrait shown on the card's back). Falls back to the mark embedded in the
-// page if the file is missing. Read once, kept in memory.
-let cardPhotoB64 = null;
-function cardPhoto() {
-  if (cardPhotoB64 !== null) return cardPhotoB64;
-  try {
-    cardPhotoB64 = readFileSync(path.join(DIST, 'card', 'portrait.jpg')).toString('base64');
-  } catch {
-    try {
-      const html = readFileSync(path.join(DIST, 'card', 'index.html'), 'utf8');
-      const m = html.match(/data:image\/jpeg;base64,([A-Za-z0-9+/=]+)/);
-      cardPhotoB64 = m ? m[1] : '';
-    } catch {
-      cardPhotoB64 = '';
-    }
-  }
-  return cardPhotoB64;
-}
-
 // `saved` is the recipient's local calendar date (YYYY-MM-DD), sent by the
 // page so the note records when they saved the card, without implying a meeting.
 function buildCardVcf(savedParam) {
@@ -556,8 +536,6 @@ function buildCardVcf(savedParam) {
     `NOTE:${vcfEscape(`Saved on ${saved} — Solaria Capital digital card (${CARD.page}).`)}`,
     `REV:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
   ];
-  const photo = cardPhoto();
-  if (photo) lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${photo}`);
   lines.push('END:VCARD');
   return lines.map(vcfFold).join('\r\n') + '\r\n';
 }
