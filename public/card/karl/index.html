@@ -1,0 +1,1217 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+  <meta charset="UTF-8" />
+  <script>
+    // .js gates the entrance on font readiness; the hard cap guarantees the
+    // page can never stay hidden if the main script trips.
+    document.documentElement.className = 'js';
+    setTimeout(function () { document.documentElement.classList.add('ready'); }, 1400);
+  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="theme-color" content="#0c0a08" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+
+  <!-- Installable: Share → Add to Home Screen opens the card full-screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Solaria Card" />
+
+  <title>Karl Li — Solaria Capital</title>
+  <meta name="description" content="Karl Li, Vice President / Co-Founder of Solaria Capital. Save my contact." />
+
+  <meta property="og:type" content="profile" />
+  <meta property="og:site_name" content="Solaria Capital" />
+  <meta property="og:title" content="Karl Li — Vice President / Co-Founder, Solaria Capital" />
+  <meta property="og:description" content="Save my contact and connect." />
+  <meta property="og:url" content="https://solariavc.com/card/karl" />
+  <meta property="og:image" content="https://solariavc.com/card/karl/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Karl Li — Vice President / Co-Founder, Solaria Capital. Digital business card." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Karl Li — Vice President / Co-Founder, Solaria Capital" />
+  <meta name="twitter:image" content="https://solariavc.com/card/karl/og.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link
+    href="https://api.fontshare.com/v2/css?f[]=zodiak@400&f[]=cabinet-grotesk@400&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    :root {
+      --bg:        #0c0a08;
+      --bg-soft:   #131110;
+      --card-hi:   #1a1714;
+      --card-lo:   #0f0d0b;
+      --ink:       #f4ede0;
+      --ink-soft:  rgba(244, 237, 224, 0.78);
+      --ink-faint: rgba(244, 237, 224, 0.68);
+      --ink-dim:   rgba(244, 237, 224, 0.60);
+      --ink-line:  rgba(244, 237, 224, 0.10);
+      --ink-rule:  rgba(244, 237, 224, 0.22);
+      --moss:      #34d399;
+      --moss-soft: #6ee7b7;
+      --r:         clamp(9px, 3.3vw, 17px); /* ~3 mm corner at card scale */
+      --ease:      cubic-bezier(0.22, 1, 0.36, 1);
+      --mono:      'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    html, body { overflow-anchor: none; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Cabinet Grotesk', system-ui, -apple-system, sans-serif;
+      font-weight: 400;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    ::selection { background: var(--moss); color: var(--bg); }
+
+    /* Film grain, same recipe as the main site */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 6;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      opacity: 0.5;
+      mix-blend-mode: overlay;
+    }
+
+    /* ---- atmosphere: emerald aurora + giant eclipse ring ---- */
+    .aura { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .aura::before {
+      content: '';
+      position: absolute;
+      top: -220px; left: 50%; transform: translateX(-50%);
+      width: 760px; height: 760px;
+      background:
+        radial-gradient(circle, rgba(52, 211, 153, 0.10) 0%, rgba(52, 211, 153, 0.035) 38%, transparent 64%);
+      animation: breathe 9s ease-in-out infinite;
+    }
+    .aura::after {
+      content: '';
+      position: absolute;
+      bottom: -30vmax; left: -34vmax;
+      width: 95vmax; height: 95vmax;
+      border: 1px solid rgba(244, 237, 224, 0.055);
+      border-radius: 50%;
+    }
+    .aura .ring2 {
+      position: absolute;
+      top: -46vmax; right: -40vmax;
+      width: 100vmax; height: 100vmax;
+      border: 1px solid rgba(52, 211, 153, 0.06);
+      border-radius: 50%;
+    }
+    @keyframes breathe {
+      0%, 100% { opacity: 0.85; transform: translateX(-50%) scale(1); }
+      50%      { opacity: 1;    transform: translateX(-50%) scale(1.06); }
+    }
+
+    .page {
+      position: relative; z-index: 1;
+      width: 100%;
+      max-width: 430px;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      padding: 28px 26px calc(26px + env(safe-area-inset-bottom));
+    }
+
+    @media (min-width: 600px) {
+      /* margin:auto centers when there's room yet keeps the top reachable
+         when the window is shorter than the page */
+      .page {
+        max-width: 560px; min-height: 0; margin: auto 0;
+        padding-top: 48px; padding-bottom: 40px;
+      }
+    }
+
+    /* ---- masthead ---- */
+    .head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 16px;
+    }
+    .eyebrow, .head-r {
+      font-family: var(--mono);
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .eyebrow { color: var(--ink-faint); }
+    .eyebrow::after {
+      content: '';
+      display: block;
+      width: 36px; height: 1px;
+      background: var(--ink-rule);
+      margin-top: 10px;
+    }
+    .head-r { color: var(--ink-dim); letter-spacing: 0.2em; }
+
+    /* ============================================================
+       THE CARD — 89 × 51 mm, levitating
+       ============================================================ */
+    .stage {
+      margin-top: 54px;
+      perspective: 1300px;
+      position: relative;
+    }
+
+    /* print-proof crop marks (pinned while the card floats) */
+    .cropmarks { position: absolute; inset: -15px; pointer-events: none; }
+    .cropmarks span { position: absolute; width: 13px; height: 13px; }
+    .cropmarks span::before, .cropmarks span::after {
+      content: ''; position: absolute; background: var(--ink-rule);
+    }
+    .cropmarks span::before { width: 9px; height: 1px; }
+    .cropmarks span::after  { width: 1px; height: 9px; }
+    .cm-tl { top: 0; left: 0; }
+    .cm-tl::before { top: 4px; left: -2px; } .cm-tl::after { left: 4px; top: -2px; }
+    .cm-tr { top: 0; right: 0; }
+    .cm-tr::before { top: 4px; right: -2px; } .cm-tr::after { right: 4px; top: -2px; }
+    .cm-bl { bottom: 0; left: 0; }
+    .cm-bl::before { bottom: 4px; left: -2px; } .cm-bl::after { left: 4px; bottom: -2px; }
+    .cm-br { bottom: 0; right: 0; }
+    .cm-br::before { bottom: 4px; right: -2px; } .cm-br::after { right: 4px; bottom: -2px; }
+
+    .tilt { transform-style: preserve-3d; will-change: transform; }
+
+    /* idle levitation — a separate wrapper so it composes with tilt & flip */
+    .float {
+      transform-style: preserve-3d;
+      animation: lev 7s ease-in-out infinite;
+      will-change: transform;
+    }
+    @keyframes lev {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-6px); }
+    }
+
+    .flipper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 89 / 51;
+      transform-style: preserve-3d;
+      transition: transform 0.85s var(--ease);
+      cursor: pointer;
+      border: 0; background: none; color: inherit;
+      display: block; text-align: left;
+      font: inherit;
+    }
+    .flipper:focus-visible { outline: 2px solid var(--moss); outline-offset: 20px; }
+    .flipped .flipper { transform: rotateY(180deg); }
+
+    .face {
+      position: absolute; inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: var(--r);
+      background:
+        radial-gradient(1.4px 1.4px at 1px 1px, rgba(244,237,224,0.055) 99%, transparent 99%) 6px 8px / 22px 22px,
+        linear-gradient(158deg, var(--card-hi) 0%, var(--card-lo) 74%);
+      border: 1px solid rgba(244, 237, 224, 0.15);
+      box-shadow:
+        0 40px 80px -28px rgba(0, 0, 0, 0.78),
+        0 12px 28px -10px rgba(0, 0, 0, 0.55),
+        0 0 110px -30px rgba(52, 211, 153, 0.4);
+      overflow: hidden;
+    }
+    /* engraved inner hairline */
+    .face::before {
+      content: ''; position: absolute; inset: 8px;
+      border: 1px solid rgba(244, 237, 224, 0.075);
+      border-radius: calc(var(--r) - 5px);
+      pointer-events: none;
+    }
+
+    /* ---- lighting: mirror glint + ambient sheen + rim light. Blend modes
+       make the light brighten the card's own material rather than sit on
+       top of it like film. All positions/intensities are JS-driven vars. ---- */
+    .gloss {
+      position: absolute; inset: 0; pointer-events: none;
+      mix-blend-mode: screen;
+      background:
+        linear-gradient(calc(100deg + var(--ga, 0deg)),
+          transparent 30%,
+          rgba(255, 250, 238, 0.03) 42%,
+          rgba(255, 250, 238, 0.085) 49%,
+          rgba(255, 250, 238, 0.17) 50%,
+          rgba(255, 250, 238, 0.085) 51%,
+          rgba(255, 250, 238, 0.03) 58%,
+          transparent 70%),
+        linear-gradient(calc(100deg + var(--ga, 0deg)),
+          transparent 44%,
+          rgba(213, 233, 221, 0.06) 50%,
+          transparent 56%);
+      background-size: 280% 100%, 280% 100%;
+      background-position: var(--gx, 26%) 0, calc(var(--gx, 26%) + 9%) 0;
+      background-repeat: no-repeat;
+      opacity: var(--si, 0.5);
+    }
+    .sheen {
+      position: absolute; inset: 0; pointer-events: none;
+      mix-blend-mode: soft-light;
+      background:
+        radial-gradient(130% 160% at var(--ax, 50%) var(--ay, 40%),
+          rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.18) 46%, rgba(0, 0, 0, 0.28) 100%);
+      opacity: 0.45;
+    }
+    .edgelight {
+      position: absolute; inset: 0; pointer-events: none;
+      border-radius: var(--r);
+      box-shadow: inset var(--ex, 0px) var(--ey, 0px) 20px -13px rgba(255, 250, 238, var(--ei, 0.05));
+    }
+
+    /* ---- front ---- */
+    .front {
+      padding: clamp(17px, 5.6vw, 27px) clamp(19px, 6.2vw, 31px);
+      display: flex; flex-direction: column;
+    }
+    .fr-top { display: flex; align-items: center; justify-content: space-between; }
+    .fr-mark {
+      width: clamp(31px, 8.8vw, 39px); height: clamp(31px, 8.8vw, 39px);
+      border-radius: 999px;
+      display: block;
+      mix-blend-mode: lighten; /* the JPEG's black ground drops out */
+    }
+    .fr-est {
+      font-family: var(--mono);
+      font-size: 9px; font-weight: 500;
+      letter-spacing: 0.3em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+    }
+
+    .fr-id { margin-top: auto; padding-bottom: clamp(10px, 3vw, 14px); }
+    h1 {
+      font-family: 'Zodiak', Georgia, serif;
+      font-weight: 400;
+      font-size: clamp(24px, 7vw, 32px);
+      letter-spacing: -0.012em;
+      line-height: 1;
+    }
+    .fr-role {
+      margin-top: 7px;
+      font-family: var(--mono);
+      font-size: clamp(9px, 2.8vw, 11px); font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--moss);
+    }
+    .fr-role .sep { color: var(--ink-dim); padding: 0 6px; }
+    .fr-role .co { color: var(--ink-soft); }
+
+    .fr-foot {
+      border-top: 1px solid var(--ink-line);
+      padding-top: clamp(8px, 2.6vw, 12px);
+      display: grid; grid-template-columns: 1fr auto; gap: 5px 8px;
+      font-family: var(--mono);
+      font-size: clamp(9px, 2.5vw, 11px); font-weight: 400;
+      letter-spacing: 0.01em;
+      color: var(--ink-faint);
+      white-space: nowrap;
+    }
+
+    .fr-foot span:first-child { grid-column: 1 / -1; }
+
+    /* vertical coordinates on the card edge */
+    .fr-edge {
+      position: absolute; top: 0; bottom: 0; right: 11px;
+      writing-mode: vertical-rl;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono);
+      font-size: 7px; letter-spacing: 0.22em;
+      color: var(--ink-dim);
+      white-space: nowrap;
+    }
+
+    /* ---- back ---- */
+    .back {
+      transform: rotateY(180deg);
+      padding: clamp(14px, 4.4vw, 22px) clamp(19px, 6.2vw, 31px);
+      display: flex; align-items: center; gap: clamp(16px, 5vw, 28px);
+    }
+    .bk-l {
+      flex: 1; min-width: 0;
+      display: flex; flex-direction: column; align-items: flex-start;
+    }
+    .bk-word {
+      font-family: var(--mono);
+      font-size: clamp(9px, 2.5vw, 11px); font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      white-space: nowrap;
+    }
+    .stamp {
+      margin-top: clamp(10px, 3.4vw, 18px);
+      font-family: var(--mono);
+      font-size: clamp(9px, 2.5vw, 10px); font-weight: 500;
+      letter-spacing: 0.06em;
+      color: var(--moss);
+      border: 1px dashed rgba(52, 211, 153, 0.44);
+      padding: 6px 9px 5px;
+      transform: rotate(-2.5deg);
+      white-space: nowrap;
+      opacity: 0;
+      user-select: none;
+    }
+    .stamp.on {
+      animation: stampIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.45s forwards;
+    }
+    @keyframes stampIn {
+      0%   { opacity: 0; transform: rotate(-8deg) scale(1.5); }
+      62%  { opacity: 1; transform: rotate(-2.1deg) scale(0.97); }
+      100% { opacity: 1; transform: rotate(-2.5deg) scale(1); }
+    }
+
+    .bk-qr {
+      flex: none;
+      width: clamp(88px, 27vw, 118px);
+      display: flex; flex-direction: column; align-items: center; gap: 7px;
+    }
+    .qrtile {
+      width: clamp(88px, 27vw, 118px);
+      height: clamp(88px, 27vw, 118px);
+      background: var(--ink);
+      border-radius: 5px;
+      padding: 7px;
+      box-shadow: 0 4px 18px -6px rgba(0, 0, 0, 0.6);
+    }
+    .qrtile svg { display: block; width: 100%; height: 100%; }
+    .bk-scan {
+      font-family: var(--mono);
+      font-size: 9px; font-weight: 500;
+      letter-spacing: 0.01em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    /* motion easter egg — a whisper at the very bottom (iOS needs one tap) */
+    .motion-pill {
+      margin: 20px auto 0;
+      display: flex; align-items: center; gap: 7px;
+      background: none; border: 0;
+      color: var(--ink-dim);
+      font-family: var(--mono);
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 12px 10px;
+      cursor: pointer;
+      opacity: 1;
+      transition: opacity 400ms var(--ease), color 400ms var(--ease);
+    }
+    .motion-pill:hover { opacity: 1; color: var(--moss); }
+    .motion-pill:active { opacity: 1; }
+    .motion-pill.is-on { color: var(--moss); opacity: 0.8; }
+    .motion-pill[hidden] { display: none; }
+
+    /* spec line under the card */
+    .specline {
+      margin-top: 24px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+      font-family: var(--mono);
+      font-size: 10.5px; font-weight: 400;
+      letter-spacing: 0.10em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .specline .flip-cue { color: var(--ink-faint); display: inline-flex; align-items: center; gap: 7px; }
+    .flip-cue svg { opacity: 0.7; }
+
+    /* ---- primary actions: save (a plain link to the native vCard) + share ---- */
+    .actions { margin-top: 28px; display: flex; gap: 10px; }
+    .save {
+      flex: 1; min-width: 0;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      background: var(--moss);
+      color: #07110d;
+      border: 0; border-radius: 2px;
+      height: 60px;
+      font-family: var(--mono);
+      font-size: 12.5px; font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: pointer;
+      position: relative; overflow: hidden;
+      transition: background 300ms var(--ease), transform 200ms var(--ease), box-shadow 300ms var(--ease);
+    }
+    .save::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.22) 50%, transparent 60%);
+      background-size: 250% 100%;
+      background-position: 170% 0;
+      transition: background-position 700ms var(--ease);
+    }
+    .save:hover { background: var(--moss-soft); box-shadow: 0 10px 34px -10px rgba(52, 211, 153, 0.45); }
+    .save:hover::after { background-position: -70% 0; }
+    .save:active { transform: scale(0.98); }
+    .save:focus-visible { outline: 2px solid var(--moss-soft); outline-offset: 3px; }
+    .save svg { flex: none; }
+
+    .share {
+      flex: none; width: 60px; height: 60px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(244, 237, 224, 0.03);
+      border: 1px solid var(--ink-rule);
+      border-radius: 2px;
+      color: var(--ink-soft);
+      cursor: pointer;
+      transition: color 300ms var(--ease), border-color 300ms var(--ease),
+                  background 300ms var(--ease), transform 200ms var(--ease);
+    }
+    .share:hover { color: var(--moss); border-color: rgba(52, 211, 153, 0.5); background: rgba(52, 211, 153, 0.06); }
+    .share:active { transform: scale(0.96); }
+    .share:focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+    .share[hidden] { display: none; }
+
+    .hint {
+      margin-top: 13px;
+      font-size: 13.5px;
+      font-weight: 400;
+      color: var(--ink-faint);
+      letter-spacing: 0.02em;
+      text-align: center;
+      min-height: 18px;
+      transition: color 400ms var(--ease);
+    }
+    .hint.done { color: var(--moss); font-weight: 400; }
+
+    /* ---- contact ledger panel ---- */
+    .contact { margin-top: 28px; }
+    .panel {
+      border: 1px solid var(--ink-line);
+      border-radius: 6px;
+      background: linear-gradient(180deg, rgba(244, 237, 224, 0.025) 0%, rgba(244, 237, 224, 0.008) 34%, transparent 100%);
+      overflow: hidden;
+    }
+    .panel-head {
+      display: flex; justify-content: space-between; align-items: center;
+      min-height: 42px;
+      padding: 12px 18px 11px 16px;
+      border-bottom: 1px solid var(--ink-line);
+      font-family: var(--mono);
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+    .panel-head .n { color: rgba(52, 211, 153, 0.6); letter-spacing: 0.2em; }
+
+    .rows { list-style: none; }
+    .rows li + li { border-top: 1px solid var(--ink-line); }
+
+    .row {
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 16px 13px 13px;
+      text-decoration: none;
+      color: var(--ink);
+      transition: background 300ms var(--ease);
+    }
+    .row:hover { background: rgba(52, 211, 153, 0.045); }
+    .ric {
+      flex: none; width: 36px; height: 36px;
+      border: 1px solid var(--ink-line);
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink-faint);
+      background: rgba(244, 237, 224, 0.02);
+      transition: color 300ms var(--ease), border-color 300ms var(--ease);
+    }
+    .row:hover .ric { color: var(--moss); border-color: rgba(52, 211, 153, 0.42); }
+    .row .meta { min-width: 0; flex: 1; }
+    .row .label {
+      font-family: var(--mono);
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.16em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+    }
+    .row .value {
+      display: block;
+      margin-top: 3px;
+      font-size: 15.5px;
+      font-weight: 400;
+      letter-spacing: 0.005em;
+      color: var(--ink);
+      overflow-wrap: anywhere;
+      transition: color 300ms var(--ease);
+    }
+    .row .arrow {
+      flex: none;
+      color: var(--ink-dim);
+      transition: color 300ms var(--ease), transform 400ms var(--ease);
+    }
+    .row:hover .value { color: var(--moss-soft); }
+    .row:hover .arrow { color: var(--moss); transform: translate(2px, -2px); }
+    .row:active { opacity: 0.72; }
+    .row:focus-visible { outline: 2px solid var(--moss); outline-offset: -2px; }
+
+    /* ---- exchange: their details, straight to the partner inbox ---- */
+    .exchange { margin-top: 18px; }
+    .xh-head {
+      width: 100%; min-height: 48px;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 18px 11px 16px;
+      background: none; border: 0;
+      font-family: var(--mono);
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      cursor: pointer; text-align: left;
+      transition: color 300ms var(--ease);
+    }
+    .xh-head:hover, .open .xh-head { color: var(--ink-soft); }
+    .xh-head:focus-visible { outline: 2px solid var(--moss); outline-offset: -2px; }
+    .xh-head .plus {
+      display: inline-flex; color: rgba(52, 211, 153, 0.7);
+      transition: transform 500ms var(--ease);
+    }
+    .open .xh-head .plus { transform: rotate(45deg); }
+    .xh-wrap {
+      display: grid; grid-template-rows: 0fr;
+      transition: grid-template-rows 550ms var(--ease);
+    }
+    .open .xh-wrap { grid-template-rows: 1fr; }
+    .xh-wrap > div { overflow: hidden; visibility: hidden; transition: visibility 0s 550ms; }
+    .open .xh-wrap > div { visibility: visible; transition-delay: 0s; }
+    .xh { padding: 2px 16px 18px; border-top: 1px solid var(--ink-line); }
+    .xh-lead {
+      padding: 15px 0 2px;
+      font-size: 13.5px; color: var(--ink-soft);
+      letter-spacing: 0.01em;
+    }
+    .field { display: block; padding-top: 12px; }
+    .field .label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+    .field .label em { font-style: normal; color: var(--ink-dim); margin-left: 8px; letter-spacing: 0.18em; }
+    .field input {
+      display: block; width: 100%;
+      margin-top: 1px; padding: 8px 0 9px;
+      background: none;
+      border: 0; border-bottom: 1px solid var(--ink-rule); border-radius: 0;
+      color: var(--ink);
+      font: inherit; font-size: 16px; /* 16px: iOS doesn't zoom the page on focus */
+      letter-spacing: 0.005em;
+      outline: 0;
+      -webkit-appearance: none; appearance: none;
+      transition: border-color 300ms var(--ease);
+    }
+    .field input::placeholder { color: var(--ink-dim); }
+    .field input:focus { border-bottom-color: var(--moss); }
+    .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
+    .xh-send {
+      margin-top: 24px; width: 100%; height: 52px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      background: none;
+      border: 1px solid var(--ink-rule); border-radius: 2px;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 11.5px; font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: border-color 300ms var(--ease), color 300ms var(--ease),
+                  background 300ms var(--ease), opacity 300ms var(--ease);
+    }
+    .xh-send:hover { border-color: rgba(52, 211, 153, 0.55); color: var(--moss-soft); background: rgba(52, 211, 153, 0.05); }
+    .xh-send:focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+    .xh-send[disabled] { opacity: 0.5; cursor: default; }
+    .xh-send svg { transition: transform 400ms var(--ease); }
+    .xh-send:hover svg { transform: translateX(3px); }
+    .xh-status {
+      margin-top: 12px; min-height: 18px;
+      font-size: 13px; color: var(--ink-faint);
+      text-align: center;
+    }
+    .xh-status.err { color: #e6b48d; }
+    .xh-status a { color: var(--moss); text-decoration: none; border-bottom: 1px solid rgba(52, 211, 153, 0.35); }
+    /* sent: the form gives way to a stamp, twin to the one on the card's back */
+    .xh-done { display: none; padding: 28px 16px 30px; border-top: 1px solid var(--ink-line); text-align: center; }
+    .sent .xh { display: none; }
+    .sent .xh-done { display: block; }
+    .xh-done .stamp {
+      display: inline-block; margin: 0;
+      font-size: 10px; padding: 8px 12px 7px;
+      animation: stampIn 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) 0.1s forwards;
+    }
+    .xh-done p { margin-top: 18px; font-size: 13.5px; color: var(--ink-soft); }
+
+    /* ---- footer ---- */
+    .foot {
+      margin-top: auto;
+      padding-top: 46px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+      gap: 12px;
+      font-family: var(--mono);
+      font-size: 10.5px; font-weight: 400;
+      letter-spacing: 0.10em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .foot a { color: inherit; text-decoration: none; transition: color 300ms var(--ease); }
+    .foot a:hover { color: var(--moss); }
+    .status { display: inline-flex; align-items: center; gap: 9px; }
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 999px;
+      background: var(--moss); display: inline-block;
+      animation: pulseDot 1.8s ease-in-out infinite;
+      box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.16);
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.45; transform: scale(0.85); }
+    }
+
+    /* ---- entrance: held until the display faces are in (900 ms cap), so the
+       name never swaps typefaces mid-rise on a cold NFC tap ---- */
+    .rise { opacity: 0; animation: rise 1s var(--ease) both; }
+    .js:not(.ready) .rise { animation-play-state: paused; }
+    .d1 { animation-delay: 0.1s; }
+    .d2 { animation-delay: 0.28s; }
+    .d4 { animation-delay: 0.56s; }
+    .d6 { animation-delay: 0.8s; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .stage.rise { animation-name: stageIn; animation-duration: 1.15s; }
+    @keyframes stageIn {
+      from { opacity: 0; transform: translateY(22px) scale(0.965); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-delay: 0s !important;
+        transition-duration: 0.001ms !important;
+      }
+      .stamp { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="aura" aria-hidden="true"><span class="ring2"></span></div>
+
+  <main class="page" id="top">
+    <header class="head rise">
+      <div class="eyebrow">Solaria&nbsp;Capital</div>
+      <div class="head-r">Digital card</div>
+    </header>
+
+    <section class="stage rise d1" id="stage" aria-label="Business card">
+      <div class="cropmarks" aria-hidden="true">
+        <span class="cm-tl"></span><span class="cm-tr"></span>
+        <span class="cm-bl"></span><span class="cm-br"></span>
+      </div>
+      <div class="tilt" id="tilt">
+        <div class="float">
+          <button class="flipper" id="flipper" type="button"
+            aria-label="Karl Li, Vice President / Co-Founder of Solaria Capital. Front of business card. Press to show back.">
+            <div class="face front">
+              <div class="fr-top">
+                <img class="fr-mark" id="mark" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4QDCRXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAExAAIAAAAGAAAAZodpAAQAAAABAAAAbAAAAAAAAABIAAAAAQAAAEgAAAABRmlnbWEAAAaQAAAHAAAABDAyMjGRAQAHAAAABAECAwCgAAAHAAAABDAxMDCgAgAEAAAAAQAAAeCgAwAEAAAAAQAAAeCkBgADAAAAAQAAAAAAAAAA/+EKQ2h0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8APD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNi4wLjAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczpwaG90b3Nob3A9Imh0dHA6Ly9ucy5hZG9iZS5jb20vcGhvdG9zaG9wLzEuMC8iIHhtbG5zOklwdGM0eG1wRXh0PSJodHRwOi8vaXB0Yy5vcmcvc3RkL0lwdGM0eG1wRXh0LzIwMDgtMDItMjkvIiBwaG90b3Nob3A6Q3JlZGl0PSJBcHBsZSBQaG90b3MgR2VuZXJhdGl2ZSBFZGl0OiBPdXRmaWxsIiBJcHRjNHhtcEV4dDpEaWdpdGFsU291cmNlVHlwZT0iaHR0cDovL2N2LmlwdGMub3JnL25ld3Njb2Rlcy9kaWdpdGFsc291cmNldHlwZS9jb21wb3NpdGVXaXRoVHJhaW5lZEFsZ29yaXRobWljTWVkaWEiLz4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA8P3hwYWNrZXQgZW5kPSJ3Ij8+AP/tAHJQaG90b3Nob3AgMy4wADhCSU0EBAAAAAAAORwBWgADGyVHHAIAAAIAAhwCbgAlQXBwbGUgUGhvdG9zIEdlbmVyYXRpdmUgRWRpdDogT3V0ZmlsbAA4QklNBCUAAAAAABA/7MMCz3FygxhqZ7nDNbSU/+ICKElDQ19QUk9GSUxFAAEBAAACGGFwcGwEAAAAbW50clJHQiBYWVogB+YAAQABAAAAAAAAYWNzcEFQUEwAAAAAQVBQTAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1hcHBsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKZGVzYwAAAPwAAAAwY3BydAAAASwAAABQd3RwdAAAAXwAAAAUclhZWgAAAZAAAAAUZ1hZWgAAAaQAAAAUYlhZWgAAAbgAAAAUclRSQwAAAcwAAAAgY2hhZAAAAewAAAAsYlRSQwAAAcwAAAAgZ1RSQwAAAcwAAAAgbWx1YwAAAAAAAAABAAAADGVuVVMAAAAUAAAAHABEAGkAcwBwAGwAYQB5ACAAUAAzbWx1YwAAAAAAAAABAAAADGVuVVMAAAA0AAAAHABDAG8AcAB5AHIAaQBnAGgAdAAgAEEAcABwAGwAZQAgAEkAbgBjAC4ALAAgADIAMAAyADJYWVogAAAAAAAA9tUAAQAAAADTLFhZWiAAAAAAAACD3wAAPb////+7WFlaIAAAAAAAAEq/AACxNwAACrlYWVogAAAAAAAAKDgAABELAADIuXBhcmEAAAAAAAMAAAACZmYAAPKnAAANWQAAE9AAAApbc2YzMgAAAAAAAQxCAAAF3v//8yYAAAeTAAD9kP//+6L///2jAAAD3AAAwG7/wAARCAHgAeADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9sAQwACAgICAgIDAgIDBAMDAwQFBAQEBAUHBQUFBQUHCAcHBwcHBwgICAgICAgICgoKCgoKCwsLCwsNDQ0NDQ0NDQ0N/9sAQwECAgIDAwMGAwMGDQkHCQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0NDQ0N/90ABAAe/9oADAMBAAIRAxEAPwD+f+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Q/n/ooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/0f5/6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKUY70lFADvl9aPl9aTijBNABxRxijBFJQOwUUvbFGeMUBZi/L60hx2pKMd6AswooooCwUUUUCCiiigAooooAKKKKACiiigAooooAKKKK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SP8AcUsB6CtbTfD+ravOLbT7V5pCN21Rg46dWwO9fq1pXw18C6ICNK0e1gz1wD/jXXwWdpbALbxIuOAFHQUGMs7g/hTPzI0b4BfEnV51U6YbaNv+Wk0ibR/3yxP6V7T4b/ZPlIJ8Uamuc4VLNiDjjrviI9e9fa4OCcELjrv/APrViaj4m0HRoWl1O9jgjQfN1P54BoOWeZ1p6QRw/hr4L/D/AMNPHJZ6es13F0llwXHfIIAGa9RhRItojGwJxtXoK8A1/wDaS+HmjRkWM8upOvRbdCMf9/NlfPfij9p/xZqTvb6DDFZQEfI+1hMv4+YV/SgzjhMVWd5M+7tZ1/RfD9o99rF1HBAg+Z3yeOvRQT+lfMvjv9qDRtPRrLwYn2yXH+vkQiLBzxjcjenaviDWfEeteIbs32r3kl1OwwXc81iZoPTw+TU4+9U1O48X/EHxP41ujc65eNKnGyPnZHjsB19T361xBLHk96bluuabuNB68KcYK0VoHWl20mcUZNA2wzxikoooEFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFAH/0f5/6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKXJFJRQAuSaSiigB4PBzSl/xz370wY70HHagdx4fH/1qlSd0PyMV7jnvValBxQK0eqO40z4jeNNGQR6Zq08CjptIr0TSv2jviRp8SQzXcd3t6tcBiT9drLXgZxSgc80GcsLSnvFH1TZ/tYeNkdEu7DTnjH3iscu/8My4rrYf2s3OPtOljP8A0zTj9Za+KcDNOoOeeXUL6o+4l/a1s9pD6VLuzwVVcY/GWq8n7WURH7rTHB91H/x2viM9aTJoJ/svDvofXGo/tY+JTxpum2Q95kcn/wAdlrlbz9p74iXSFYvstsT3hVwR9Mua+cvmo20GkcDh47I9K1L4ufEPVS32zWrh1b+EkY/lXAXOoXl3K01zK0jt94setVcCjaKDojTpx2QofjB6frSbs9TRgUZAoLTsDOTjnpTcmgnNJQDdxck0lFFAgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD//S/n/ooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigdwpQcUlFAgPNFFFADtxo3Gm0UALuNLuNNooHcUnNJRRQK4ufakoooHcKKKKAuFFFFAgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA//0/5/6KKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9T+f+iiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z" alt="" width="39" height="39" />
+                <span class="fr-est">Vice President</span>
+              </div>
+              <div class="fr-id">
+                <h1>Karl Li</h1>
+                <p class="fr-role">Co-Founder<span class="sep">/</span><span class="co">Solaria Capital</span></p>
+              </div>
+              <div class="fr-foot">
+                <span>kal126@ucsd.edu</span>
+                <span>+1 323 868 1396</span>
+                <span>solariavc.com</span>
+              </div>
+              <span class="fr-edge" aria-hidden="true">32.8328° N — 117.2713° W</span>
+              <span class="sheen" aria-hidden="true"></span>
+              <span class="gloss" aria-hidden="true"></span>
+              <span class="edgelight" aria-hidden="true"></span>
+            </div>
+            <div class="face back" aria-hidden="true">
+              <div class="bk-l">
+                <div class="bk-word">Solaria Capital</div>
+                <div class="stamp" id="stamp">LET'S CONNECT</div>
+              </div>
+              <div class="bk-qr">
+                <div class="qrtile"><svg role="img" aria-label="QR code linking to solariavc.com/card/karl" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 37 37" shape-rendering="crispEdges"><path stroke="#10130f" d="M4 4.5h7M14 4.5h1M16 4.5h4M21 4.5h2M26 4.5h7M4 5.5h1M10 5.5h1M12 5.5h2M15 5.5h2M19 5.5h1M21 5.5h2M24 5.5h1M26 5.5h1M32 5.5h1M4 6.5h1M6 6.5h3M10 6.5h1M12 6.5h4M18 6.5h1M20 6.5h1M23 6.5h2M26 6.5h1M28 6.5h3M32 6.5h1M4 7.5h1M6 7.5h3M10 7.5h1M12 7.5h1M14 7.5h2M18 7.5h2M21 7.5h1M23 7.5h2M26 7.5h1M28 7.5h3M32 7.5h1M4 8.5h1M6 8.5h3M10 8.5h1M13 8.5h1M15 8.5h1M17 8.5h3M22 8.5h2M26 8.5h1M28 8.5h3M32 8.5h1M4 9.5h1M10 9.5h1M16 9.5h3M20 9.5h1M22 9.5h1M24 9.5h1M26 9.5h1M32 9.5h1M4 10.5h7M12 10.5h1M14 10.5h1M16 10.5h1M18 10.5h1M20 10.5h1M22 10.5h1M24 10.5h1M26 10.5h7M12 11.5h1M15 11.5h3M24 11.5h1M4 12.5h1M10 12.5h1M12 12.5h1M16 12.5h1M18 12.5h2M21 12.5h1M23 12.5h1M25 12.5h2M29 12.5h3M4 13.5h2M7 13.5h1M13 13.5h3M18 13.5h1M23 13.5h1M25 13.5h1M27 13.5h2M30 13.5h2M5 14.5h2M9 14.5h2M13 14.5h1M16 14.5h1M21 14.5h2M24 14.5h2M27 14.5h2M4 15.5h1M6 15.5h1M8 15.5h2M12 15.5h2M16 15.5h1M18 15.5h3M22 15.5h3M26 15.5h1M28 15.5h2M4 16.5h3M10 16.5h2M13 16.5h2M16 16.5h3M24 16.5h1M26 16.5h2M32 16.5h1M4 17.5h2M7 17.5h1M9 17.5h1M11 17.5h1M13 17.5h2M16 17.5h3M22 17.5h3M26 17.5h3M31 17.5h2M4 18.5h2M8 18.5h3M17 18.5h4M24 18.5h3M28 18.5h3M7 19.5h1M16 19.5h3M20 19.5h1M22 19.5h6M30 19.5h1M32 19.5h1M4 20.5h1M7 20.5h4M12 20.5h3M18 20.5h2M21 20.5h2M29 20.5h2M4 21.5h1M6 21.5h2M11 21.5h1M13 21.5h2M20 21.5h5M26 21.5h3M30 21.5h3M4 22.5h2M8 22.5h4M15 22.5h4M20 22.5h1M23 22.5h4M29 22.5h1M32 22.5h1M4 23.5h1M6 23.5h2M12 23.5h1M14 23.5h3M18 23.5h3M23 23.5h3M27 23.5h1M4 24.5h1M7 24.5h4M12 24.5h2M21 24.5h1M23 24.5h6M30 24.5h3M12 25.5h2M15 25.5h3M20 25.5h3M24 25.5h1M28 25.5h2M4 26.5h7M16 26.5h4M21 26.5h4M26 26.5h1M28 26.5h3M4 27.5h1M10 27.5h1M14 27.5h4M20 27.5h1M24 27.5h1M28 27.5h1M31 27.5h2M4 28.5h1M6 28.5h3M10 28.5h1M13 28.5h3M17 28.5h1M20 28.5h1M23 28.5h7M4 29.5h1M6 29.5h3M10 29.5h1M16 29.5h1M19 29.5h2M22 29.5h4M29 29.5h3M4 30.5h1M6 30.5h3M10 30.5h1M13 30.5h1M15 30.5h2M19 30.5h1M22 30.5h1M26 30.5h6M4 31.5h1M10 31.5h1M13 31.5h1M17 31.5h1M19 31.5h2M25 31.5h3M29 31.5h2M32 31.5h1M4 32.5h7M12 32.5h2M15 32.5h3M19 32.5h3M23 32.5h1M25 32.5h2M28 32.5h3"/></svg></div>
+                <span class="bk-scan">Scan to connect</span>
+              </div>
+              <span class="sheen" aria-hidden="true"></span>
+              <span class="gloss" aria-hidden="true"></span>
+              <span class="edgelight" aria-hidden="true"></span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div class="specline rise d2">
+      <span>Co-founder card</span>
+      <span class="flip-cue">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2v6h-6 M7 22v-6h6 M3 12a9 9 0 0 1 14-7.4L17 8 M21 12a9 9 0 0 1-14 7.4L7 16"/></svg>
+        Tap card to flip
+      </span>
+    </div>
+
+    <div class="actions">
+      <a class="save" id="save" href="/card/karl-li.vcf">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9.5" cy="7.5" r="3.6" />
+          <path d="M3.2 20.2c0-3.4 2.9-5.7 6.3-5.7s6.3 2.3 6.3 5.7" />
+          <path d="M18.6 8.2v6.2 M15.5 11.3h6.2" />
+        </svg>
+        Save contact
+      </a>
+      <button class="share" id="share" type="button" aria-label="Share this card" title="Share this card">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 14.5V3.5 M8 7.5l4-4 4 4" />
+          <path d="M5 12.5v7.5h14v-7.5" />
+        </svg>
+      </button>
+    </div>
+    <p class="hint" id="hint" aria-live="polite">Adds phone, email, LinkedIn &amp; the date saved.</p>
+
+    <section class="exchange" aria-label="Send Karl your details">
+      <div class="panel" id="xhPanel">
+        <button class="xh-head" id="xhToggle" type="button" aria-expanded="false" aria-controls="xhWrap">
+          <span>Send me yours</span>
+          <span class="plus" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14 M5 12h14" /></svg>
+          </span>
+        </button>
+        <div class="xh-wrap" id="xhWrap">
+          <div>
+            <form class="xh" id="xhForm" novalidate>
+              <p class="xh-lead">Leave your details and I'll follow up.</p>
+              <label class="field">
+                <span class="label">Name</span>
+                <input name="name" type="text" autocomplete="name" required maxlength="120" />
+              </label>
+              <label class="field">
+                <span class="label">Email</span>
+                <input name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" required maxlength="200" />
+              </label>
+              <label class="field">
+                <span class="label">Phone<em>optional</em></span>
+                <input name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40" />
+              </label>
+              <label class="field">
+                <span class="label">Note<em>optional</em></span>
+                <input name="note" type="text" maxlength="500" placeholder="Where we met, what you're working on…" />
+              </label>
+              <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+              <button class="xh-send" id="xhSend" type="submit">
+                Send to Karl
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6" /></svg>
+              </button>
+              <p class="xh-status" id="xhStatus" aria-live="polite"></p>
+            </form>
+            <div class="xh-done" aria-live="polite">
+              <span class="stamp" id="xhStamp">SENT</span>
+              <p>Thank you — I'll be in touch shortly.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact rise d4" aria-label="Contact details">
+      <div class="panel">
+        <div class="panel-head">
+          <span>Direct lines</span>
+          <span class="n">04</span>
+        </div>
+        <ul class="rows">
+          <li>
+            <a class="row" href="https://www.linkedin.com/in/karl-li-b0368b3b6" target="_blank" rel="noopener">
+              <span class="ric"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="7.9" cy="7.9" r="0.4" fill="currentColor"/><path d="M7.9 11v6.2 M11.6 17.2v-3.7c0-1.4 1-2.5 2.3-2.5s2.3 1.1 2.3 2.5v3.7"/></svg></span>
+              <span class="meta">
+                <span class="label">LinkedIn</span>
+                <span class="value">Connect on LinkedIn</span>
+              </span>
+              <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
+            </a>
+          </li>
+          <li>
+            <a class="row" href="mailto:kal126@ucsd.edu">
+              <span class="ric"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m4.5 7.5 7.5 5.6 7.5-5.6"/></svg></span>
+              <span class="meta">
+                <span class="label">Email</span>
+                <span class="value">kal126@<wbr>ucsd.edu</span>
+              </span>
+              <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
+            </a>
+          </li>
+          <li>
+            <a class="row" href="tel:+13238681396">
+              <span class="ric"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+              <span class="meta">
+                <span class="label">Mobile</span>
+                <span class="value">+1 (323) 868-1396</span>
+              </span>
+              <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6"/></svg>
+            </a>
+          </li>
+          <li>
+            <a class="row" href="https://solariavc.com/" target="_blank" rel="noopener">
+              <span class="ric"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3.5 12h17 M12 3.3c2.6 2.6 2.6 14.8 0 17.4 M12 3.3c-2.6 2.6-2.6 14.8 0 17.4"/></svg></span>
+              <span class="meta">
+                <span class="label">Website</span>
+                <span class="value">solariavc.com</span>
+              </span>
+              <svg class="arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7 M9 7h8v8"/></svg>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <footer class="foot rise d6">
+      <span class="status"><span class="live-dot"></span>Open to connect</span>
+      <a href="https://solariavc.com/" target="_blank" rel="noopener">La Jolla · solariavc.com</a>
+    </footer>
+
+    <button class="motion-pill" id="motionBtn" type="button" hidden>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3v3 M12 18v3 M3 12h3 M18 12h3 M5.6 5.6l2.1 2.1 M16.3 16.3l2.1 2.1 M18.4 5.6l-2.1 2.1 M7.7 16.3l-2.1 2.1"/></svg>
+      motion
+    </button>
+  </main>
+
+  <script>
+    (function () {
+      // Scroll handling stays minimal by design (the Chrome NFC offset is a
+      // known open issue): disable saved-offset restore, reset once per show,
+      // and never touch the view after that.
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      window.addEventListener('pageshow', function () { window.scrollTo(0, 0); });
+
+      var stamp = document.getElementById('stamp');
+
+      // ---- flip: the stamp slams in the first time the back is seen ----
+      var stage = document.getElementById('stage');
+      var flipper = document.getElementById('flipper');
+      var flipped = false;
+      var stamped = false;
+      flipper.addEventListener('click', function () {
+        flipped = !flipped;
+        stage.classList.toggle('flipped', flipped);
+        flipper.querySelector('.back').setAttribute('aria-hidden', flipped ? 'false' : 'true');
+        flipper.querySelector('.front').setAttribute('aria-hidden', flipped ? 'true' : 'false');
+        flipper.setAttribute('aria-label', 'Karl Li, Vice President / Co-Founder of Solaria Capital. ' +
+          (flipped ? 'Back of business card. Press to show front.' : 'Front of business card. Press to show back.'));
+        if (flipped && !stamped) { stamped = true; stamp.classList.add('on'); }
+        if (navigator.vibrate) navigator.vibrate(8); // a tick of card stock on Android
+      });
+
+      // ---- motion: tilt + dynamic reflection ----
+      // Phones: the gyroscope drives the card tilt and the sheen, like light
+      // moving across real glossy stock. Desktop: the pointer drives both.
+      var tilt = document.getElementById('tilt');
+      var canHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+      var noMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      // One virtual light above the viewer. The card (mass) and the glint
+      // (light) ease at different speeds: a mirror reflection moves about
+      // twice the surface rotation and leads, while the body lags — that
+      // ratio, plus brightness falloff, is what reads as "real".
+      var tX = 0, tY = 0;   // targets
+      var cX = 0, cY = 0;   // card orientation (slow mass)
+      var lX = 0, lY = 0;   // light response (fast mirror)
+      var looping = false;
+
+      function step() {
+        cX += (tX - cX) * 0.085;
+        cY += (tY - cY) * 0.085;
+        lX += (tX - lX) * 0.17;
+        lY += (tY - lY) * 0.17;
+
+        tilt.style.transform =
+          'rotateY(' + (cX * 8).toFixed(2) + 'deg) rotateX(' + (-cY * 8).toFixed(2) + 'deg)';
+
+        // mirror streak: opposite the tilt at ~2x, its angle leaning with it
+        var gx = 60 - lX * 60 - lY * 25;
+        var ga = lX * 8 - lY * 6;
+        // brightness falls away as the streak slides off the face
+        var f = Math.max(0, 1 - Math.abs(gx - 50) / 95);
+        var si = 0.22 + 0.42 * f;
+        // ambient sheen: the environment, drifting gently WITH the tilt
+        var ax = 50 + cX * 20;
+        var ay = 40 + cY * 24;
+        // rim light swings to the raised edge, stronger with more tilt
+        var mag = Math.min(1, Math.sqrt(cX * cX + cY * cY));
+
+        stage.style.setProperty('--gx', gx.toFixed(1) + '%');
+        stage.style.setProperty('--ga', ga.toFixed(2) + 'deg');
+        stage.style.setProperty('--si', si.toFixed(3));
+        stage.style.setProperty('--ax', ax.toFixed(1) + '%');
+        stage.style.setProperty('--ay', ay.toFixed(1) + '%');
+        stage.style.setProperty('--ex', (-lX * 15).toFixed(1) + 'px');
+        stage.style.setProperty('--ey', (-lY * 15).toFixed(1) + 'px');
+        stage.style.setProperty('--ei', (0.035 + 0.08 * mag).toFixed(3));
+
+        if (Math.abs(tX - cX) + Math.abs(tY - cY) +
+            Math.abs(tX - lX) + Math.abs(tY - lY) > 0.002) {
+          requestAnimationFrame(step);
+        } else {
+          looping = false;
+        }
+      }
+
+      function applyMotion(nx, ny) {
+        tX = nx; tY = ny;
+        if (!looping) { looping = true; requestAnimationFrame(step); }
+      }
+
+      function clampN(v) { return v < -1 ? -1 : v > 1 ? 1 : v; }
+
+      // Gyroscope path. The first reading becomes "flat", so the card rests
+      // naturally at whatever angle the phone is held.
+      var base = null;
+      function onOrient(e) {
+        if (e.beta == null || e.gamma == null) return;
+        if (base === null) { base = { b: e.beta, g: e.gamma }; return; }
+        applyMotion(clampN((e.gamma - base.g) / 24), clampN((e.beta - base.b) / 24));
+      }
+
+      if (!noMotion) {
+        // entrance: the card rises already turned toward the light, then the
+        // glint sweeps across on the same physics as live motion (kicked off
+        // by onReady below, once the fonts are in)
+        cX = lX = -1.5; cY = lY = -0.35;
+        applyMotion(cX, cY);
+
+        // The bottom easter egg is a toggle: turns motion on, turns it off.
+        var motionBtn = document.getElementById('motionBtn');
+        var isTouch = 'ontouchstart' in window;
+        var needsPerm = typeof DeviceOrientationEvent !== 'undefined' &&
+                        typeof DeviceOrientationEvent.requestPermission === 'function';
+        var gyroOn = false;
+
+        function syncBtn() { motionBtn.classList.toggle('is-on', gyroOn); }
+        function startGyro() {
+          if (gyroOn) return;
+          gyroOn = true;
+          base = null; // recalibrate to how the phone is held right now
+          window.addEventListener('deviceorientation', onOrient);
+          syncBtn();
+        }
+        function stopGyro() {
+          gyroOn = false;
+          window.removeEventListener('deviceorientation', onOrient);
+          applyMotion(0, 0);
+          syncBtn();
+        }
+
+        if (isTouch && (needsPerm || 'ondeviceorientation' in window)) {
+          motionBtn.hidden = false;
+          motionBtn.addEventListener('click', function () {
+            if (gyroOn) { stopGyro(); return; }
+            if (needsPerm) {
+              DeviceOrientationEvent.requestPermission().then(function (s) {
+                if (s === 'granted') startGyro();
+              }, function () {});
+            } else {
+              startGyro();
+            }
+          });
+          if (needsPerm) {
+            // access granted on an earlier visit resolves silently — motion
+            // comes on by itself; a fresh state rejects and waits for the tap
+            DeviceOrientationEvent.requestPermission().then(function (s) {
+              if (s === 'granted') startGyro();
+            }, function () {});
+          } else {
+            startGyro();
+          }
+        } else if (!needsPerm && 'ondeviceorientation' in window) {
+          window.addEventListener('deviceorientation', onOrient);
+        }
+
+        if (canHover) {
+          stage.addEventListener('pointermove', function (e) {
+            var r = stage.getBoundingClientRect();
+            applyMotion(
+              clampN(((e.clientX - r.left) / r.width - 0.5) * 2),
+              clampN(((e.clientY - r.top) / r.height - 0.5) * 2)
+            );
+          });
+          stage.addEventListener('pointerleave', function () {
+            applyMotion(0, 0);
+          });
+        }
+      }
+
+      // ---- entrance gate: wait for the display faces (900 ms cap) so the
+      // name rises in Zodiak rather than swapping mid-animation ----
+      var root = document.documentElement;
+      var readyFired = false;
+      function onReady() {
+        if (readyFired) return;
+        readyFired = true;
+        root.classList.add('ready');
+        if (!noMotion) setTimeout(function () { applyMotion(0, 0); }, 650);
+      }
+      if (document.fonts && document.fonts.load) {
+        var cap = setTimeout(onReady, 900);
+        Promise.all([
+          document.fonts.load('400 32px Zodiak'),
+          document.fonts.load('500 10px "JetBrains Mono"'),
+          document.fonts.load('400 14px "Cabinet Grotesk"')
+        ]).then(function () { clearTimeout(cap); onReady(); },
+                function () { clearTimeout(cap); onReady(); });
+      } else {
+        onReady();
+      }
+
+      // ---- save: a plain link to the server-made vCard. iOS opens its own
+      // "Create New Contact" sheet on the spot; Android and desktop download a
+      // named .vcf. Record the local save date, including after a midnight rollover.
+      var save = document.getElementById('save');
+      var hint = document.getElementById('hint');
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+                  (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      function pad(n) { return (n < 10 ? '0' : '') + n; }
+      var savePath = save.getAttribute('href');
+      function syncSaveDate() {
+        var savedAt = new Date();
+        save.href = savePath + '?saved=' + savedAt.getFullYear() + '-' +
+          pad(savedAt.getMonth() + 1) + '-' + pad(savedAt.getDate());
+      }
+      syncSaveDate();
+      // a home-screen install has no vCard viewer of its own — hand off to Safari
+      if (navigator.standalone) save.target = '_blank';
+      save.addEventListener('click', function () {
+        syncSaveDate();
+        hint.textContent = isIOS
+          ? 'Tap \u201cCreate New Contact\u201d to finish.'
+          : 'Open the downloaded .vcf to add me to your contacts.';
+        hint.classList.add('done');
+      });
+
+      // ---- share: the native sheet where there is one, else copy the link ----
+      var share = document.getElementById('share');
+      var shareData = {
+        title: 'Karl Li \u2014 Solaria Capital',
+        text: 'Karl Li, Vice President / Co-Founder of Solaria Capital',
+        url: 'https://solariavc.com/card/karl'
+      };
+      var canCopy = !!(navigator.clipboard && navigator.clipboard.writeText);
+      if (!navigator.share && !canCopy) share.hidden = true;
+      share.addEventListener('click', function () {
+        if (navigator.share) {
+          navigator.share(shareData).catch(function () {});
+        } else if (canCopy) {
+          navigator.clipboard.writeText(shareData.url).then(function () {
+            hint.textContent = 'Link copied \u2014 solariavc.com/card/karl';
+            hint.classList.add('done');
+          }, function () {});
+        }
+      });
+
+      // ---- exchange: their details go to the partner inbox via /api/contact ----
+      var xhPanel = document.getElementById('xhPanel');
+      var xhToggle = document.getElementById('xhToggle');
+      var xhForm = document.getElementById('xhForm');
+      var xhSend = document.getElementById('xhSend');
+      var xhStatus = document.getElementById('xhStatus');
+
+      xhToggle.addEventListener('click', function () {
+        var open = !xhPanel.classList.contains('open');
+        xhPanel.classList.toggle('open', open);
+        xhToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+
+      xhForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var f = xhForm.elements;
+        var name = f.name.value.trim();
+        var email = f.email.value.trim();
+        var phone = f.phone.value.trim();
+        var note = f.note.value.trim();
+
+        xhStatus.classList.remove('err');
+        if (!name) {
+          xhStatus.classList.add('err');
+          xhStatus.textContent = 'Your name, please.';
+          f.name.focus();
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          xhStatus.classList.add('err');
+          xhStatus.textContent = 'That email doesn\u2019t look right.';
+          f.email.focus();
+          return;
+        }
+
+        xhSend.disabled = true;
+        xhStatus.textContent = 'Sending\u2026';
+        var sentAt = new Date();
+        var sentLong = sentAt.toLocaleDateString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+        var message = 'Contact details shared via the Solaria digital card on ' + sentLong + '.' +
+          (note ? '\n\n' + note : '');
+
+        fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name, email: email, phone: phone, message: message,
+            kind: 'card', cardId: 'karl-li', website: f.website.value
+          })
+        }).then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (j) {
+            if (!r.ok || j.ok === false) throw new Error(j.error || 'send failed');
+          });
+        }).then(function () {
+          document.getElementById('xhStamp').textContent = 'SENT \u2014 ' + sentAt
+            .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            .toUpperCase();
+          xhPanel.classList.add('sent');
+          xhStatus.textContent = '';
+        }).catch(function () {
+          xhSend.disabled = false;
+          xhStatus.classList.add('err');
+          xhStatus.innerHTML = 'Couldn\u2019t send just now \u2014 ' +
+            '<a href="mailto:kal126@ucsd.edu?subject=' +
+            encodeURIComponent('Connecting via your digital card') + '">email me instead</a>.';
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

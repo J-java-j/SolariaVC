@@ -11,6 +11,7 @@ import http from 'node:http';
 import { promises as fs, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CARD_PROFILES, getCardProfile } from './card-profiles.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
@@ -266,11 +267,9 @@ async function fetchCoinGecko(ids) {
 // Recipient is fixed — do not read CONTACT_TO_EMAIL (stale Cloud Run overrides
 // were still delivering to the old inbox).
 const CONTACT_TO = 'contact@solariavc.com';
-// Digital-card exchanges are personal: they go straight to Johnson, not the
-// partner inbox.
-const CARD_TO = 'JohnsonJiang@solariavc.com';
-function recipientFor(kind) {
-  return kind === 'card' ? CARD_TO : CONTACT_TO;
+// Digital-card exchanges go to the owner selected from the server allowlist.
+function recipientFor(payload) {
+  return payload.kind === 'card' ? getCardProfile(payload.cardId)?.email : CONTACT_TO;
 }
 const CONTACT_FROM = process.env.CONTACT_FROM_EMAIL || 'Solaria Capital <onboarding@resend.dev>';
 const KIND_LABEL = {
@@ -323,6 +322,7 @@ function esc(s = '') {
 
 function renderContactHtml(p) {
   const kindLabel = KIND_LABEL[p.kind] || KIND_LABEL.other;
+  const card = p.kind === 'card' ? getCardProfile(p.cardId) : null;
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #04080a; color: #e5e7eb; padding: 28px 24px; max-width: 620px; margin: 0 auto;">
       <div style="border-left: 3px solid #10b981; padding-left: 12px; margin-bottom: 22px;">
@@ -341,7 +341,7 @@ function renderContactHtml(p) {
         <div style="margin-top: 10px; white-space: pre-wrap; line-height: 1.55;">${esc(p.message)}</div>
       </div>
       <div style="margin-top: 28px; font-size: 11px; color: #6b7280;">
-        Sent from ${p.kind === 'card' ? "Johnson's digital card" : 'the Solaria Capital contact form'}. Reply directly to this email to respond to ${esc(p.name)}.
+        Sent from ${card ? `${esc(card.first)}'s digital card` : 'the Solaria Capital contact form'}. Reply directly to this email to respond to ${esc(p.name)}.
       </div>
     </div>
   `;
@@ -349,6 +349,7 @@ function renderContactHtml(p) {
 
 function renderContactText(p) {
   const kindLabel = KIND_LABEL[p.kind] || KIND_LABEL.other;
+  const card = p.kind === 'card' ? getCardProfile(p.cardId) : null;
   return [
     `Solaria Capital — ${p.kind === 'card' ? 'new connection via digital card' : `new ${kindLabel} inquiry`}`,
     '',
@@ -361,6 +362,7 @@ function renderContactText(p) {
     '---',
     '',
     p.message,
+    card ? `Sent from ${card.first}'s digital card (${card.page}).` : null,
   ]
     .filter(Boolean)
     .join('\n');
@@ -368,7 +370,8 @@ function renderContactText(p) {
 
 async function sendViaResend(payload) {
   const apiKey = process.env.RESEND_API_KEY;
-  const to = recipientFor(payload.kind);
+  const to = recipientFor(payload);
+  if (!to) throw new Error('card recipient is not configured');
   if (!apiKey) {
     console.error('[contact] RESEND_API_KEY not set — cannot send email');
     console.error(`[contact] submission (to ${to}):`, JSON.stringify(payload, null, 2));
@@ -419,6 +422,10 @@ async function handleContact(req, res) {
     return jsonRes(res, 400, { error: 'invalid json' });
   }
 
+  if (!p || typeof p !== 'object' || Array.isArray(p)) {
+    return jsonRes(res, 400, { error: 'invalid json object' });
+  }
+
   // Honeypot: a hidden field bots happily fill but humans don't.
   if (p.website) {
     console.log('[contact] honeypot triggered, silently accepting');
@@ -442,6 +449,11 @@ async function handleContact(req, res) {
   ].includes(p.kind)
     ? p.kind
     : 'other';
+  const card = kind === 'card' ? getCardProfile(p.cardId) : null;
+
+  if (kind === 'card' && !card) {
+    return jsonRes(res, 400, { error: 'unknown digital card' });
+  }
 
   if (!name || name.length > 120) {
     return jsonRes(res, 400, { error: 'name required' });
@@ -452,9 +464,18 @@ async function handleContact(req, res) {
   if (!message || message.length < 3 || message.length > 8000) {
     return jsonRes(res, 400, { error: 'message required (3–8000 chars)' });
   }
+  if (card && !card.email) {
+    return jsonRes(res, 503, {
+      ok: false,
+      error: `${card.first}'s contact exchange is not available yet. Please try again later.`,
+    });
+  }
 
   try {
-    const result = await sendViaResend({ name, email, phone, organization, message, kind });
+    const result = await sendViaResend({
+      name, email, phone, organization, message, kind,
+      ...(card ? { cardId: card.id } : {}),
+    });
     return jsonRes(res, 200, { ok: true, ...result });
   } catch (err) {
     console.error('[contact] send failed:', err);
@@ -465,7 +486,7 @@ async function handleContact(req, res) {
   }
 }
 
-// ---- digital business card: GET /card/johnson-jiang.vcf ------------------
+// ---- digital business cards: GET /card/:profile-id.vcf ------------------
 // The card page links straight to this URL. Served as a real text/vcard
 // response, iOS Safari opens the native "Create New Contact" sheet on the
 // spot, and Android / desktop download a correctly named .vcf. (A Blob
@@ -473,18 +494,9 @@ async function handleContact(req, res) {
 // No Content-Disposition on purpose: "attachment" makes iOS save to Files
 // instead of opening Contacts; browsers that can't render vCards download
 // anyway, naming the file after the URL.
-const CARD_VCF_PATH = '/card/johnson-jiang.vcf';
-const CARD = {
-  first: 'Johnson',
-  last: 'Jiang',
-  org: 'Solaria Capital',
-  title: 'Founder',
-  tel: '+17789981228',
-  email: 'JohnsonJiang@solariavc.com',
-  site: 'https://solariavc.com',
-  page: 'https://solariavc.com/card',
-  linkedin: 'https://www.linkedin.com/in/johnson-jiang-049b921b3',
-};
+const CARD_VCF_ROUTES = new Map(
+  Object.values(CARD_PROFILES).map((card) => [`/card/${card.id}.vcf`, card]),
+);
 
 function vcfEscape(v) {
   return String(v)
@@ -507,7 +519,7 @@ function vcfFold(line) {
 
 // `saved` is the recipient's local calendar date (YYYY-MM-DD), sent by the
 // page so the note records when they saved the card, without implying a meeting.
-function buildCardVcf(savedParam) {
+function buildCardVcf(card, savedParam) {
   const fmt = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   let saved = '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(savedParam || '')) {
@@ -522,27 +534,29 @@ function buildCardVcf(savedParam) {
   const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
-    `N:${vcfEscape(CARD.last)};${vcfEscape(CARD.first)};;;`,
-    `FN:${vcfEscape(`${CARD.first} ${CARD.last}`)}`,
-    `ORG:${vcfEscape(CARD.org)}`,
-    `TITLE:${vcfEscape(CARD.title)}`,
-    `TEL;TYPE=CELL,VOICE:${CARD.tel}`,
-    `EMAIL;TYPE=INTERNET,WORK:${CARD.email}`,
-    `item1.URL:${CARD.site}`,
+    `N:${vcfEscape(card.last)};${vcfEscape(card.first)};;;`,
+    `FN:${vcfEscape(`${card.first} ${card.last}`)}`,
+    `ORG:${vcfEscape(card.org)}`,
+    `TITLE:${vcfEscape(card.title)}`,
+    ...(card.tel ? [`TEL;TYPE=CELL,VOICE:${card.tel}`] : []),
+    ...(card.email ? [`EMAIL;TYPE=INTERNET,WORK:${card.email}`] : []),
+    `item1.URL:${card.site}`,
     'item1.X-ABLabel:Website',
-    `item2.URL:${CARD.linkedin}`,
-    'item2.X-ABLabel:LinkedIn',
-    `X-SOCIALPROFILE;TYPE=linkedin:${CARD.linkedin}`,
-    `NOTE:${vcfEscape(`Saved on ${saved} — Solaria Capital digital card (${CARD.page}).`)}`,
+    ...(card.linkedin ? [
+      `item2.URL:${card.linkedin}`,
+      'item2.X-ABLabel:LinkedIn',
+      `X-SOCIALPROFILE;TYPE=linkedin:${card.linkedin}`,
+    ] : []),
+    `NOTE:${vcfEscape(`Saved on ${saved} — Solaria Capital digital card (${card.page}).`)}`,
     `REV:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
   ];
   lines.push('END:VCARD');
   return lines.map(vcfFold).join('\r\n') + '\r\n';
 }
 
-function handleCardVcf(req, res, url) {
+function handleCardVcf(req, res, url, card) {
   // Keep links from earlier versions of the card working; `saved` takes priority.
-  const body = buildCardVcf(url.searchParams.get('saved') ?? url.searchParams.get('met'));
+  const body = buildCardVcf(card, url.searchParams.get('saved') ?? url.searchParams.get('met'));
   res.writeHead(200, {
     'Content-Type': 'text/vcard; charset=utf-8',
     'Cache-Control': 'no-store',
@@ -626,8 +640,9 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (pathname === CARD_VCF_PATH) {
-      handleCardVcf(req, res, url);
+    const card = CARD_VCF_ROUTES.get(pathname);
+    if (card) {
+      handleCardVcf(req, res, url, card);
       return;
     }
 

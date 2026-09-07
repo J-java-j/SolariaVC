@@ -112,6 +112,21 @@ In development, run `npm run server` alongside `npm run dev`; Vite proxies
 both `/api` and the `.vcf` route to it. Open the page directly at
 `http://localhost:5173/card/index.html`.
 
+### Karl Li's card (`/card/karl`)
+
+`public/card/karl/index.html` uses the same design and interactions, with a
+separate QR code, social preview, and `/card/karl-li.vcf` contact download.
+Karl's title is Vice President / Co-Founder. No portrait is included.
+
+His card includes `kal126@ucsd.edu`, `+1 (323) 868-1396`, and his LinkedIn
+profile. Keep the contact details in his page and `server/card-profiles.js`
+in sync when updating them.
+
+Karl's exchange form sends `kind: "card", cardId: "karl-li"` and delivers to
+`kal126@ucsd.edu`. The server uses
+an allowlist to select the owner's inbox; it never accepts a destination email
+from the browser. Requests without `cardId` continue to use Johnson's card.
+
 ## Structure
 
 ```

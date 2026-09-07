@@ -21,6 +21,10 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/card/karl-li.vcf': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
 });
