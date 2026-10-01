@@ -572,7 +572,7 @@
     .row:active { opacity: 0.72; }
     .row:focus-visible { outline: 2px solid var(--moss); outline-offset: -2px; }
 
-    /* ---- exchange: their details, straight to the partner inbox ---- */
+    /* ---- exchange: verify ownership before forwarding their details ---- */
     .exchange { margin-top: 18px; }
     .xh-head {
       width: 100%; min-height: 48px;
@@ -602,6 +602,14 @@
     .xh-wrap > div { overflow: hidden; visibility: hidden; transition: visibility 0s 550ms; }
     .open .xh-wrap > div { visibility: visible; transition-delay: 0s; }
     .xh { padding: 2px 16px 18px; border-top: 1px solid var(--ink-line); }
+    .xh [hidden] { display: none !important; }
+    .xh-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+    .xh-security { margin-top: 18px; }
+    .xh-secondary { display: block; margin: 16px auto 0; padding: 6px; background: none; border: 0; color: var(--ink-soft); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+    .xh-secondary:focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+    .xh-secondary[disabled] { opacity: 0.5; cursor: default; }
+    .xh-code { max-width: 180px; letter-spacing: 0.3em; }
+    #xhRecipient { overflow-wrap: anywhere; }
     .xh-lead {
       padding: 15px 0 2px;
       font-size: 13.5px; color: var(--ink-soft);
@@ -816,8 +824,9 @@
         </button>
         <div class="xh-wrap" id="xhWrap">
           <div>
-            <form class="xh" id="xhForm" novalidate>
-              <p class="xh-lead">Leave your details and I'll follow up.</p>
+            <form class="xh" id="xhForm" data-card-id="johnson-jiang" data-recipient="Johnson" novalidate>
+              <fieldset class="xh-fields" id="xhDetails">
+              <p class="xh-lead">Leave your details and I'll follow up. First, we’ll email you a six-digit code to confirm your address.</p>
               <label class="field">
                 <span class="label">Name</span>
                 <input name="name" type="text" autocomplete="name" required maxlength="120" />
@@ -835,13 +844,25 @@
                 <input name="note" type="text" maxlength="500" placeholder="Where we met, what you're working on…" />
               </label>
               <input class="hp" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
-              <button class="xh-send" id="xhSend" type="submit">
-                Send to Johnson
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14 M13 6l6 6-6 6" /></svg>
-              </button>
-              <p class="xh-status" id="xhStatus" aria-live="polite"></p>
+              <div class="xh-security" id="xhSecurity" aria-label="Security check"></div>
+              <p class="xh-status" id="xhSecurityStatus" role="status">Open the form to load the security check.</p>
+              <button class="xh-secondary" id="xhSecurityRetry" type="button" hidden>Retry security check</button>
+              <button class="xh-send" id="xhSend" type="submit" disabled>Continue to email verification</button>
+              </fieldset>
+              <fieldset class="xh-fields" id="xhVerification" hidden>
+                <p class="xh-lead" id="xhCodeHelp">Enter the six-digit code sent to <strong id="xhRecipient"></strong>. Your details will be sent to Johnson only after verification.</p>
+                <label class="field" for="xhCode">
+                  <span class="label">Verification code</span>
+                  <input class="xh-code" id="xhCode" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" aria-describedby="xhCodeHelp" />
+                </label>
+                <p class="xh-status" id="xhRestartHint">No code? Check your spam folder.</p>
+                <button class="xh-send" id="xhVerify" type="submit" disabled>Verify and send to Johnson</button>
+                <button class="xh-secondary" id="xhChange" type="button">Change details</button>
+              </fieldset>
+              <p class="xh-status" id="xhStatus" role="status" aria-live="polite" aria-atomic="true"></p>
+              <noscript><p class="xh-status">JavaScript is required to verify your email and send this form.</p></noscript>
             </form>
-            <div class="xh-done" aria-live="polite">
+            <div class="xh-done" id="xhDone" tabindex="-1" role="status" aria-live="polite">
               <span class="stamp" id="xhStamp">SENT</span>
               <p>Thank you — I'll be in touch shortly.</p>
             </div>
@@ -1143,76 +1164,8 @@
         }
       });
 
-      // ---- exchange: their details go to the partner inbox via /api/contact ----
-      var xhPanel = document.getElementById('xhPanel');
-      var xhToggle = document.getElementById('xhToggle');
-      var xhForm = document.getElementById('xhForm');
-      var xhSend = document.getElementById('xhSend');
-      var xhStatus = document.getElementById('xhStatus');
-
-      xhToggle.addEventListener('click', function () {
-        var open = !xhPanel.classList.contains('open');
-        xhPanel.classList.toggle('open', open);
-        xhToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-      });
-
-      xhForm.addEventListener('submit', function (e) {
-        e.preventDefault();
-        var f = xhForm.elements;
-        var name = f.name.value.trim();
-        var email = f.email.value.trim();
-        var phone = f.phone.value.trim();
-        var note = f.note.value.trim();
-
-        xhStatus.classList.remove('err');
-        if (!name) {
-          xhStatus.classList.add('err');
-          xhStatus.textContent = 'Your name, please.';
-          f.name.focus();
-          return;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          xhStatus.classList.add('err');
-          xhStatus.textContent = 'That email doesn\u2019t look right.';
-          f.email.focus();
-          return;
-        }
-
-        xhSend.disabled = true;
-        xhStatus.textContent = 'Sending\u2026';
-        var sentAt = new Date();
-        var sentLong = sentAt.toLocaleDateString('en-US', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        });
-        var message = 'Contact details shared via the Solaria digital card on ' + sentLong + '.' +
-          (note ? '\n\n' + note : '');
-
-        fetch('/api/contact', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: name, email: email, phone: phone, message: message,
-            kind: 'card', website: f.website.value
-          })
-        }).then(function (r) {
-          return r.json().catch(function () { return {}; }).then(function (j) {
-            if (!r.ok || j.ok === false) throw new Error(j.error || 'send failed');
-          });
-        }).then(function () {
-          document.getElementById('xhStamp').textContent = 'SENT \u2014 ' + sentAt
-            .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-            .toUpperCase();
-          xhPanel.classList.add('sent');
-          xhStatus.textContent = '';
-        }).catch(function () {
-          xhSend.disabled = false;
-          xhStatus.classList.add('err');
-          xhStatus.innerHTML = 'Couldn\u2019t send just now \u2014 ' +
-            '<a href="mailto:JohnsonJiang@solariavc.com?subject=' +
-            encodeURIComponent('Connecting via your digital card') + '">email me instead</a>.';
-        });
-      });
     })();
   </script>
+  <script src="/card/contact-exchange.js" defer></script>
 </body>
 </html>

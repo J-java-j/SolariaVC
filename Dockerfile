@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.6
 
 # ---- Build stage: compile the React app ----
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 # ---- Runtime stage: tiny Node server ----
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
