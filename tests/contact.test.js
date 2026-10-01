@@ -15,7 +15,7 @@ const env = {
 const payload = { name: 'Test Visitor', email: 'visitor@example.com', message: 'A genuine inquiry.', kind: 'founder', website: '', turnstileToken: 'test-human' };
 
 async function fixture(t, options = {}) {
-  let time = Date.now();
+  let time = options.time ?? Date.UTC(2026, 9, 1, 12);
   const now = () => time;
   const sent = [];
   const logs = [];
@@ -57,6 +57,122 @@ test('production fails closed without any one required dependency or with test s
   assert.equal((await f.request('/api/contact', payload)).status, 503);
   assert.equal((await (await fetch(f.base + '/api/contact/config')).json()).available, false);
   assert.equal(f.sent.length, 0);
+  assert.equal(loadContactConfig(env).emailDailyLimit, 80);
+  for (const value of ['0', '1', '-1', '2.5', 'Infinity', 'invalid', '100001']) assert.equal(loadContactConfig({ ...env, CONTACT_EMAIL_DAILY_LIMIT: value }).available, false);
+});
+
+test('daily budget reserves code and team delivery together, including at exhaustion', async t => {
+  const f = await fixture(t, { env: { CONTACT_EMAIL_DAILY_LIMIT: '2' } });
+  const challenge = await f.start();
+  const denied = await f.request('/api/contact', { ...payload, email: 'second@example.com' });
+  assert.equal(denied.status, 429);
+  assert.ok(Number(denied.headers.get('retry-after')) > 0);
+  assert.equal(f.sent.length, 1);
+  // The original team delivery already owns its budget slot.
+  assert.equal((await f.request('/api/contact/verify', challenge)).status, 200);
+  assert.equal(f.sent.length, 2);
+});
+
+test('concurrent instances cannot oversubscribe the shared email budget', async t => {
+  const store = createMemoryStore();
+  const options = { store, env: { CONTACT_EMAIL_DAILY_LIMIT: '2' } };
+  const a = await fixture(t, options);
+  const b = await fixture(t, options);
+  const results = await Promise.all([a.request('/api/contact', payload), b.request('/api/contact', { ...payload, email: 'another@example.com' })]);
+  assert.deepEqual(results.map(r => r.status).sort(), [200, 429]);
+  assert.equal(a.sent.length + b.sent.length, 1);
+});
+
+test('provider-idempotent retries reuse both email reservations without taking new slots', async t => {
+  const attempts = [];
+  const failures = new Set();
+  const f = await fixture(t, { env: { CONTACT_EMAIL_DAILY_LIMIT: '2' }, dependencies: { sendEmail: async (email, key) => {
+    attempts.push({ email, key });
+    if (!failures.has(key)) { failures.add(key); throw new Error('ambiguous provider timeout'); }
+  } } });
+  const start = await f.request('/api/contact', payload);
+  assert.equal(start.status, 200);
+  const challenge = { verificationId: start.body.verificationId, code: attempts[0].email.text.match(/code is (\d{6})/)[1] };
+  assert.equal((await f.request('/api/contact/verify', challenge)).status, 503);
+  assert.equal((await f.request('/api/contact/verify', challenge)).status, 200);
+  assert.equal(attempts.length, 4);
+  assert.equal(new Set(attempts.map(a => a.key)).size, 2);
+  assert.deepEqual(attempts[0], attempts[1]);
+  assert.deepEqual(attempts[2], attempts[3]);
+  assert.equal((await f.request('/api/contact', { ...payload, email: 'second@example.com' })).status, 429);
+  assert.equal(attempts.length, 4);
+});
+
+test('a delivery crossing midnight is also budgeted on its actual UTC sending day', async t => {
+  const f = await fixture(t, { env: { CONTACT_EMAIL_DAILY_LIMIT: '2' }, time: Date.UTC(2026, 9, 1, 23, 58, 50) });
+  const challenge = await f.start();
+  f.advance(70_001);
+  assert.equal((await f.request('/api/contact/verify', challenge)).status, 200);
+  // Yesterday's delivery used one slot today, so a new two-email pair cannot fit.
+  assert.equal((await f.request('/api/contact', { ...payload, email: 'second@example.com' })).status, 429);
+  assert.equal(f.sent.length, 2);
+});
+
+test('UTC rollover guard pauses sends and resumes after reset without using email cooldown', async t => {
+  const f = await fixture(t, { time: Date.UTC(2026, 9, 1, 23, 59, 30) });
+  const result = await f.request('/api/contact', payload);
+  assert.equal(result.status, 429);
+  assert.equal(result.headers.get('retry-after'), '30');
+  assert.equal(f.sent.length, 0);
+  f.advance(30_001);
+  assert.equal((await f.request('/api/contact', payload)).status, 200);
+  assert.equal(f.sent.length, 1);
+});
+
+test('Redis delay cannot start a provider request inside the UTC rollover guard', async t => {
+  const store = createMemoryStore();
+  const reserve = store.reserveEmails;
+  let reservations = 0;
+  let f;
+  store.reserveEmails = async (...args) => {
+    const result = await reserve(...args);
+    if (++reservations === 2) f.advance(2_000);
+    return result;
+  };
+  f = await fixture(t, { store, time: Date.UTC(2026, 9, 1, 23, 58, 59) });
+  assert.equal((await f.request('/api/contact', payload)).status, 429);
+  assert.equal(f.sent.length, 0);
+});
+
+test('a UTC day change while reserving cannot send solely on the previous day budget', async t => {
+  const store = createMemoryStore();
+  const dayTwo = Date.UTC(2026, 9, 2, 0, 0, 50);
+  await store.reserveEmails(['other-mail-a', 'other-mail-b'], 2, dayTwo);
+  const reserve = store.reserveEmails;
+  let reservations = 0;
+  let f;
+  store.reserveEmails = async (...args) => {
+    const result = await reserve(...args);
+    if (++reservations === 2) f.advance(120_000);
+    return result;
+  };
+  f = await fixture(t, { store, env: { CONTACT_EMAIL_DAILY_LIMIT: '2' }, time: Date.UTC(2026, 9, 1, 23, 58, 50) });
+  assert.equal((await f.request('/api/contact', payload)).status, 429);
+  assert.equal(f.sent.length, 0);
+});
+
+test('email budget store failure cannot send a verification email', async t => {
+  const store = createMemoryStore();
+  store.reserveEmails = async () => { throw new Error('budget unavailable'); };
+  const f = await fixture(t, { store });
+  assert.equal((await f.request('/api/contact', payload)).status, 503);
+  assert.equal(f.sent.length, 0);
+});
+
+test('atomic budget denial makes no partial reservation and resets by UTC day', async () => {
+  const day = Date.UTC(2026, 9, 1, 12);
+  const store = createMemoryStore({ now: () => day });
+  assert.equal(await store.reserveEmails(['first-code', 'first-team'], 3, day), 0);
+  assert.ok(await store.reserveEmails(['second-code', 'second-team'], 3, day) > 0);
+  assert.equal(await store.reserveEmails(['third-email'], 3, day), 0);
+  assert.equal(await store.reserveEmails(['first-code'], 3, day), 0);
+  assert.ok(await store.reserveEmails(['second-code'], 3, day) > 0, 'denied pairs must not mark either email as reserved');
+  assert.equal(await store.reserveEmails(['second-code', 'second-team'], 3, day + 86400000), 0);
 });
 
 test('verification gates team delivery and replays do not send duplicates', async t => {

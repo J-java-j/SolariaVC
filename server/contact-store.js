@@ -6,6 +6,39 @@ if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[2]) end
 if count > tonumber(ARGV[1]) then return redis.call('PTTL', KEYS[1]) end
 return 0`;
 
+// Reserve logical emails together before contacting the provider. Reusing a
+// reservation (the same provider idempotency key) never consumes extra budget.
+export const EMAIL_BUDGET_SCRIPT = `
+local needed = 0
+for i = 2, #KEYS do
+  if redis.call('EXISTS', KEYS[i]) == 0 then needed = needed + 1 end
+end
+local used = tonumber(redis.call('GET', KEYS[1]) or '0')
+if used + needed > tonumber(ARGV[1]) then return tonumber(ARGV[3]) end
+if needed > 0 then
+  redis.call('INCRBY', KEYS[1], needed)
+  redis.call('PEXPIRE', KEYS[1], ARGV[2])
+  for i = 2, #KEYS do
+    redis.call('SET', KEYS[i], '1', 'PX', ARGV[2])
+  end
+end
+return 0`;
+
+function emailBudgetKeys(ids, timestamp) {
+  const date = new Date(timestamp);
+  const day = date.toISOString().slice(0, 10);
+  const resetAt = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1);
+  const retryMs = resetAt - timestamp;
+  const prefix = `solaria:{email-budget}:${day}`;
+  return {
+    keys: [`${prefix}:used`, ...new Set(ids.map(id => `${prefix}:reservation:${id}`))],
+    retryMs,
+    // Keep the previous day's bookkeeping briefly for observability/clock skew;
+    // the dated namespace, rather than deletion timing, determines the window.
+    retentionMs: retryMs + 86_400_000,
+  };
+}
+
 export const CLAIM_SCRIPT = `
 local raw = redis.call('GET', KEYS[1])
 if not raw then return cjson.encode({status='missing'}) end
@@ -67,6 +100,10 @@ export function createRedisStore({ url, token, fetchImpl = fetch }) {
   }
   return {
     rateLimit: (key, limit, windowMs) => command(['EVAL', RATE_SCRIPT, '1', `solaria:rate:${key}`, String(limit), String(windowMs)]),
+    reserveEmails(ids, limit, timestamp = Date.now()) {
+      const { keys, retryMs, retentionMs } = emailBudgetKeys(ids, timestamp);
+      return command(['EVAL', EMAIL_BUDGET_SCRIPT, String(keys.length), ...keys, String(limit), String(retentionMs), String(retryMs)]);
+    },
     async put(id, record, ttlMs) {
       const result = await command(['SET', `solaria:verification:${id}`, JSON.stringify(record), 'NX', 'PX', String(ttlMs)]);
       if (result !== 'OK') throw new Error('could not save verification');
@@ -92,6 +129,20 @@ export function createMemoryStore({ now = Date.now, maxEntries = 5000 } = {}) {
     entries.set(key, { value, expiresAt: now() + ttlMs });
   }
   return {
+    async reserveEmails(ids, limit, timestamp = now()) {
+      const { keys, retryMs, retentionMs } = emailBudgetKeys(ids, timestamp);
+      const budget = get(keys[0]);
+      const missing = keys.slice(1).filter(key => !get(key));
+      const used = budget?.value || 0;
+      if (used + missing.length > limit) return retryMs;
+      if (!missing.length) return 0;
+      for (const [key, entry] of entries) if (entry.expiresAt <= now()) entries.delete(key);
+      if (entries.size + missing.length + (budget ? 0 : 1) > maxEntries) throw new Error('contact store full');
+      if (budget) budget.value += missing.length;
+      else set(keys[0], missing.length, retentionMs);
+      for (const key of missing) set(key, 1, retentionMs);
+      return 0;
+    },
     async rateLimit(key, limit, windowMs) {
       const k = `rate:${key}`;
       let entry = get(k);

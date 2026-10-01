@@ -97,6 +97,11 @@ work when the contact service is unavailable.
 - `CONTACT_ALLOWED_ORIGINS`: comma-separated exact HTTPS origins, default
   `https://solariavc.com,https://www.solariavc.com`. Add only hostnames you control,
   and also allow those hostnames in Turnstile
+- `CONTACT_EMAIL_DAILY_LIMIT`: total contact-form outbound-email allowance per UTC
+  day, default `80` (integer from 2 to 100000). Reserve capacity for both code
+  and eventual team delivery together. Choose this below the actual account
+  allowance after other applications and any inbound-email usage; this is not
+  an account-wide billing guarantee
 - `CONTACT_TRUST_PROXY_HOPS`: defaults to `0`, which ignores forwarded headers
   and uses the socket peer. Behind Cloud Run this may group visitors under a
   proxy IP and over-limit them. Before launch, inspect the deployment's actual
@@ -134,9 +139,24 @@ Default shared quotas (fixed windows starting at first attempt):
 - 30 API attempts per IP per 10 minutes; 1,000 attempts globally per minute
 - 5 new code requests per IP per 10 minutes
 - One code per mailbox per minute, 3 per hour, and 5 per day
-- 30 code emails per hour and 100 per day across the site; completed messages
-  can add up to the same number of emails. Review these caps against expected
-  traffic and the sending account's actual limits before deployment
+- 30 code requests per hour and 100 per day across the site, additionally
+  constrained by the stricter total outbound-mail allowance below
+- **80 total logical outbound emails per UTC day by default**, counting both
+  verification codes and team/card delivery. The pair is atomically reserved
+  before sending a code, allowing at most 40 newly reserved contact requests
+  in a day with no carried-over deliveries. Abandoned/failed requests retain
+  their reservations until reset. Both instances and provider-idempotent
+  retries reuse the same reservations; retries do not create unbudgeted mail
+
+Every actual provider call rechecks its dated reservation. A request verified
+across midnight also reserves its team delivery against the new day. Sends
+briefly pause during the last 60 seconds before UTC midnight, with a
+Retry-After response, and recheck this guard after awaiting Redis to avoid
+starting a 10-second provider request across the allowance boundary. This is a
+conservative application-level outbound-mail control; provider processing,
+account-level quotas, inbound email and usage by other applications remain
+outside it. Check the real account before choosing a limit; do not assume a
+particular provider plan or promise a total account bill.
 
 Quotas live in Redis, so scaling/restarts do not reset them. IPv6 addresses are
 grouped by /64; mailbox quota keys ignore case and plus-tags, and normalize

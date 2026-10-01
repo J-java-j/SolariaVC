@@ -41,6 +41,18 @@ test('real Redis executes atomic quota, attempts, claim, expiry and completion L
   const create = () => createRedisStore({ url: 'https://local-test.upstash.io', token: 'test-only', fetchImpl });
   const a = create();
   const b = create();
+  const day = Date.UTC(2026, 9, 1, 12);
+  const budgets = await Promise.all([
+    a.reserveEmails(['a-code', 'a-team'], 2, day),
+    b.reserveEmails(['b-code', 'b-team'], 2, day),
+  ]);
+  assert.equal(budgets.filter(wait => wait === 0).length, 1);
+  assert.equal(budgets.filter(wait => wait > 0).length, 1);
+  const winner = budgets[0] === 0 ? 'a' : 'b';
+  const loser = winner === 'a' ? 'b' : 'a';
+  assert.equal(await b.reserveEmails([`${winner}-code`, `${winner}-team`], 2, day), 0);
+  assert.ok(await a.reserveEmails([`${loser}-code`], 2, day) > 0);
+  assert.equal(await a.reserveEmails([`${loser}-code`, `${loser}-team`], 2, day + 86400000), 0);
   const quotas = await Promise.all(Array.from({ length: 10 }, (_, i) => (i % 2 ? a : b).rateLimit('shared', 3, 60_000)));
   assert.equal(quotas.filter(wait => wait === 0).length, 3);
   assert.equal(quotas.filter(wait => wait > 0).length, 7);

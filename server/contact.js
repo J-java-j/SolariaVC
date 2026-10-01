@@ -26,16 +26,18 @@ export function loadContactConfig(env = process.env) {
   }
   if (local) for (const origin of LOOPBACK_ORIGINS) origins.add(origin);
   const proxyHops = Number(env.CONTACT_TRUST_PROXY_HOPS || 0);
+  const emailDailyLimit = Number(env.CONTACT_EMAIL_DAILY_LIMIT || 80);
   const secret = env.CONTACT_VERIFICATION_SECRET || (local ? randomBytes(32).toString('base64') : '');
   const from = env.CONTACT_FROM_EMAIL || '';
   const config = {
-    local, origins, hostnames, proxyHops, secret, from,
+    local, origins, hostnames, proxyHops, secret, from, emailDailyLimit,
     siteKey: env.TURNSTILE_SITE_KEY || '', turnstileSecret: env.TURNSTILE_SECRET_KEY || '',
     redisUrl: env.UPSTASH_REDIS_REST_URL || '', redisToken: env.UPSTASH_REDIS_REST_TOKEN || '',
     apiKey: env.RESEND_API_KEY || '',
   };
   config.available = Boolean(
     validOrigins && origins.size && Number.isInteger(proxyHops) && proxyHops >= 0 && proxyHops <= 10 &&
+    Number.isSafeInteger(emailDailyLimit) && emailDailyLimit >= 2 && emailDailyLimit <= 100000 &&
     secret.length >= 32 && config.apiKey && from && !/[\r\n]/.test(from) &&
     (local || (config.siteKey && config.turnstileSecret && config.redisUrl && config.redisToken && !/@resend\.dev\b/i.test(from)))
   );
@@ -139,10 +141,35 @@ export function createContactHandler({ env = process.env, store: suppliedStore, 
     try { store = config.local ? createMemoryStore({ now }) : createRedisStore({ url: config.redisUrl, token: config.redisToken, fetchImpl }); }
     catch { config.available = false; }
   }
-  const sendEmail = suppliedSender || createEmailSender({ apiKey: config.apiKey, fetchImpl });
+  const deliverEmail = suppliedSender || createEmailSender({ apiKey: config.apiKey, fetchImpl });
   const key = createHash('sha256').update(`encryption:${config.secret}`).digest();
   const hashKey = createHash('sha256').update(`authentication:${config.secret}`).digest();
   const hash = value => createHmac('sha256', hashKey).update(value).digest('hex');
+  function requireEmailSendWindow() {
+    const timestamp = now();
+    const date = new Date(timestamp);
+    const remaining = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1) - timestamp;
+    // Leave substantially more than the provider's 10-second request timeout
+    // before UTC rollover. Recheck after Redis so its latency cannot cross it.
+    if (remaining <= 60_000) throw new ContactError(429, 'Email sending is briefly paused while the daily limit resets. Please try again shortly.', Math.max(1, Math.ceil(remaining / 1000)));
+  }
+  async function reserveEmails(idempotencyKeys) {
+    const wait = await store.reserveEmails(idempotencyKeys.map(value => hash(`mail:${value}`)), config.emailDailyLimit, now());
+    if (!Number.isFinite(wait) || wait < 0) throw new Error('invalid email budget response');
+    if (wait > 0) throw new ContactError(429, 'Our daily contact email limit has been reached. Please try again after the limit resets.', Math.max(1, Math.ceil(wait / 1000)));
+  }
+  async function sendEmail(email, idempotencyKey) {
+    // Check again at send time: a verified request can cross a UTC midnight.
+    // Retries on the same day reuse their atomic reservation and provider key.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      requireEmailSendWindow();
+      const reservedDay = new Date(now()).toISOString().slice(0, 10);
+      await reserveEmails([idempotencyKey]);
+      requireEmailSendWindow();
+      if (new Date(now()).toISOString().slice(0, 10) === reservedDay) return deliverEmail(email, idempotencyKey);
+    }
+    throw new ContactError(503, 'Please try again after the daily limit resets.', 10);
+  }
   function encrypt(payload, id) {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', key, iv);
@@ -216,6 +243,7 @@ export function createContactHandler({ env = process.env, store: suppliedStore, 
       // Give bots the same first-step response without sending any email.
       if (p.website?.trim()) return reply(res, 200, { ok: true, verificationRequired: true, verificationId: randomBytes(24).toString('hex') });
       const payload = validatePayload(p);
+      requireEmailSendWindow();
       await limit(`request:${ip}`, 5, TEN_MINUTES);
       await verifyBot(p.turnstileToken, origin);
       const emailKey = hash(`email:${emailRateIdentity(payload.email)}`);
@@ -226,6 +254,9 @@ export function createContactHandler({ env = process.env, store: suppliedStore, 
       await limit('email:global:day', 100, 86_400_000);
       const id = randomBytes(24).toString('hex');
       const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+      // Hold capacity for both the code and its eventual team message. Abandoned
+      // or failed requests keep their reservation: conservative, with no refunds.
+      await reserveEmails([`solaria-verification/${id}`, `solaria-contact/${id}`]);
       payload.submittedAt = new Date(now()).toISOString();
       const email = buildInquiryEmail(payload, config.from);
       await store.put(id, { codeHash: hash(`code:${id}:${code}`), encrypted: encrypt(email, id), attempts: 0, status: 'pending' }, TEN_MINUTES);
