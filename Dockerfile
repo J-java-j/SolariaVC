@@ -10,15 +10,16 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ---- Runtime stage: tiny Node server ----
+# ---- Runtime stage: Node server with the Firestore client ----
 FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Server has zero npm dependencies — uses only built-in Node modules
-# (http, fs, path, url, global fetch in Node 18+). Just copy the built
-# assets and the server entry point.
+# Install locked production dependencies, including the official Firestore SDK.
+# Authentication uses the Cloud Run service identity, not a JSON key file.
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY server ./server
 

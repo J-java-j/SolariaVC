@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { once } from 'node:events';
-import { createContactHandler, clientIdentity, loadContactConfig, normalizeEmail, emailRateIdentity } from '../server/contact.js';
+import { createContactHandler, clientIdentity, loadContactConfig, normalizeEmail, emailRateIdentity, withStoreDeadline } from '../server/contact.js';
 import { createMemoryStore, createRedisStore } from '../server/contact-store.js';
 import { createEmailSender } from '../server/contact-email.js';
 
 const env = {
+  CONTACT_STORE: 'redis',
   NODE_ENV: 'production', RESEND_API_KEY: 'test-only', CONTACT_FROM_EMAIL: 'Solaria <contact@solariavc.com>',
   TURNSTILE_SITE_KEY: 'test-site', TURNSTILE_SECRET_KEY: 'test-secret',
   UPSTASH_REDIS_REST_URL: 'https://test.upstash.io', UPSTASH_REDIS_REST_TOKEN: 'test-token',
@@ -59,6 +60,93 @@ test('production fails closed without any one required dependency or with test s
   assert.equal(f.sent.length, 0);
   assert.equal(loadContactConfig(env).emailDailyLimit, 80);
   for (const value of ['0', '1', '-1', '2.5', 'Infinity', 'invalid', '100001']) assert.equal(loadContactConfig({ ...env, CONTACT_EMAIL_DAILY_LIMIT: value }).available, false);
+});
+
+test('Firestore is the default shared store without requiring Redis credentials', () => {
+  const config = loadContactConfig({ ...env, CONTACT_STORE: '', UPSTASH_REDIS_REST_URL: '', UPSTASH_REDIS_REST_TOKEN: '' });
+  assert.equal(config.storeType, 'firestore');
+  assert.equal(config.available, true);
+  assert.equal(config.firestoreDatabase, '(default)');
+  assert.equal(config.firestoreCollection, 'solaria_contact');
+  assert.equal(loadContactConfig({ ...env, CONTACT_STORE: 'unknown' }).available, false);
+  assert.equal(loadContactConfig({ ...env, CONTACT_STORE: 'firestore', CONTACT_FIRESTORE_COLLECTION: '../other' }).available, false);
+  assert.equal(loadContactConfig({ ...env, CONTACT_STORE: 'firestore', CONTACT_FIRESTORE_PROJECT_ID: 'not/a/project' }).available, false);
+  assert.equal(loadContactConfig({ ...env, CONTACT_STORE: 'firestore', CONTACT_FIRESTORE_DATABASE_ID: '../database' }).available, false);
+  assert.equal(loadContactConfig({ ...env, CONTACT_STORE: 'firestore', FIRESTORE_EMULATOR_HOST: 'localhost:8085' }).available, false);
+  assert.equal(loadContactConfig({ ...env, NODE_ENV: 'development', K_SERVICE: 'solariavc', CONTACT_STORE: 'firestore', FIRESTORE_EMULATOR_HOST: 'localhost:8085' }).available, false);
+});
+
+test('Firestore service identity configuration omits static credentials', () => {
+  let settings;
+  createContactHandler({
+    env: { ...env, CONTACT_STORE: 'firestore', CONTACT_FIRESTORE_PROJECT_ID: 'gen-lang-client-0188652481' },
+    firestoreFactory: options => {
+      settings = options;
+      return { collection: () => ({ doc: () => ({}) }), runTransaction: async () => {} };
+    },
+  });
+  assert.deepEqual(settings, { projectId: 'gen-lang-client-0188652481', databaseId: '(default)' });
+  assert.ok(!Object.hasOwn(settings, 'credentials'));
+  assert.ok(!Object.hasOwn(settings, 'keyFilename'));
+});
+
+test('store deadline fails closed without continuing to downstream work', async () => {
+  let finishOperation;
+  let dispatched = false;
+  const store = withStoreDeadline({ rateLimit: () => new Promise(resolve => { finishOperation = resolve; }) }, 5);
+  await assert.rejects((async () => { await store.rateLimit('key', 1, 1000); dispatched = true; })(), /deadline/);
+  finishOperation(0);
+  await Promise.resolve();
+  assert.equal(dispatched, false);
+});
+
+test('invalid human proofs, fabricated IDs and honeypots cannot cause shared-store reads', async t => {
+  let operations = 0;
+  const store = Object.fromEntries(['rateLimit', 'reserveEmails', 'put', 'claim', 'finish', 'cleanupExpired'].map(name => [name, async () => { operations++; throw new Error(`unexpected ${name}`); }]));
+  const f = await fixture(t, { store, botResult: { success: false } });
+  assert.equal((await f.request('/api/contact', { ...payload, name: {} })).status, 400);
+  assert.equal((await f.request('/api/contact', { ...payload, turnstileToken: '' })).status, 400);
+  assert.equal((await f.request('/api/contact', payload)).status, 400);
+  const honeypot = await f.request('/api/contact', { ...payload, website: 'bot.example' });
+  assert.equal(honeypot.status, 200);
+  assert.equal((await f.request('/api/contact/verify', { verificationId: honeypot.body.verificationId, code: '123456' })).status, 400);
+  assert.equal((await f.request('/api/contact/verify', { verificationId: `${'a'.repeat(48)}.${Date.UTC(2026, 9, 1, 12, 20)}.${'b'.repeat(64)}`, code: '123456' })).status, 400);
+  assert.equal(operations, 0);
+  assert.equal(f.sent.length, 0);
+});
+
+test('a modified issued verification ID fails before accessing the shared store', async t => {
+  const store = createMemoryStore();
+  const f = await fixture(t, { store });
+  const challenge = await f.start();
+  let operations = 0;
+  store.rateLimit = async () => { operations++; throw new Error('unexpected read'); };
+  const value = challenge.verificationId;
+  const tampered = value.slice(0, -1) + (value.endsWith('a') ? 'b' : 'a');
+  assert.equal((await f.request('/api/contact/verify', { ...challenge, verificationId: tampered })).status, 400);
+  assert.equal(operations, 0);
+});
+
+test('expired signed verification IDs fail before accessing the shared store', async t => {
+  const store = createMemoryStore();
+  const f = await fixture(t, { store });
+  const challenge = await f.start();
+  let operations = 0;
+  store.rateLimit = async () => { operations++; throw new Error('unexpected read'); };
+  f.advance(20 * 60_000);
+  assert.equal((await f.request('/api/contact/verify', challenge)).status, 400);
+  assert.equal(operations, 0);
+});
+
+test('Firestore cleanup is best-effort and runs only after a successful human check', async t => {
+  const store = createMemoryStore();
+  let cleaned = 0;
+  store.cleanupExpired = async () => { cleaned++; throw new Error('cleanup delayed'); };
+  const f = await fixture(t, { store });
+  await f.start();
+  assert.equal(cleaned, 1);
+  assert.equal(f.sent.length, 1);
+  assert.ok(f.logs.some(message => message.includes('cleanup deferred')));
 });
 
 test('daily budget reserves code and team delivery together, including at exhaustion', async t => {
@@ -183,7 +271,7 @@ test('verification gates team delivery and replays do not send duplicates', asyn
   assert.ok(!f.sent[0].email.text.includes(payload.message));
   assert.ok(!f.sent[0].email.text.includes(payload.name));
   assert.ok(f.botCalls.length === 1);
-  assert.match(challenge.verificationId, /^[a-f0-9]{48}$/);
+  assert.match(challenge.verificationId, /^[a-f0-9]{48}\.[0-9]{13}\.[a-f0-9]{64}$/);
   assert.equal((await f.request('/api/contact/verify', { ...challenge, email: 'attacker@evil.example', message: 'overwritten', kind: 'card', cardId: 'karl-li' })).status, 200);
   assert.equal(f.sent.length, 2);
   assert.deepEqual(f.sent[1].email.to, ['contact@solariavc.com']);

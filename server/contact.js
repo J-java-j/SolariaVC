@@ -1,8 +1,10 @@
-import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomInt } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { isIP } from 'node:net';
+import { Firestore } from '@google-cloud/firestore';
 import { getCardProfile } from './card-profiles.js';
 import { buildInquiryEmail, buildVerificationEmail, createEmailSender } from './contact-email.js';
 import { createMemoryStore, createRedisStore } from './contact-store.js';
+import { createFirestoreStore } from './contact-firestore-store.js';
 
 const TEN_MINUTES = 600_000;
 const KINDS = new Set(['fund', 'ventures', 'founder', 'investor', 'research', 'subscribe', 'card', 'other']);
@@ -27,10 +29,15 @@ export function loadContactConfig(env = process.env) {
   if (local) for (const origin of LOOPBACK_ORIGINS) origins.add(origin);
   const proxyHops = Number(env.CONTACT_TRUST_PROXY_HOPS || 0);
   const emailDailyLimit = Number(env.CONTACT_EMAIL_DAILY_LIMIT || 80);
+  const storeType = env.CONTACT_STORE || 'firestore';
+  const firestoreProject = env.CONTACT_FIRESTORE_PROJECT_ID || env.GOOGLE_CLOUD_PROJECT || '';
+  const firestoreDatabase = env.CONTACT_FIRESTORE_DATABASE_ID || '(default)';
+  const firestoreCollection = env.CONTACT_FIRESTORE_COLLECTION || 'solaria_contact';
   const secret = env.CONTACT_VERIFICATION_SECRET || (local ? randomBytes(32).toString('base64') : '');
   const from = env.CONTACT_FROM_EMAIL || '';
   const config = {
     local, origins, hostnames, proxyHops, secret, from, emailDailyLimit,
+    storeType, firestoreProject, firestoreDatabase, firestoreCollection,
     siteKey: env.TURNSTILE_SITE_KEY || '', turnstileSecret: env.TURNSTILE_SECRET_KEY || '',
     redisUrl: env.UPSTASH_REDIS_REST_URL || '', redisToken: env.UPSTASH_REDIS_REST_TOKEN || '',
     apiKey: env.RESEND_API_KEY || '',
@@ -38,8 +45,13 @@ export function loadContactConfig(env = process.env) {
   config.available = Boolean(
     validOrigins && origins.size && Number.isInteger(proxyHops) && proxyHops >= 0 && proxyHops <= 10 &&
     Number.isSafeInteger(emailDailyLimit) && emailDailyLimit >= 2 && emailDailyLimit <= 100000 &&
+    ['firestore', 'redis'].includes(storeType) &&
+    (!firestoreProject || /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firestoreProject)) &&
+    (firestoreDatabase === '(default)' || /^[a-z][a-z0-9-]{2,61}[a-z0-9]$/.test(firestoreDatabase)) &&
+    /^[a-zA-Z][a-zA-Z0-9_-]{0,62}$/.test(firestoreCollection) &&
+    !(storeType === 'firestore' && (env.NODE_ENV === 'production' || env.K_SERVICE) && env.FIRESTORE_EMULATOR_HOST) &&
     secret.length >= 32 && config.apiKey && from && !/[\r\n]/.test(from) &&
-    (local || (config.siteKey && config.turnstileSecret && config.redisUrl && config.redisToken && !/@resend\.dev\b/i.test(from)))
+    (local || (config.siteKey && config.turnstileSecret && (storeType === 'firestore' || (config.redisUrl && config.redisToken)) && !/@resend\.dev\b/i.test(from)))
   );
   return config;
 }
@@ -134,17 +146,51 @@ function readJson(req, limit = 20_000) {
   });
 }
 
-export function createContactHandler({ env = process.env, store: suppliedStore, fetchImpl = fetch, sendEmail: suppliedSender, now = Date.now, logger = console } = {}) {
+// Deadline expiration prevents later stages (especially email dispatch) from
+// continuing. Firestore may still finish a transaction in the background;
+// its atomic state/leases remain authoritative for any subsequent retry.
+export function withStoreDeadline(store, timeoutMs = 5000) {
+  return Object.fromEntries(['rateLimit', 'reserveEmails', 'put', 'claim', 'finish', 'cleanupExpired'].filter(method => typeof store[method] === 'function').map(method => [method, (...args) => {
+    let timeout;
+    return Promise.race([
+      Promise.resolve().then(() => store[method](...args)),
+      new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('contact store deadline exceeded')), method === 'cleanupExpired' ? Math.min(timeoutMs, 1000) : timeoutMs); }),
+    ]).finally(() => clearTimeout(timeout));
+  }]));
+}
+
+export function createContactHandler({ env = process.env, store: suppliedStore, firestoreFactory = settings => new Firestore(settings), fetchImpl = fetch, sendEmail: suppliedSender, now = Date.now, logger = console } = {}) {
   const config = loadContactConfig(env);
   let store = suppliedStore;
   if (!store && config.available) {
-    try { store = config.local ? createMemoryStore({ now }) : createRedisStore({ url: config.redisUrl, token: config.redisToken, fetchImpl }); }
+    try {
+      if (config.local) store = createMemoryStore({ now });
+      else if (config.storeType === 'redis') store = createRedisStore({ url: config.redisUrl, token: config.redisToken, fetchImpl });
+      else {
+        const firestore = firestoreFactory({
+          ...(config.firestoreProject ? { projectId: config.firestoreProject } : {}),
+          databaseId: config.firestoreDatabase,
+        });
+        store = withStoreDeadline(createFirestoreStore({ firestore, collection: config.firestoreCollection, now }));
+      }
+    }
     catch { config.available = false; }
   }
   const deliverEmail = suppliedSender || createEmailSender({ apiKey: config.apiKey, fetchImpl });
   const key = createHash('sha256').update(`encryption:${config.secret}`).digest();
   const hashKey = createHash('sha256').update(`authentication:${config.secret}`).digest();
   const hash = value => createHmac('sha256', hashKey).update(value).digest('hex');
+  const admission = createMemoryStore({ now, maxEntries: 5000 });
+  const publicVerificationId = id => {
+    const ticket = `${id}.${now() + 20 * 60_000}`;
+    return `${ticket}.${hash(`verification-id:${ticket}`)}`;
+  };
+  function verifiedRecordId(value) {
+    if (typeof value !== 'string' || !/^[a-f0-9]{48}\.[0-9]{13}\.[a-f0-9]{64}$/.test(value)) return null;
+    const [id, expiry, signature] = value.split('.');
+    if (Number(expiry) <= now()) return null;
+    return timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(hash(`verification-id:${id}.${expiry}`), 'hex')) ? id : null;
+  }
   function requireEmailSendWindow() {
     const timestamp = now();
     const date = new Date(timestamp);
@@ -216,12 +262,21 @@ export function createContactHandler({ env = process.env, store: suppliedStore, 
       if (req.headers['content-type']?.split(';')[0].trim().toLowerCase() !== 'application/json') throw new ContactError(415, 'JSON content type required.');
       if (req.headers['content-encoding'] && req.headers['content-encoding'] !== 'identity') throw new ContactError(415, 'Unsupported content encoding.');
       const ip = hash(`ip:${clientIdentity(req, config.proxyHops)}`);
-      await limit(`attempt:${ip}`, 30, TEN_MINUTES);
-      await limit('attempt:global', 1000, 60_000);
+      // Cheap, bounded per-instance shedding happens before billable storage.
+      // Durable limits below remain authoritative across instances/restarts.
+      const waits = await Promise.all([
+        admission.rateLimit(`attempt:${ip}`, 30, TEN_MINUTES),
+        admission.rateLimit('attempt:global', 1000, 60_000),
+      ]);
+      if (Math.max(...waits) > 0) throw new ContactError(429, 'Too many attempts. Please wait before trying again.', Math.ceil(Math.max(...waits) / 1000));
       const p = await readJson(req);
       if (pathname === '/api/contact/verify') {
-        if (typeof p.verificationId !== 'string' || !/^[a-f0-9]{48}$/.test(p.verificationId) || typeof p.code !== 'string' || !/^\d{6}$/.test(p.code)) throw new ContactError(400, 'Enter the six-digit code from your email.');
-        const id = p.verificationId;
+        const id = verifiedRecordId(p.verificationId);
+        if (!id || typeof p.code !== 'string' || !/^\d{6}$/.test(p.code)) throw new ContactError(400, 'Enter the six-digit code from your email.');
+        // Random fabricated IDs cannot force a Firestore read. Only a request
+        // minted after a successful human check has a valid signature.
+        await limit(`attempt:${ip}`, 30, TEN_MINUTES);
+        await limit('attempt:global', 1000, 60_000);
         const owner = randomBytes(16).toString('hex');
         const result = await store.claim(id, hash(`code:${id}:${p.code}`), owner);
         if (result.status === 'sent') return reply(res, 200, { ok: true, sent: true });
@@ -241,11 +296,17 @@ export function createContactHandler({ env = process.env, store: suppliedStore, 
       }
       if (p.website !== undefined && typeof p.website !== 'string') throw new ContactError(400, 'Invalid request.');
       // Give bots the same first-step response without sending any email.
-      if (p.website?.trim()) return reply(res, 200, { ok: true, verificationRequired: true, verificationId: randomBytes(24).toString('hex') });
+      if (p.website?.trim()) return reply(res, 200, { ok: true, verificationRequired: true, verificationId: `${randomBytes(24).toString('hex')}.${now() + 20 * 60_000}.${randomBytes(32).toString('hex')}` });
       const payload = validatePayload(p);
       requireEmailSendWindow();
-      await limit(`request:${ip}`, 5, TEN_MINUTES);
       await verifyBot(p.turnstileToken, origin);
+      await limit(`attempt:${ip}`, 30, TEN_MINUTES);
+      await limit('attempt:global', 1000, 60_000);
+      await limit(`request:${ip}`, 5, TEN_MINUTES);
+      if (store.cleanupExpired) {
+        try { await store.cleanupExpired(); }
+        catch { logger.error('[contact] expired-record cleanup deferred'); }
+      }
       const emailKey = hash(`email:${emailRateIdentity(payload.email)}`);
       await limit(`email:cooldown:${emailKey}`, 1, 60_000);
       await limit(`email:hour:${emailKey}`, 3, 3_600_000);
@@ -265,7 +326,7 @@ export function createContactHandler({ env = process.env, store: suppliedStore, 
       // recovers this without generating a new code or sending a second email.
       try { await sendEmail(verificationEmail, `solaria-verification/${id}`); }
       catch { await sendEmail(verificationEmail, `solaria-verification/${id}`); }
-      return reply(res, 200, { ok: true, verificationRequired: true, verificationId: id });
+      return reply(res, 200, { ok: true, verificationRequired: true, verificationId: publicVerificationId(id) });
     } catch (error) {
       if (error instanceof ContactError) return reply(res, error.status, { ok: false, error: error.message }, error.retryAfter ? { 'Retry-After': String(error.retryAfter) } : {});
       // Avoid raw errors, request payloads, addresses, verification codes and secrets in logs.
