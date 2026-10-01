@@ -74,7 +74,6 @@ const deskGroups: DeskGroup[] = [
         role: 'Head of Venture Capital Department',
         imageUrl: '/team/greesh.png',
       },
-      { name: 'Elle Ma', role: 'Head of External Relations Department' },
     ],
   },
   {

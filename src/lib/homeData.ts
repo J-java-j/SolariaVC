@@ -34,16 +34,6 @@ export const portfolioCompanies: PortfolioCompany[] = [
     imageFit: 'logo',
   },
   {
-    name: 'Stealth',
-    tagline:
-      'Currently operating in stealth while building an ambitious new product. The team is focused on validating the technology and preparing for public launch.',
-    tags: ['Stealth'],
-    status: 'Portfolio',
-    stage: 'Pre-seed',
-    imageUrl:
-      'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=900&q=80',
-  },
-  {
     name: 'Your company',
     tagline: 'The next breakthrough.',
     tags: ['Frontier tech'],
