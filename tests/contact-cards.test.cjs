@@ -18,12 +18,12 @@ function createApp(card,mode='ok') {
  node('xhForm').dataset={cardId:card,recipient:card==='karl-li'?'Karl':'Johnson'};
  node('xhForm').elements={name:node('name'),email:node('email'),phone:node('phone'),note:node('note'),website:node('website')};
  node('name').value=' Test Name ';node('email').value=' test@example.invalid ';node('note').value='test note';
- const calls=[];const widgets=[];const removed=[];const queued=[];let configuration=mode==='unavailable'?{available:false,siteKey:''}:{available:true,siteKey:mode==='local'?'':'mock-site-key'};
+ const scripts=[];const calls=[];const widgets=[];const removed=[];const queued=[];let configuration=mode==='unavailable'?{available:false,siteKey:''}:{available:true,siteKey:mode==='local'?'':'mock-site-key'};
  let configRequestCount=0;
  const fakeDate=class extends Date{static now(){return now;}};
  const sandbox={console,Date:fakeDate,AbortController,Number,Promise,Error,
   setTimeout,clearTimeout,setInterval:f=>{let id=nextTimer++;timers.set(id,f);return id;},clearInterval:id=>timers.delete(id),
-  document:{getElementById:node,createElement:()=>node('script'),head:{appendChild(){throw new Error('No external scripts allowed');}}},
+  document:{getElementById:node,createElement:()=>node('script-'+scripts.length),head:{appendChild(script){scripts.push(script);}}},
   fetch:async(path,options)=>{
    if(path==='/api/contact/config'){configRequestCount++;return {ok:true,json:async()=>configuration,headers:new Headers()};}
    const payload=JSON.parse(options.body);calls.push({path,payload});
@@ -34,14 +34,26 @@ function createApp(card,mode='ok') {
   }
  };
  sandbox.window=sandbox;
- sandbox.turnstile={ready:f=>f(),render:(el,opts)=>{widgets.push(opts);return ''+widgets.length;},remove:id=>removed.push(id)};
+ const api={ready(){throw new Error('ready is invalid with async/defer');},render:(el,opts)=>{widgets.push(opts);return ''+widgets.length;},remove:id=>removed.push(id)};
+ if(mode!=='async') sandbox.turnstile=api;
  vm.runInNewContext(source,sandbox);
- return {node,calls,widgets,removed,queued,timers,get active(){return active;},get configRequests(){return configRequestCount;},setConfig:x=>configuration=x,advance(ms){now+=ms;for(const f of timers.values())f();}};
+ return {node,calls,widgets,removed,queued,timers,scripts,completeScript(script){sandbox.turnstile=api;sandbox[new URL(script.src).searchParams.get('onload')]();},get active(){return active;},get configRequests(){return configRequestCount;},setConfig:x=>configuration=x,advance(ms){now+=ms;for(const f of timers.values())f();}};
 }
 const flush=()=>new Promise(r=>setTimeout(r,20));
 async function open(app){app.node('xhToggle').fire('click');await flush();}
 (async()=>{
  const passed=[];
+ for(const card of ['johnson-jiang','karl-li']){
+  const a=createApp(card,'async');await open(a);
+  assert.equal(a.scripts.length,1);assert.equal(a.scripts[0].async,true);assert.equal(a.widgets.length,0);
+  a.scripts[0].onerror();await flush();assert.match(a.node('xhSecurityStatus').textContent,/could not load/);
+  a.node('xhSecurityRetry').fire('click');await flush();assert.equal(a.scripts.length,2);
+  assert.notEqual(new URL(a.scripts[0].src).searchParams.get('onload'),new URL(a.scripts[1].src).searchParams.get('onload'));
+  a.completeScript(a.scripts[1]);await flush();assert.equal(a.widgets.length,1);
+  a.widgets[0].callback('async-token');assert.equal(a.node('xhSend').disabled,false);
+  passed.push(card+': asynchronous provider callback initializes widget and network-error retry recovers');
+ }
+
  for(const card of ['johnson-jiang','karl-li']){
   const a=createApp(card);assert.equal(a.node('xhSend').disabled,true);await open(a);
   assert.equal(a.widgets.length,1);assert.equal(a.widgets[0].action,'contact');assert.equal(a.node('xhSend').disabled,true);

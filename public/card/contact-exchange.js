@@ -91,37 +91,37 @@
     }
   }
 
+  var scriptAttempt = 0;
+
   function loadTurnstile() {
-    if (window.turnstile) {
-      return new Promise(function (resolve) {
-        window.turnstile.ready(function () { resolve(window.turnstile); });
-      });
-    }
     if (scriptPromise) return scriptPromise;
+    if (window.turnstile) return Promise.resolve(window.turnstile);
     scriptPromise = new Promise(function (resolve, reject) {
       var script = document.createElement('script');
+      var callbackName = 'solariaCardTurnstileLoaded' + (++scriptAttempt);
       var settled = false;
       function fail() {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
+        delete window[callbackName];
         script.remove();
         scriptPromise = null;
         reject(new Error('The security check could not load. Check your connection and try again.'));
       }
       var timeout = setTimeout(fail, 15000);
-      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      // Cloudflare's load callback supports async scripts; ready() does not.
+      window[callbackName] = function () {
+        if (settled) return;
+        if (!window.turnstile) return fail();
+        settled = true;
+        clearTimeout(timeout);
+        delete window[callbackName];
+        resolve(window.turnstile);
+      };
+      script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=' + callbackName;
       script.async = true;
       script.onerror = fail;
-      script.onload = function () {
-        if (!window.turnstile) return fail();
-        window.turnstile.ready(function () {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timeout);
-          resolve(window.turnstile);
-        });
-      };
       document.head.appendChild(script);
     });
     return scriptPromise;
