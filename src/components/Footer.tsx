@@ -76,11 +76,6 @@ export default function Footer() {
                   Pitch us →
                 </a>
               </li>
-              <li>
-                <a href="/staff" className="ulink-rev hover:text-[var(--ink)]">
-                  Staff login
-                </a>
-              </li>
             </ul>
           </div>
         </div>
@@ -95,6 +90,19 @@ export default function Footer() {
           security. Hypothetical performance figures are net of modeled fees and not indicative of
           future results. All investments carry risk of loss.
         </p>
+
+        <div className="mt-8 flex justify-end">
+          <a
+            href="/staff"
+            className="inline-flex items-center gap-2 rounded-md border border-[var(--ink-line)] px-3.5 py-2 text-[14px] text-[var(--ink-soft)] transition-colors hover:border-[var(--accent-soft)] hover:text-[var(--ink)]"
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+              <rect x="3.5" y="7" width="9" height="6.5" rx="1.2" />
+              <path d="M5.5 7V5.2a2.5 2.5 0 015 0V7" />
+            </svg>
+            Staff login
+          </a>
+        </div>
       </div>
     </footer>
   );

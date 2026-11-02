@@ -131,12 +131,13 @@ from the browser. Requests without `cardId` continue to use Johnson's card.
 
 ## Staff page (`/staff`)
 
-`staff.html` (`src/staff/`) lists the team's tools: Solaria Sign, Solaria Terminal
-(https://terminal.solariavc.com) and the business card pages. It is linked as
-"Staff login" from the footer, the phone menu and, at 1360px and wider, the nav
-bar. It has no sign-in of its own, since each tool signs people in itself, and
-it is served with `noindex` and kept out of `robots.txt`. Add a tool by adding
-an entry to `tools` in `src/staff/Staff.tsx`.
+`staff.html` (`src/staff/`) collects the team's links: Solaria Sign (documents,
+`/sign/verify`, Team), Solaria Terminal (https://terminal.solariavc.com and its
+`/admin`), the business card pages and vCards, Titan webmail, the contact inbox
+and the public pages. The only way in is "Staff login" at the very bottom of the
+site's footer. It has no sign-in of its own, since each tool signs people in
+itself, and it is served with `noindex` and kept out of `robots.txt`. Add a link
+by editing `tools` in `src/staff/Staff.tsx`.
 
 ## Solaria Sign (`/sign`)
 

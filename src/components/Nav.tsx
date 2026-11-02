@@ -62,13 +62,6 @@ export default function Nav() {
         </nav>
 
         <div className="flex items-center gap-3">
-          {/* Only from 1360px: below that the nav links already fill the bar. Smaller screens reach it from the menu and the footer. */}
-          <a
-            href="/staff"
-            className="nav-link mr-2 hidden whitespace-nowrap text-[16px] text-[var(--fg-muted)] transition-colors duration-250 ease-out hover:text-[var(--fg)] min-[1360px]:inline"
-          >
-            Staff login
-          </a>
           <Button
             href="#contact"
             variant="secondary"
@@ -117,12 +110,6 @@ export default function Nav() {
             >
               Pitch us
             </Button>
-            <a
-              href="/staff"
-              className="mt-5 block text-center text-[16px] text-[var(--fg-muted)] hover:text-[var(--ink)]"
-            >
-              Staff login
-            </a>
           </div>
         </div>
       )}
