@@ -105,7 +105,7 @@ export const formatDateTime = (iso?: string) => (iso
   ? new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
   : '');
 
-export function Shell({ user, children }: { user: { name: string }; children: ReactNode }) {
+export function Shell({ user, children }: { user: { name: string; owner: boolean }; children: ReactNode }) {
   const signOut = () => api.logout().finally(() => window.location.assign('/sign'));
   return (
     <div className="shell">
@@ -113,6 +113,7 @@ export function Shell({ user, children }: { user: { name: string }; children: Re
         <Link to="/sign"><Wordmark /></Link>
         <span className="bar-end">
           <span className="bar-user">{user.name}</span>
+          {user.owner && <Link to="/sign/team" className="quiet on-desk">Team</Link>}
           <button type="button" className="quiet on-desk" onClick={signOut}>Sign out</button>
         </span>
       </header>

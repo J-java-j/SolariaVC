@@ -153,12 +153,27 @@ async function signer(req, res, svc, action) {
   }
 }
 
-async function sender(req, res, url, svc, parts) {
-  const method = req.method;
-  if (method !== 'GET') assertSameOrigin(req);
-  const sessionId = cookies(req)[SESSION_COOKIE];
-  const user = await svc.authenticate(sessionId);
+async function signedInUser(req, svc) {
+  if (req.method !== 'GET') assertSameOrigin(req);
+  const user = await svc.authenticate(cookies(req)[SESSION_COOKIE]);
   if (!user) throw new HttpError(401, 'Please sign in.');
+  return user;
+}
+
+async function team(req, res, svc, action) {
+  const user = await signedInUser(req, svc);
+  if (req.method === 'GET' && !action) return sendJson(res, 200, { people: await svc.listTeam(user) });
+  if (req.method === 'POST' && !action) return sendJson(res, 201, await svc.addAdmin(user, await readJson(req)));
+  if (req.method === 'POST' && action === 'remove') {
+    await svc.removeAdmin(user, (await readJson(req)).email);
+    return sendJson(res, 200, { ok: true });
+  }
+  throw new HttpError(404, 'Not found.');
+}
+
+async function sender(req, res, url, svc, parts) {
+  const user = await signedInUser(req, svc);
+  const method = req.method;
   const info = clientInfo(req);
 
   const [id, action] = parts;
@@ -209,6 +224,7 @@ async function auth(req, res, svc, action) {
   const { ip } = clientInfo(req);
   if (action === 'request') {
     rateLimit(`login:${ip}`, 5, 600_000);
+    console.log('[sign] sign-in link requested from', ip);
     const body = await readJson(req);
     await svc.requestLogin(body.email);
     return sendJson(res, 200, { ok: true });
@@ -243,6 +259,7 @@ export async function handleSignApi(req, res, url) {
         const user = await svc.authenticate(cookies(req)[SESSION_COOKIE]);
         return sendJson(res, 200, { user });
       }
+      case 'team': return await team(req, res, svc, parts[0]);
       case 'envelopes': return await sender(req, res, url, svc, parts);
       case 's': return await signer(req, res, svc, `${req.method} ${parts.join('/')}`);
       case 'verify': {

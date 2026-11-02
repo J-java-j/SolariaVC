@@ -6,10 +6,11 @@ import Editor from './Editor';
 import { Login, LoginLanding } from './Login';
 import { usePath } from './router';
 import Signer from './Signer';
+import Team from './Team';
 import { Loading, PageMessage, Shell } from './ui';
 import Verify from './Verify';
 
-export type User = { name: string; email: string };
+export type User = { name: string; email: string; owner: boolean };
 
 function EnvelopePage({ id, user }: { id: string; user: User }) {
   const [env, setEnv] = useState<Envelope | null>(null);
@@ -36,6 +37,7 @@ function SenderApp({ path }: { path: string }) {
   if (!user) return <Login />;
   const envelope = /^\/sign\/e\/([0-9A-Z]{12})$/.exec(path);
   if (envelope) return <EnvelopePage key={envelope[1]} id={envelope[1]} user={user} />;
+  if (path === '/sign/team' && user.owner) return <Shell user={user}><Team /></Shell>;
   return <Shell user={user}><Dashboard /></Shell>;
 }
 

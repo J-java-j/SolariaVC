@@ -59,6 +59,13 @@ export function createLocalStore(root) {
     async deleteRecord(kind, id) {
       rmSync(recordPath(kind, id), { force: true });
     },
+    async listRecords(kind) {
+      const dir = file('records', kind);
+      if (!existsSync(dir)) return [];
+      return readdirSync(dir)
+        .filter((name) => name.endsWith('.json'))
+        .map((name) => readJson(path.join(dir, name)));
+    },
     // Single use: of any concurrent callers exactly one gets the record.
     async takeRecord(kind, id) {
       const data = readJson(recordPath(kind, id));

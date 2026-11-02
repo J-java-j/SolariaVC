@@ -64,6 +64,10 @@ export function createGcpStore({ bucket }) {
     async deleteRecord(kind, id) {
       await firestore.collection(recordCollection(kind)).doc(id).delete();
     },
+    async listRecords(kind) {
+      const snap = await firestore.collection(recordCollection(kind)).get();
+      return snap.docs.map((d) => d.data());
+    },
     // Single use: the delete fails for whichever concurrent caller read second.
     async takeRecord(kind, id) {
       const ref = firestore.collection(recordCollection(kind)).doc(id);

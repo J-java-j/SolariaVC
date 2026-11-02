@@ -3,7 +3,7 @@
 // applies and writes conditionally, so concurrent signers can't lose each other's
 // work or fork the audit chain. Mutators run more than once under contention, so
 // they only touch the envelope; email and file writes happen outside them.
-import { ORG, SENDERS, EXPIRY_DAYS, LIMITS, TIMES } from './config.js';
+import { ORG, OWNERS, EXPIRY_DAYS, LIMITS, TIMES } from './config.js';
 import {
   appendEvent, canonicalJson, formatEnvelopeId, hashesEqual, newCode, newEnvelopeId, newId,
   randomSecret, sha256Hex, verifyChain,
@@ -11,7 +11,7 @@ import {
 import { DISCLOSURE, DISCLOSURE_SHA256, DISCLOSURE_VERSION, INTENT, INTENT_SHA256, INTENT_VERSION } from './disclosure.js';
 import { EVENT_LABELS } from './certificate.js';
 import {
-  codeEmail, completedEmail, declinedEmail, loginEmail, nextSignerEmail, signRequestEmail, voidedEmail,
+  codeEmail, completedEmail, declinedEmail, inviteEmail, loginEmail, nextSignerEmail, signRequestEmail, voidedEmail,
 } from './mail.js';
 import { assertEmbeddablePng, inspectPdf, sealDocument, timestampFile } from './pdf.js';
 import { ConflictError } from './store-local.js';
@@ -477,17 +477,34 @@ export function createSignService({ store, config, mail, log = console }) {
     return current.data;
   }
 
+  async function findSender(email) {
+    const owner = OWNERS.get(email);
+    if (owner) return { ...owner, owner: true };
+    const admin = await store.getRecord('admins', sha256Hex(email));
+    return admin ? { name: admin.name, title: admin.title, owner: false } : null;
+  }
+
+  function requireOwner(user) {
+    if (!user.owner) throw new HttpError(403, 'Only the owner can manage the team.');
+  }
+
   return {
     // ---- sign in ----------------------------------------------------------
     // Answers identically for unknown addresses, so nobody can probe who has access.
     async requestLogin(emailInput) {
       const email = String(emailInput ?? '').trim().toLowerCase();
-      if (!SENDERS.has(email)) return;
+      if (!(await findSender(email))) return;
       const token = randomSecret();
-      await store.putRecord('logins', sha256Hex(token), {
+      const tokenHash = sha256Hex(token);
+      // One live link per person, so asking again retires the one already in their inbox.
+      const person = sha256Hex(email);
+      const earlier = await store.getRecord('login_latest', person);
+      if (earlier) await store.deleteRecord('logins', earlier.tokenHash);
+      await store.putRecord('logins', tokenHash, {
         email,
         expiresAt: new Date(Date.now() + TIMES.loginToken).toISOString(),
       });
+      await store.putRecord('login_latest', person, { tokenHash });
       await mail({ to: email, ...loginEmail({ url: `${config.baseUrl}/sign/login#${token}` }) });
     },
 
@@ -496,7 +513,7 @@ export function createSignService({ store, config, mail, log = console }) {
         ? await store.takeRecord('logins', sha256Hex(token))
         : null;
       if (!login || Date.now() > Date.parse(login.expiresAt)) {
-        throw new HttpError(400, 'This sign-in link has expired or was already used.');
+        throw new HttpError(400, 'This sign-in link has expired, was already used, or was replaced by a newer one.');
       }
       const sessionId = randomSecret();
       await store.putRecord('sessions', sha256Hex(sessionId), {
@@ -510,13 +527,54 @@ export function createSignService({ store, config, mail, log = console }) {
       if (!sessionId || sessionId.length > 100) return null;
       const session = await store.getRecord('sessions', sha256Hex(sessionId));
       if (!session || Date.now() > Date.parse(session.expiresAt)) return null;
-      // Checked on every request, so removing someone from SENDERS ends their access.
-      const sender = SENDERS.get(session.email);
-      return sender ? { email: session.email, name: sender.name, title: sender.title } : null;
+      // Checked on every request, so removing someone ends their access at once.
+      const sender = await findSender(session.email);
+      return sender ? { email: session.email, ...sender } : null;
     },
 
     async logout(sessionId) {
       if (sessionId) await store.deleteRecord('sessions', sha256Hex(sessionId));
+    },
+
+    // ---- team -------------------------------------------------------------
+    async listTeam(user) {
+      requireOwner(user);
+      const admins = await store.listRecords('admins');
+      admins.sort((a, b) => a.name.localeCompare(b.name));
+      return [
+        ...[...OWNERS].map(([email, owner]) => ({ email, ...owner, owner: true })),
+        ...admins.map((admin) => ({ ...admin, owner: false })),
+      ];
+    },
+
+    async addAdmin(user, body) {
+      requireOwner(user);
+      const email = cleanText(body.email, 200, 'Email', { required: true }).toLowerCase();
+      if (!EMAIL_RE.test(email)) throw new HttpError(400, 'Enter a valid email address.');
+      if (await findSender(email)) throw new HttpError(409, `${email} is already on the team.`);
+      const admin = {
+        email,
+        name: cleanText(body.name, 120, 'Name', { required: true }),
+        title: cleanText(body.title, 120, 'Title'),
+        addedBy: user.email,
+        addedAt: nowIso(),
+      };
+      await store.putRecord('admins', sha256Hex(email), admin);
+      log.log(`[sign] ${user.email} added admin ${email}`);
+      const invited = await mail({ to: email, ...inviteEmail({ admin, inviter: user.name, url: `${config.baseUrl}/sign` }) })
+        .then(() => true, (e) => {
+          log.error('[sign] invite email failed:', e.message);
+          return false;
+        });
+      return { admin: { ...admin, owner: false }, invited };
+    },
+
+    async removeAdmin(user, emailInput) {
+      requireOwner(user);
+      const email = String(emailInput ?? '').trim().toLowerCase();
+      if (OWNERS.has(email)) throw new HttpError(409, 'The owner can\'t be removed.');
+      await store.deleteRecord('admins', sha256Hex(email));
+      log.log(`[sign] ${user.email} removed admin ${email}`);
     },
 
     // ---- sender -----------------------------------------------------------

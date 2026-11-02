@@ -71,16 +71,35 @@ export function codeEmail({ env, code }) {
   };
 }
 
-export function loginEmail({ url }) {
+export function loginEmail({ url, requestedAt = new Date() }) {
+  const time = requestedAt
+    .toLocaleTimeString('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+    .replace(/\s+/g, ' ');
   return {
-    subject: 'Sign in to Solaria Sign',
+    // The time gives each request its own subject, so mail apps keep them apart.
+    subject: `Sign in to Solaria Sign (${time})`,
     html: layout({
       heading: 'Sign in to Solaria Sign',
-      paragraphs: ['Use this link to sign in. It works once and expires in 15 minutes.'],
+      paragraphs: ['Use this link to sign in. It works once, expires in 15 minutes, and stops working if you ask for a newer one.'],
       button: { url, label: 'Sign in' },
       note: 'If you did not ask for this, you can ignore it.',
     }),
-    text: `Sign in to Solaria Sign: ${url}\n\nThis link works once and expires in 15 minutes.`,
+    text: `Sign in to Solaria Sign: ${url}\n\nThis link works once, expires in 15 minutes, and stops working if you ask for a newer one.`,
+  };
+}
+
+export function inviteEmail({ admin, inviter, url }) {
+  const about = `${inviter} added you as an admin of Solaria Sign, ${ORG.name}'s document signing tool. You can send documents for signature and see everything the firm has sent.`;
+  const howTo = `Sign in with ${admin.email}. We email you a link each time, so there is no password to set.`;
+  return {
+    subject: `${inviter} added you to Solaria Sign`,
+    html: layout({
+      heading: 'You can now send documents with Solaria Sign',
+      paragraphs: [esc(about), esc(howTo)],
+      button: { url, label: 'Open Solaria Sign' },
+      note: `If you were not expecting this, let ${esc(ORG.contactEmail)} know.`,
+    }),
+    text: `${about}\n\n${howTo}\n\n${url}`,
   };
 }
 
@@ -178,6 +197,8 @@ export function createMailer(config) {
         subject,
         html,
         text,
+        // A value no other message has keeps Gmail from folding repeats into one thread.
+        headers: { 'X-Entity-Ref-ID': randomBytes(16).toString('hex') },
         ...(replyTo ? { reply_to: replyTo } : {}),
         ...(attachments?.length ? { attachments } : {}),
       }),

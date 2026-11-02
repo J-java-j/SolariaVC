@@ -28,6 +28,7 @@ function when(env: EnvelopeSummary) {
 export default function Dashboard() {
   const [envelopes, setEnvelopes] = useState<EnvelopeSummary[] | null>(null);
   const [over, setOver] = useState(false);
+  const [sentBy, setSentBy] = useState('');
   const picker = useRef<HTMLInputElement>(null);
   const { busy, error, run, setError } = useBusy();
 
@@ -56,6 +57,8 @@ export default function Dashboard() {
   };
 
   const empty = envelopes?.length === 0;
+  const senders = new Map((envelopes ?? []).map((env) => [env.sender.email, env.sender.name] as const));
+  const shown = envelopes?.filter((env) => !sentBy || env.sender.email === sentBy);
   return (
     <main
       className={over ? 'ledger-page ledger-over' : 'ledger-page'}
@@ -78,12 +81,21 @@ export default function Dashboard() {
         </header>
         {error && <Notice>{error}</Notice>}
         {empty && <p className="ledger-empty">Upload a PDF to prepare it for signature, or drop one anywhere on this page.</p>}
-        {envelopes && GROUPS.map(([title, match]) => {
-          const rows = envelopes.filter(match);
+        {senders.size > 1 && (
+          <label className="field ledger-filter">
+            Sent by
+            <select value={sentBy} onChange={(e) => setSentBy(e.target.value)}>
+              <option value="">Everyone</option>
+              {[...senders].map(([email, name]) => <option key={email} value={email}>{name}</option>)}
+            </select>
+          </label>
+        )}
+        {shown && GROUPS.map(([title, match]) => {
+          const rows = shown.filter(match);
           if (!rows.length) return null;
           return (
             <section key={title}>
-              <h2>{title}</h2>
+              <h2>{title} ({rows.length})</h2>
               <ul>
                 {rows.map((env) => (
                   <li key={env.id}>
@@ -91,7 +103,7 @@ export default function Dashboard() {
                       <span className="row-title">{env.title || 'Untitled document'}</span>
                       <span className="row-people">{people(env)}</span>
                       <SignerDots recipients={env.recipients} />
-                      <span className="row-when">{when(env)}</span>
+                      <span className="row-when">{when(env)}{senders.size > 1 && ` by ${env.sender.name}`}</span>
                     </Link>
                   </li>
                 ))}

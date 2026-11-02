@@ -79,6 +79,8 @@ export type Draft = Pick<Envelope, 'title' | 'message' | 'sequential' | 'expiryD
 
 export type SentLink = { recipientId: string; name: string; url: string };
 
+export type TeamMember = { email: string; name: string; title?: string; owner: boolean; addedAt?: string };
+
 export type Disclosure = {
   version: string;
   title: string;
@@ -145,10 +147,14 @@ const post = (body?: unknown): RequestInit => ({
 });
 
 export const api = {
-  me: () => call<{ user: { name: string; email: string } | null }>('me'),
+  me: () => call<{ user: { name: string; email: string; owner: boolean } | null }>('me'),
   requestLogin: (email: string) => call('auth/request', post({ email })),
   verifyLogin: (token: string) => call('auth/verify', post({ token })),
   logout: () => call('auth/logout', post()),
+
+  team: () => call<{ people: TeamMember[] }>('team'),
+  addAdmin: (person: { name: string; email: string; title: string }) => call<{ admin: TeamMember; invited: boolean }>('team', post(person)),
+  removeAdmin: (email: string) => call('team/remove', post({ email })),
 
   list: () => call<{ envelopes: EnvelopeSummary[] }>('envelopes'),
   get: (id: string) => call<Envelope>(`envelopes/${id}`),

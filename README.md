@@ -137,7 +137,10 @@ electronic records disclosure, signs, and receives a sealed copy with its
 certificate of completion. `/s` is the signer's page and `/sign/verify` checks a
 file against our records.
 
-Only the addresses in `SENDERS` (`server/sign/config.js`) can sign in and send.
+The address in `OWNERS` (`server/sign/config.js`) signs in at `/sign` and can add
+and remove admins on the Team page. Admins can send documents and see everything
+the firm has sent, and removing one ends their access at once. Nobody else can
+sign in.
 
 ### Working on it locally
 
@@ -173,7 +176,8 @@ Then, in this order:
    `gcloud run services update-traffic solariavc --region europe-west1 --to-revisions <new-revision>=100`
 3. Check `status.traffic` with `gcloud run services describe`. Older revisions
    show the marketing site at `/s`, so a signing link sent too early opens the
-   wrong page.
+   wrong page. Moving traffic by name can drop tags on other revisions, so add
+   back any you still need with `--set-tags`.
 4. Send yourself a test document. Check that the email arrives, that your own IP
    address is on the certificate, and that Acrobat shows the timestamp as valid.
 

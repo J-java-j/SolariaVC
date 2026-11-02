@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { sha256Hex, verifyChain } from '../server/sign/crypto.js';
 import { HttpError } from '../server/sign/envelopes.js';
+import { createMailer } from '../server/sign/mail.js';
 import { PdfRejected } from '../server/sign/pdf.js';
 import { INFO, SENDER, draft, harness, linkIn, makePdf, mark, signAs } from './sign-helpers.js';
 
@@ -508,6 +509,100 @@ test('only listed partners can sign in, once per link, and the probe looks the s
 
   await svc.logout(sessionId);
   assert.equal(await svc.authenticate(sessionId), null);
+});
+
+async function signIn(svc, mail, email) {
+  await svc.requestLogin(email);
+  const { sessionId } = await svc.completeLogin(/#(\S+)/.exec(mail.at(-1).text)[1]);
+  return { sessionId, user: await svc.authenticate(sessionId) };
+}
+
+test('asking for a new sign-in link retires the one before it', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  await svc.requestLogin(SENDER.email);
+  await svc.requestLogin(SENDER.email);
+  const [first, second] = mail.map((m) => /#(\S+)/.exec(m.text)[1]);
+  assert.notEqual(first, second);
+  await assert.rejects(svc.completeLogin(first), httpError(400), 'only the newest link works');
+  assert.ok((await svc.completeLogin(second)).sessionId);
+  assert.match(mail[0].subject, /^Sign in to Solaria Sign \(\d{1,2}:\d{2} [AP]M P[SD]T\)$/);
+});
+
+test('every email carries its own reference, so mail apps do not fold them together', async (t) => {
+  const bodies = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    bodies.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ id: 'm1' }), { status: 200 });
+  };
+  t.after(() => { globalThis.fetch = realFetch; });
+  const send = createMailer({ resendKey: 'test', from: 'Solaria <sign@example.com>' });
+  await send({ to: 'a@example.com', subject: 'Same', html: '', text: '' });
+  await send({ to: 'a@example.com', subject: 'Same', html: '', text: '' });
+  const [first, second] = bodies.map((b) => b.headers['X-Entity-Ref-ID']);
+  assert.match(first, /^[0-9a-f]{32}$/);
+  assert.notEqual(first, second);
+});
+
+test('the owner adds an admin, who can send but not manage the team', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const { user: owner } = await signIn(svc, mail, SENDER.email);
+  assert.equal(owner.owner, true);
+
+  await svc.requestLogin('karl@example.com');
+  assert.equal(mail.filter((m) => m.to === 'karl@example.com').length, 0, 'nobody gets in before being added');
+
+  const { admin, invited } = await svc.addAdmin(owner, { name: ' Karl Li ', email: ' Karl@Example.com ', title: 'Partner' });
+  assert.equal(admin.email, 'karl@example.com');
+  assert.equal(admin.name, 'Karl Li');
+  assert.equal(invited, true);
+  assert.match(mail.at(-1).subject, /^Johnson Jiang added you/);
+  assert.equal(mail.at(-1).to, 'karl@example.com');
+  assert.deepEqual((await svc.listTeam(owner)).map((p) => [p.email, p.owner]), [
+    [SENDER.email, true], ['karl@example.com', false],
+  ]);
+
+  const { user: karl } = await signIn(svc, mail, 'KARL@example.com');
+  assert.deepEqual([karl.name, karl.owner], ['Karl Li', false]);
+
+  await assert.rejects(svc.listTeam(karl), httpError(403));
+  await assert.rejects(svc.addAdmin(karl, { name: 'Friend', email: 'friend@example.com' }), httpError(403));
+  await assert.rejects(svc.removeAdmin(karl, 'karl@example.com'), httpError(403));
+
+  const env = await svc.createDraft(karl, 'Side letter.pdf', await makePdf(), INFO);
+  assert.equal(env.sender.email, 'karl@example.com');
+  assert.deepEqual((await svc.listEnvelopes()).map((e) => e.sender.name), ['Karl Li'], 'admins share one list of documents');
+});
+
+test('removing an admin ends their session at once, and the owner stays', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const { user: owner } = await signIn(svc, mail, SENDER.email);
+  await svc.addAdmin(owner, { name: 'Karl Li', email: 'karl@example.com' });
+  const { sessionId } = await signIn(svc, mail, 'karl@example.com');
+  assert.ok(await svc.authenticate(sessionId));
+
+  await svc.removeAdmin(owner, 'Karl@Example.com');
+  assert.equal(await svc.authenticate(sessionId), null);
+  const before = mail.length;
+  await svc.requestLogin('karl@example.com');
+  assert.equal(mail.length, before, 'a removed admin gets no sign-in link');
+
+  await assert.rejects(svc.removeAdmin(owner, SENDER.email), httpError(409));
+  assert.equal((await svc.listTeam(owner)).length, 1);
+});
+
+test('adding an admin checks the address and survives a failed invite', async (t) => {
+  const { svc, sent: mail, failMailWhen } = harness(t);
+  const { user: owner } = await signIn(svc, mail, SENDER.email);
+  await assert.rejects(svc.addAdmin(owner, { name: 'No At', email: 'karl.example.com' }), httpError(400));
+  await assert.rejects(svc.addAdmin(owner, { name: '', email: 'karl@example.com' }), httpError(400));
+  await assert.rejects(svc.addAdmin(owner, { name: 'Me Again', email: SENDER.email }), httpError(409));
+
+  failMailWhen((m) => m.to === 'karl@example.com');
+  assert.equal((await svc.addAdmin(owner, { name: 'Karl Li', email: 'karl@example.com' })).invited, false);
+  await assert.rejects(svc.addAdmin(owner, { name: 'Karl Li', email: 'karl@example.com' }), httpError(409));
+  failMailWhen(() => false);
+  assert.ok((await signIn(svc, mail, 'karl@example.com')).user, 'they can still sign in');
 });
 
 test('non-Latin names and values seal, keeping pages and text', async (t) => {

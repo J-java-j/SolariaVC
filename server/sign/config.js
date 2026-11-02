@@ -1,9 +1,10 @@
 // Solaria Sign settings.
 //
-// Who may send documents is fixed here rather than read from the environment,
-// for the same reason CONTACT_TO is hardcoded in server/index.js: a stale Cloud
-// Run variable must never be able to widen access.
-export const SENDERS = new Map([
+// Owners are fixed here rather than read from the environment, for the same reason
+// CONTACT_TO is hardcoded in server/index.js: a stale Cloud Run variable must never
+// be able to widen access. An owner adds and removes admins on the Team page. Those
+// live with the other records, so nothing stored can remove an owner.
+export const OWNERS = new Map([
   ['johnsonjiang@solariavc.com', { name: 'Johnson Jiang', title: 'Founder & Managing Partner' }],
 ]);
 

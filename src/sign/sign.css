@@ -390,6 +390,13 @@ img { display: block; max-width: 100%; }
 .row:hover { background: var(--paper-tint); }
 .row-title { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .row-people, .row-when { overflow: hidden; color: var(--ink-soft); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.ledger-filter { max-width: 240px; margin-top: 12px; }
+
+/* ---- sender: team -------------------------------------------- */
+.member { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 2px 16px; min-height: 56px; padding: 8px 6px; border-top: 1px solid var(--paper-line); }
+.member > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; overflow-wrap: anywhere; }
+.team-form { max-width: 420px; }
+.team-form .primary { justify-self: start; }
 
 /* ---- sender: preparing --------------------------------------- */
 .editor {
@@ -545,6 +552,8 @@ img { display: block; max-width: 100%; }
   .detail-doc { position: static; max-height: none; overflow: visible; }
   .row { grid-template-columns: minmax(0, 1fr) auto; }
   .row-title, .row-people { grid-column: 1 / -1; }
+  .member { grid-template-columns: minmax(0, 1fr) auto; }
+  .member > div { grid-column: 1 / -1; }
 }
 
 @media (max-width: 700px) {
