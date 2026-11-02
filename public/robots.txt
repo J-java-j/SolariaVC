@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /sign
+Disallow: /s$
 
 Sitemap: https://solariavc.com/sitemap.xml

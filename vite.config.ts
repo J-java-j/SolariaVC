@@ -1,14 +1,40 @@
-import { defineConfig } from 'vite';
+import { cpSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+
+const here = (file: string) => fileURLToPath(new URL(file, import.meta.url));
+
+// Solaria Sign is its own page, so pdf.js never loads with the marketing site.
+function signPages(): Plugin {
+  return {
+    name: 'solaria-sign-pages',
+    configureServer(server) {
+      server.middlewares.use((req, _res, next) => {
+        const path = (req.url ?? '').split('?')[0];
+        if (path === '/s' || path === '/sign' || path.startsWith('/sign/')) req.url = '/sign.html';
+        next();
+      });
+    },
+    // pdf.js fetches these at runtime for PDFs that don't embed their fonts.
+    closeBundle() {
+      cpSync(here('./node_modules/pdfjs-dist/cmaps'), here('./dist/pdfjs/cmaps'), { recursive: true });
+      cpSync(here('./node_modules/pdfjs-dist/standard_fonts'), here('./dist/pdfjs/standard_fonts'), { recursive: true });
+    },
+  };
+}
 
 // During `npm run dev`, forward /api/* to the local Node server
 // (run separately with `npm run server`). In production both are
 // served by the same Node process on Cloud Run.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), signPages()],
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      input: { main: here('./index.html'), sign: here('./sign.html') },
+    },
   },
   server: {
     proxy: {

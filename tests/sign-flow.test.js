@@ -1,0 +1,574 @@
+// The signing lifecycle, driven through the service exactly as the routes do.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { sha256Hex, verifyChain } from '../server/sign/crypto.js';
+import { HttpError } from '../server/sign/envelopes.js';
+import { PdfRejected } from '../server/sign/pdf.js';
+import { INFO, SENDER, draft, harness, linkIn, makePdf, mark, signAs } from './sign-helpers.js';
+
+const httpError = (status) => (e) => e instanceof HttpError && e.status === status;
+const hasTool = (name) => spawnSync('which', [name]).status === 0;
+
+async function sent(svc, env) {
+  return svc.send(env.id, SENDER, INFO);
+}
+
+test('two signers and a copy recipient reach a sealed, delivered document', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const env = await draft(svc, {
+    recipients: [
+      { id: 'a', name: 'Ada Investor', email: 'ada@example.com' },
+      { id: 'b', name: 'Karl Partner', email: 'karl@example.com' },
+      { id: 'c', name: 'Records', email: 'records@example.com', role: 'cc' },
+    ],
+  });
+  await sent(svc, env);
+
+  const [toAda, toKarl] = ['ada@example.com', 'karl@example.com'].map((to) => linkIn(mail.find((m) => m.to === to)));
+  assert.ok(toAda && toKarl, 'both signers were emailed a link');
+  assert.equal(mail.some((m) => m.to === 'records@example.com'), false, 'a copy recipient gets nothing until the end');
+
+  await signAs(svc, toAda, { name: 'Ada Investor' });
+  let view = await svc.getEnvelope(env.id);
+  assert.equal(view.status, 'sent');
+
+  const session = await signAs(svc, toKarl, { name: 'Karl Partner' });
+  assert.equal(session.state, 'completed');
+
+  view = await svc.getEnvelope(env.id);
+  assert.equal(view.status, 'completed');
+  assert.equal(view.chainValid, true);
+  assert.deepEqual(
+    view.events.map((e) => e.type).filter((type) => type !== 'recipient.notified'),
+    [
+      'envelope.created', 'envelope.sent',
+      'recipient.viewed', 'recipient.consented', 'recipient.signed',
+      'recipient.viewed', 'recipient.consented', 'recipient.signed',
+      'document.sealed', 'envelope.completed',
+      'copy.sent', 'copy.sent', 'copy.sent', 'copy.sent',
+    ],
+  );
+
+  const stored = await store.getBlob(view.sealed.key);
+  assert.equal(sha256Hex(stored), view.sealed.sha256);
+  const check = await svc.verifyHash(view.sealed.sha256);
+  assert.equal(check.found, true);
+  assert.deepEqual(check.signers.map((s) => s.name), ['Ada Investor', 'Karl Partner']);
+
+  const copies = mail.filter((m) => m.subject.startsWith('Completed'));
+  assert.deepEqual(copies.map((m) => m.to).sort(), [
+    'ada@example.com', 'johnsonjiang@solariavc.com', 'karl@example.com', 'records@example.com',
+  ]);
+  assert.ok(copies.every((m) => m.attachments?.length === 1), 'every party got the file');
+  assert.ok(copies[0].text.includes(view.sealed.sha256), 'the email carries the hash the file cannot hold');
+
+  const toRecords = linkIn(copies.find((m) => m.to === 'records@example.com'));
+  const file = await svc.signerSealedFile(toRecords);
+  assert.equal(sha256Hex(file.bytes), view.sealed.sha256);
+});
+
+test('signers go in order, and a later signer cannot act early', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc, { sequential: true });
+  await sent(svc, env);
+  assert.deepEqual(mail.map((m) => m.to), ['ada@example.com'], 'only the first signer is told');
+
+  await signAs(svc, linkIn(mail[0]), { name: 'Ada Investor' });
+  const toKarl = mail.find((m) => m.to === 'karl@example.com');
+  assert.ok(toKarl, 'the next signer is told once it is their turn');
+
+  const session = await svc.signerSession(linkIn(toKarl));
+  assert.equal(session.state, 'sign');
+  assert.equal(session.others.length, 1, 'they see what the first signer placed');
+  assert.match(session.others[0].image, /^data:image\/png;base64,/);
+});
+
+test('a link-delivered signer gets no document until proving their inbox', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc, {
+    recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com', delivery: 'link', requireCode: false }],
+  });
+  const { links } = await sent(svc, env);
+  assert.equal(links.length, 1);
+  assert.equal(mail.length, 0, 'nothing is emailed for a link');
+  const token = links[0].url.split('#')[1];
+
+  const gate = await svc.signerSession(token);
+  assert.equal(gate.state, 'code');
+  assert.equal(gate.title, undefined, 'the title stays hidden');
+  await assert.rejects(svc.signerDocument(token), httpError(403));
+  await assert.rejects(signAs(svc, token), httpError(403));
+
+  await svc.sendCode(token, INFO);
+  const code = /(\d{6})/.exec(mail[0].subject)[1];
+  await assert.rejects(svc.verifyCode(token, '000000' === code ? '111111' : '000000', INFO), httpError(400));
+  const { verified } = await svc.verifyCode(token, code, INFO);
+
+  assert.equal((await svc.signerSession(token, verified)).state, 'sign');
+  await assert.rejects(svc.signerDocument(token, 'wrong'), httpError(403));
+  assert.ok((await svc.signerDocument(token, verified)).bytes.length > 0);
+  const done = await signAs(svc, token, { verified, name: 'Ada' });
+  assert.equal(done.state, 'completed');
+  const types = (await svc.getEnvelope(env.id)).events.map((e) => e.type);
+  assert.ok(types.includes('recipient.identity_verified'));
+  assert.ok(types.includes('recipient.code_failed'), 'a wrong guess stays on the record');
+});
+
+test('a code link shows where things stand once there is nothing to sign', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc, {
+    sequential: true,
+    recipients: [
+      { id: 'a', name: 'Ada', email: 'ada@example.com', requireCode: true },
+      { id: 'b', name: 'Karl', email: 'karl@example.com', delivery: 'link' },
+    ],
+  });
+  const { links } = await sent(svc, env);
+  const karl = links[0].url.split('#')[1];
+  const waiting = await svc.signerSession(karl);
+  assert.equal(waiting.state, 'waiting', 'a code cannot be sent yet, so none is asked for');
+  assert.equal(waiting.title, undefined);
+
+  const ada = linkIn(mail[0]);
+  await svc.sendCode(ada, INFO);
+  const code = /(\d{6})/.exec(mail[1].subject)[1];
+  const { verified } = await svc.verifyCode(ada, code, INFO);
+  await signAs(svc, ada, { verified, name: 'Ada' });
+  const signed = await svc.signerSession(ada);
+  assert.equal(signed.state, 'signed', 'the same goes for someone who signed on another device');
+  assert.equal(signed.title, undefined);
+
+  await svc.sendCode(karl, INFO);
+  const karlCode = /(\d{6})/.exec(mail.at(-1).subject)[1];
+  const karlVerified = (await svc.verifyCode(karl, karlCode, INFO)).verified;
+  await signAs(svc, karl, { verified: karlVerified, name: 'Karl' });
+  const done = await svc.signerSession(ada);
+  assert.equal(done.state, 'completed');
+  assert.equal(done.sha256, undefined, 'the signed copy stays behind the code or the emailed copy link');
+});
+
+test('code guessing locks out and needs a fresh code', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc, {
+    recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com', delivery: 'link' }],
+  });
+  const { links } = await sent(svc, env);
+  const token = links[0].url.split('#')[1];
+  await svc.sendCode(token, INFO);
+  const code = /(\d{6})/.exec(mail[0].subject)[1];
+  const wrong = code === '123456' ? '654321' : '123456';
+  for (let i = 0; i < 5; i++) await assert.rejects(svc.verifyCode(token, wrong, INFO), httpError(400));
+  await assert.rejects(svc.verifyCode(token, code, INFO), /Too many wrong attempts/);
+  await assert.rejects(svc.sendCode(token, INFO), httpError(429), 'resends are rate limited');
+});
+
+test('a signature needs consent, intent and a rendered document', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
+  await sent(svc, env);
+  const token = linkIn(mail[0]);
+
+  await assert.rejects(svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: false }, INFO), httpError(400));
+  await assert.rejects(svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO), httpError(409));
+  await assert.rejects(svc.recordConsent(token, undefined, { version: '1999-01-01', previewed: true }, INFO), httpError(409));
+
+  const submit = (body) => svc.submit(token, undefined, body, INFO);
+  await assert.rejects(submit({ intent: true, signature: mark() }), httpError(409), 'no consent yet');
+
+  await svc.recordViewed(token, undefined, INFO);
+  await svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO);
+  await assert.rejects(submit({ signature: mark() }), httpError(400), 'no intent');
+  await assert.rejects(submit({ intent: true }), httpError(400), 'no signature');
+  await assert.rejects(submit({ intent: true, signature: { ...mark(), dataUrl: 'data:image/png;base64,AAAA' } }), httpError(400), 'not a PNG');
+  await assert.rejects(submit({ intent: true, signature: { ...mark(), name: '  ' } }), httpError(400), 'no adopted name');
+  assert.equal((await svc.getEnvelope(env.id)).recipients[0].status, 'viewed');
+});
+
+test('required fields are enforced, and values and marks land on the record', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc, {
+    recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }],
+    fields: [
+      { recipientId: 'a', type: 'signature', page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.05 },
+      { recipientId: 'a', type: 'initials', page: 2, x: 0.1, y: 0.1, w: 0.1, h: 0.04 },
+      { recipientId: 'a', type: 'date', page: 1, x: 0.5, y: 0.5, w: 0.2, h: 0.03 },
+      { recipientId: 'a', type: 'name', page: 1, x: 0.5, y: 0.6, w: 0.2, h: 0.03 },
+      { recipientId: 'a', type: 'text', page: 1, x: 0.1, y: 0.7, w: 0.3, h: 0.03, label: 'Company' },
+      { recipientId: 'a', type: 'checkbox', page: 1, x: 0.1, y: 0.8, w: 0.03, h: 0.03 },
+    ],
+  });
+  await sent(svc, env);
+  const token = linkIn(mail[0]);
+  await svc.recordViewed(token, undefined, INFO);
+  await svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO);
+
+  const session = await svc.signerSession(token);
+  const id = (type) => session.fields.find((f) => f.type === type).id;
+  const base = { intent: true, signature: mark('Ada Lovelace'), timeZone: 'America/Los_Angeles' };
+
+  await assert.rejects(svc.submit(token, undefined, { ...base, initials: mark('AL'), values: { [id('text')]: 'Acme' } }, INFO), /box still needs ticking/);
+  await assert.rejects(svc.submit(token, undefined, { ...base, initials: mark('AL'), values: { [id('checkbox')]: true } }, INFO), /Company still needs/);
+  await assert.rejects(svc.submit(token, undefined, { ...base, values: { [id('text')]: 'Acme', [id('checkbox')]: true } }, INFO), /initials is missing/);
+
+  await svc.submit(token, undefined, { ...base, initials: mark('AL'), values: { [id('text')]: 'Acme', [id('checkbox')]: true } }, INFO);
+  const view = await svc.getEnvelope(env.id);
+  const value = (type) => view.fields.find((f) => f.type === type).value;
+  assert.equal(view.status, 'completed');
+  assert.equal(value('name'), 'Ada Lovelace', 'the name comes from the adopted signature');
+  assert.equal(value('text'), 'Acme');
+  assert.equal(value('checkbox'), true);
+  assert.match(value('date'), /^[A-Z][a-z]+ \d{1,2}, \d{4}$/);
+  assert.equal(view.recipients[0].timeZone, 'America/Los_Angeles');
+});
+
+test('declining stops everyone and reaches the sender', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  const [ada, karl] = [linkIn(mail[0]), linkIn(mail[1])];
+  await svc.decline(ada, undefined, { reason: 'Wrong amount' }, INFO);
+  assert.equal((await svc.signerSession(karl)).state, 'declined');
+  await assert.rejects(signAs(svc, karl), httpError(409));
+  const notice = mail.at(-1);
+  assert.equal(notice.to, SENDER.email);
+  assert.ok(notice.text.includes('Wrong amount'));
+});
+
+test('asking for paper is recorded as the signer withdrawing, with no reason needed', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  await svc.decline(linkIn(mail[0]), undefined, { paper: true }, INFO);
+  const view = await svc.getEnvelope(env.id);
+  assert.equal(view.status, 'declined');
+  assert.ok(view.events.some((e) => e.type === 'recipient.paper_requested'));
+});
+
+test('voiding kills every link and tells those already contacted', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  const token = linkIn(mail[0]);
+  await assert.rejects(svc.voidEnvelope(env.id, ' ', SENDER, INFO), httpError(400));
+  await svc.voidEnvelope(env.id, 'Terms changed', SENDER, INFO);
+  assert.equal((await svc.signerSession(token)).state, 'voided');
+  await assert.rejects(svc.signerDocument(token), httpError(409));
+  await assert.rejects(signAs(svc, token), httpError(409));
+  assert.equal(mail.filter((m) => m.subject.startsWith('Cancelled')).length, 2);
+});
+
+test('an expired document cannot be signed', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  const current = await store.getEnvelope(env.id);
+  current.data.expiresAt = new Date(Date.now() - 1000).toISOString();
+  await store.saveEnvelope(current.data, current.rev);
+  const token = linkIn(mail[0]);
+  assert.equal((await svc.signerSession(token)).state, 'expired');
+  await assert.rejects(signAs(svc, token), httpError(409));
+  assert.equal((await svc.getEnvelope(env.id)).status, 'expired');
+});
+
+test('forged and replaced links are refused', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  const token = linkIn(mail[0]);
+  const [envelopeId, recipientId] = token.split('.');
+
+  await assert.rejects(svc.signerSession('nonsense'), httpError(404));
+  await assert.rejects(svc.signerSession(`${envelopeId}.${recipientId}.${'x'.repeat(43)}`), httpError(404));
+  await assert.rejects(svc.signerSession(`AAAAAAAAAAAA.${recipientId}.${token.split('.')[2]}`), httpError(404));
+
+  const view = await svc.getEnvelope(env.id);
+  const { url } = await svc.newLink(env.id, view.recipients[0].id, SENDER, INFO);
+  await assert.rejects(svc.signerSession(token), httpError(404), 'the old link is dead');
+  const replaced = await svc.signerSession(url.split('#')[1]);
+  assert.equal(replaced.state, 'code', 'a replaced link is treated as link delivery');
+});
+
+test('a reminder leaves the first email working', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  const first = linkIn(mail[0]);
+  const view = await svc.getEnvelope(env.id);
+  await svc.remind(env.id, view.recipients[0].id);
+  const second = linkIn(mail.at(-1));
+  assert.notEqual(first, second);
+  assert.equal((await svc.signerSession(first)).state, 'sign');
+  assert.equal((await svc.signerSession(second)).state, 'sign');
+});
+
+test('a double submit records one signature, and simultaneous last signers seal once', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  const [ada, karl] = [linkIn(mail[0]), linkIn(mail[1])];
+  for (const token of [ada, karl]) {
+    await svc.recordViewed(token, undefined, INFO);
+    await svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO);
+  }
+  const submit = (token) => svc.submit(token, undefined, { intent: true, signature: mark(), timeZone: 'UTC' }, INFO);
+  const results = await Promise.allSettled([submit(ada), submit(ada), submit(karl), submit(karl)]);
+  assert.equal(results.filter((r) => r.status === 'fulfilled').length >= 2, true);
+
+  const view = await svc.getEnvelope(env.id);
+  const types = view.events.map((e) => e.type);
+  assert.equal(types.filter((t2) => t2 === 'recipient.signed').length, 2);
+  assert.equal(types.filter((t2) => t2 === 'document.sealed').length, 1);
+  assert.equal(view.chainValid, true);
+  assert.equal(mail.filter((m) => m.subject.startsWith('Completed')).length, 3, 'nobody gets two copies');
+});
+
+test('email trouble is visible and recoverable, and never loses a signature', async (t) => {
+  const { svc, sent: mail, failMailWhen } = harness(t);
+  const env = await draft(svc);
+  failMailWhen((m) => m.to === 'karl@example.com');
+  const { failed } = await sent(svc, env);
+  assert.deepEqual(failed, ['Karl Partner']);
+  let view = await svc.getEnvelope(env.id);
+  assert.ok(view.events.some((e) => e.type === 'recipient.notify_failed'));
+
+  failMailWhen(() => false);
+  await svc.remind(env.id, view.recipients.find((r) => r.email === 'karl@example.com').id);
+  const ada = linkIn(mail.find((m) => m.to === 'ada@example.com'));
+  const karl = linkIn(mail.find((m) => m.to === 'karl@example.com'));
+  await signAs(svc, ada);
+
+  failMailWhen((m) => m.to === 'ada@example.com');
+  await signAs(svc, karl);
+  view = await svc.getEnvelope(env.id);
+  assert.equal(view.status, 'completed');
+  assert.ok(view.events.some((e) => e.type === 'copy.failed'));
+
+  failMailWhen(() => false);
+  await svc.finish(env.id);
+  assert.equal(mail.filter((m) => m.subject.startsWith('Completed') && m.to === 'ada@example.com').length, 1, 'the missed copy goes out on retry');
+  assert.equal(mail.filter((m) => m.subject.startsWith('Completed') && m.to === 'karl@example.com').length, 1, 'nobody else gets a second one');
+});
+
+test('a sealing failure keeps every signature and can be retried', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
+  await sent(svc, env);
+  const token = linkIn(mail[0]);
+
+  const realGet = store.getBlob;
+  store.getBlob = async () => { throw new Error('storage is down'); };
+  const session = await signAs(svc, token).finally(() => { store.getBlob = realGet; });
+  assert.equal(session.state, 'sealing', 'the signature stands while sealing waits');
+  const view = await svc.getEnvelope(env.id);
+  assert.equal(view.recipients[0].status, 'signed');
+  assert.ok(view.sealError);
+  assert.equal(view.sealed, null);
+
+  assert.equal((await svc.finishFromSigner(token)).state, 'completed');
+});
+
+test('a changed stored original refuses to seal', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
+  await sent(svc, env);
+  const key = (await store.getEnvelope(env.id)).data.document.key;
+  const realGet = store.getBlob;
+  store.getBlob = async (k) => (k === key ? makePdf(1) : realGet(k));
+  const session = await signAs(svc, linkIn(mail[0]));
+  assert.equal(session.state, 'sealing');
+  assert.equal((await svc.getEnvelope(env.id)).sealed, null);
+});
+
+test('stored files can never be overwritten', async (t) => {
+  const { store } = harness(t);
+  await store.putBlob('a/b.pdf', Buffer.from('one'));
+  await assert.rejects(store.putBlob('a/b.pdf', Buffer.from('two')), /blob exists/);
+  assert.equal((await store.getBlob('a/b.pdf')).toString(), 'one');
+});
+
+test('editing any audit event breaks the chain', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
+  await sent(svc, env);
+  await signAs(svc, linkIn(mail[0]));
+  const view = await svc.getEnvelope(env.id);
+  const store = (await import('../server/sign/crypto.js'));
+  const raw = view.events.map((e) => ({ seq: e.seq, at: e.at, type: e.type, hash: e.hash }));
+  assert.equal(raw.length > 5, true);
+
+  const { svc: other, store: otherStore, sent: otherMail } = harness(t);
+  const second = await draft(other, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
+  await sent(other, second);
+  await signAs(other, linkIn(otherMail[0]));
+  const stored = (await otherStore.getEnvelope(second.id)).data.events;
+  assert.equal(store.verifyChain(stored), true);
+
+  const edited = structuredClone(stored);
+  edited[3].at = '2020-01-01T00:00:00.000Z';
+  assert.equal(verifyChain(edited), false, 'a changed time');
+  assert.equal(verifyChain(stored.filter((_, i) => i !== 3)), false, 'a removed event');
+  assert.equal(verifyChain(stored.slice().reverse()), false, 'reordered events');
+});
+
+test('drafts are editable until sent and sent documents are not', async (t) => {
+  const { svc } = harness(t);
+  const env = await draft(svc);
+  const signature = (recipientId) => ({ recipientId, type: 'signature', page: 1, x: 0.1, y: 0.1, w: 0.2, h: 0.05 });
+  const halfTyped = await svc.updateDraft(env.id, {
+    title: 'X', recipients: [{ id: 'x', name: 'A', email: 'bad' }], fields: [signature('x')],
+  });
+  assert.equal(halfTyped.recipients[0].email, 'bad', 'a draft saves mid-typing');
+  await assert.rejects(sent(svc, halfTyped), /not a valid email/);
+
+  const twice = await svc.updateDraft(env.id, {
+    title: 'X',
+    recipients: [{ id: 'x', name: 'A', email: 'a@b.co' }, { id: 'y', name: 'B', email: 'A@b.co' }],
+    fields: [signature('x'), signature('y')],
+  });
+  await assert.rejects(sent(svc, twice), /listed twice/);
+
+  await assert.rejects(
+    svc.updateDraft(env.id, {
+      title: 'X',
+      recipients: [{ id: 'x', name: 'A', email: 'a@b.co' }],
+      fields: [{ recipientId: 'x', type: 'signature', page: 9, x: 0.1, y: 0.1, w: 0.1, h: 0.1 }],
+    }),
+    /page that does not exist/,
+  );
+  await assert.rejects(
+    svc.updateDraft(env.id, {
+      title: 'X',
+      recipients: [{ id: 'x', name: 'A', email: 'a@b.co' }],
+      fields: [{ recipientId: 'x', type: 'signature', page: 1, x: 0.9, y: 0.1, w: 0.5, h: 0.1 }],
+    }),
+    /outside the page/,
+  );
+
+  const noField = await svc.updateDraft(env.id, {
+    title: 'X', recipients: [{ name: 'Ada', email: 'ada@example.com' }], fields: [],
+  });
+  await assert.rejects(sent(svc, noField), /Place a signature field for Ada/);
+
+  const ready = await draft(svc);
+  await sent(svc, ready);
+  await assert.rejects(svc.updateDraft(ready.id, { title: 'Y', recipients: [], fields: [] }), httpError(409));
+  await assert.rejects(sent(svc, ready), httpError(409));
+  await assert.rejects(svc.deleteDraft(ready.id), httpError(409));
+});
+
+test('a voided document can be duplicated with its recipients and fields', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  await svc.voidEnvelope(env.id, 'Typo in an email', SENDER, INFO);
+  const copy = await svc.duplicate(env.id, SENDER, INFO);
+  assert.equal(copy.status, 'draft');
+  assert.notEqual(copy.id, env.id);
+  assert.equal(copy.document.sha256, env.document.sha256);
+  assert.equal(copy.fields.length, env.fields.length);
+  assert.deepEqual(copy.recipients.map((r) => r.email), env.recipients.map((r) => r.email));
+  assert.ok(copy.fields.every((f) => copy.recipients.some((r) => r.id === f.recipientId)));
+  mail.length = 0;
+  await sent(svc, copy);
+  assert.equal(mail.length, 2);
+});
+
+test('client-made ids survive a save, so autosave cannot race', async (t) => {
+  const { svc } = harness(t);
+  const env = await draft(svc);
+  const id = 'r0123456789';
+  const field = 'f0123456789';
+  const saved = await svc.updateDraft(env.id, {
+    title: 'X',
+    recipients: [{ id, name: 'A', email: 'a@b.co' }, { id, name: 'B', email: 'b@b.co' }],
+    fields: [{ id: field, recipientId: id, type: 'signature', page: 1, x: 0.1, y: 0.1, w: 0.2, h: 0.05, required: false }],
+  });
+  assert.equal(saved.recipients[0].id, id);
+  assert.notEqual(saved.recipients[1].id, id, 'a repeated id is replaced');
+  assert.equal(saved.fields[0].id, field);
+  assert.equal(saved.fields[0].required, true, 'a signature cannot be optional');
+});
+
+test('only listed partners can sign in, once per link, and the probe looks the same', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  await svc.requestLogin('stranger@example.com');
+  assert.equal(mail.length, 0);
+  await svc.requestLogin('  JohnsonJiang@SolariaVC.com ');
+  assert.equal(mail.length, 1);
+  const token = /#(\S+)/.exec(mail[0].text)[1];
+
+  const { sessionId } = await svc.completeLogin(token);
+  assert.equal((await svc.authenticate(sessionId)).name, 'Johnson Jiang');
+  await assert.rejects(svc.completeLogin(token), httpError(400), 'a link works once');
+  assert.equal(await svc.authenticate('bad'), null);
+
+  await svc.logout(sessionId);
+  assert.equal(await svc.authenticate(sessionId), null);
+});
+
+test('non-Latin names and values seal, keeping pages and text', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const env = await draft(svc, {
+    recipients: [{ id: 'a', name: 'José 李明 Ирина محمد 👍', email: 'jose@example.com' }],
+    fields: [
+      { recipientId: 'a', type: 'signature', page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.05 },
+      { recipientId: 'a', type: 'text', page: 1, x: 0.1, y: 0.6, w: 0.6, h: 0.03, label: 'Address' },
+    ],
+  });
+  await sent(svc, env);
+  const token = linkIn(mail[0]);
+  await svc.recordViewed(token, undefined, INFO);
+  await svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO);
+  const fields = (await svc.signerSession(token)).fields;
+  await svc.submit(token, undefined, {
+    intent: true,
+    signature: mark('José 李明'),
+    values: { [fields.find((f) => f.type === 'text').id]: '北京市朝阳区 Straße 5' },
+    timeZone: 'Not/AZone',
+  }, INFO);
+
+  const view = await svc.getEnvelope(env.id);
+  assert.equal(view.status, 'completed');
+  assert.equal(view.recipients[0].timeZone, 'UTC', 'a bad zone falls back rather than failing');
+  if (hasTool('pdftotext')) {
+    const dir = mkdtempSync(path.join(tmpdir(), 'sign-text-'));
+    const file = path.join(dir, 'sealed.pdf');
+    writeFileSync(file, await store.getBlob(view.sealed.key));
+    const text = execFileSync('pdftotext', ['-layout', file, '-'], { encoding: 'utf8' });
+    assert.ok(text.includes('李明'), 'CJK name on the certificate');
+    assert.ok(text.includes('Ирина'), 'Cyrillic name on the certificate');
+    assert.ok(text.includes('北京市朝阳区'), 'CJK value on the page');
+    assert.ok(text.includes('Certificate of Completion'));
+  }
+});
+
+test('the upload gate rejects anything that could not be sealed', async (t) => {
+  const { svc } = harness(t);
+  const upload = (bytes) => svc.createDraft(SENDER, 'x.pdf', bytes, INFO);
+  await assert.rejects(upload(Buffer.from('hello this is not a pdf at all')), PdfRejected);
+  const good = await makePdf();
+  await assert.rejects(upload(good.subarray(0, 200)), PdfRejected);
+
+  if (hasTool('qpdf')) {
+    const dir = mkdtempSync(path.join(tmpdir(), 'sign-enc-'));
+    const input = path.join(dir, 'in.pdf');
+    writeFileSync(input, good);
+    for (const [name, user] of [['user', 'open'], ['owner', '']]) {
+      const output = path.join(dir, `${name}.pdf`);
+      execFileSync('qpdf', ['--encrypt', user, 'ownerpw', '256', '--', input, output]);
+      await assert.rejects(upload(readFileSync(output)), /password-protected/);
+    }
+  }
+});
+
+test('a name is stored without path pieces and the hash is of the uploaded bytes', async (t) => {
+  const { svc } = harness(t);
+  const bytes = await makePdf();
+  const env = await svc.createDraft(SENDER, '../../etc/pass\u0000wd.pdf', bytes, INFO);
+  assert.equal(env.document.fileName.includes('/'), false);
+  assert.equal(env.document.sha256, sha256Hex(bytes));
+});

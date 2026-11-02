@@ -21,8 +21,8 @@ npm run preview
 
 ## Deploy to Google Cloud Run
 
-The repo ships with a multi-stage `Dockerfile` and an nginx config that
-honors Cloud Run's `$PORT` env var.
+The repo ships with a multi-stage `Dockerfile` that runs the Node server on
+Cloud Run's `$PORT`.
 
 If you've already connected this GitHub repo to a Cloud Run service via the
 Cloud Console (Cloud Run → "Continuously deploy from a repository"), every
@@ -53,7 +53,7 @@ docker run --rm -p 8080:8080 -e PORT=8080 solaria-vc
 
 - Vite + React 18 + TypeScript
 - Tailwind CSS 3
-- Node 20 server (`server/index.js`, zero npm deps) that:
+- Node 24 server (`server/index.js`) that:
   - Serves the built static app from `dist/`
   - Proxies `/api/quotes` to Stooq (with Yahoo Finance fallback) for real
     equity + index prices
@@ -61,6 +61,8 @@ docker run --rm -p 8080:8080 -e PORT=8080 solaria-vc
   - Handles `POST /api/contact` — validates, honeypots, rate-limits,
     and emails the partner inbox via Resend
   - Caches responses in-memory (15–60s TTL)
+  - Loads Solaria Sign (`server/sign/`) on the first `/api/sign` request, so
+    the other routes still use only built-in Node modules
 
 ## Enabling the contact form (one-time, ~2 minutes)
 
@@ -127,6 +129,79 @@ Karl's exchange form sends `kind: "card", cardId: "karl-li"` and delivers to
 an allowlist to select the owner's inbox; it never accepts a destination email
 from the browser. Requests without `cardId` continue to use Johnson's card.
 
+## Solaria Sign (`/sign`)
+
+Solaria's own electronic signing, at `https://solariavc.com/sign`. Upload a PDF,
+place fields, and send it by email or with a link. Each signer agrees to the
+electronic records disclosure, signs, and receives a sealed copy with its
+certificate of completion. `/s` is the signer's page and `/sign/verify` checks a
+file against our records.
+
+Only the addresses in `SENDERS` (`server/sign/config.js`) can sign in and send.
+
+### Working on it locally
+
+```bash
+npm run server   # API on :8080
+npm run dev      # open http://localhost:5173/sign
+npm test
+```
+
+Data goes to `.sign-data/`. Without `RESEND_API_KEY`, mail is written to
+`.sign-data/outbox`, which is where to find sign-in links and signing codes.
+
+### Going live (one time)
+
+Production keeps records in Firestore (`sign_*` collections in the `(default)`
+database) and files in a private bucket. Cloud Run's service identity needs no
+key file.
+
+```bash
+gcloud storage buckets create gs://gen-lang-client-0188652481-solaria-sign \
+  --location=europe-west1 --uniform-bucket-level-access --public-access-prevention
+gcloud storage buckets update gs://gen-lang-client-0188652481-solaria-sign --versioning
+gcloud run services update solariavc --region europe-west1 --memory 1Gi
+```
+
+Sealing a 20 MB file peaks near 300 MB, so 512 MiB can't hold two at once.
+
+Then, in this order:
+
+1. Push to `main` and wait for the new revision.
+2. If traffic is pinned to an older revision, move it by name, because
+   `--to-latest` picks the newest ready revision, which can be a tagged test build:
+   `gcloud run services update-traffic solariavc --region europe-west1 --to-revisions <new-revision>=100`
+3. Check `status.traffic` with `gcloud run services describe`. Older revisions
+   show the marketing site at `/s`, so a signing link sent too early opens the
+   wrong page.
+4. Send yourself a test document. Check that the email arrives, that your own IP
+   address is on the certificate, and that Acrobat shows the timestamp as valid.
+
+### Changing the legal text
+
+`server/sign/disclosure.js` holds the words signers agree to. Every consent and
+signature records their version and SHA-256, and the certificate prints them, so
+follow the note at the top of that file before changing them.
+
+### Documents that don't belong here
+
+E-SIGN (15 U.S.C. § 7003) and California's UETA (Civ. Code § 1633.3) leave these
+out, so keep them out of Solaria Sign unless counsel says otherwise:
+
+- Wills, codicils and testamentary trusts
+- Adoption, divorce and other family law matters
+- Court orders, notices and filings
+- Anything governed by the Uniform Commercial Code other than sales and leases,
+  including negotiable promissory notes, investment securities and secured
+  transactions
+- Notices of default, foreclosure or eviction on a primary residence, notices
+  cancelling utilities or health or life insurance, product recalls and
+  hazardous materials documents
+- The specific California transactions listed in § 1633.3(c)
+- Anything that must be notarized, because there is no notary step
+
+Have counsel confirm before using it for fund subscription documents.
+
 ## Structure
 
 ```
@@ -146,7 +221,10 @@ src/
     Team.tsx
     Apply.tsx
     Footer.tsx
+sign.html                # Solaria Sign page
+src/sign/                # its React app and stylesheet
+server/sign/             # its API, sealing and storage
+tests/                   # npm test
 public/favicon.svg
 Dockerfile
-nginx.conf.template
 ```

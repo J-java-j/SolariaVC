@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.6
 
 # ---- Build stage: compile the React app ----
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
 COPY package*.json ./
@@ -10,15 +10,17 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ---- Runtime stage: tiny Node server ----
-FROM node:20-alpine AS runtime
+# ---- Runtime stage: Node server ----
+FROM node:24-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Server has zero npm dependencies — uses only built-in Node modules
-# (http, fs, path, url, global fetch in Node 18+). Just copy the built
-# assets and the server entry point.
+# The marketing routes use only built-in Node modules. Solaria Sign needs
+# pdf-lib and the Firestore and Cloud Storage clients, which authenticate
+# as the Cloud Run service identity rather than with a key file.
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY server ./server
 

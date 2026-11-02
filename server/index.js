@@ -3,6 +3,7 @@
 //   GET  /api/quotes?symbols=AAPL,MSFT,^GSPC   -> Yahoo Finance (server-side, no CORS)
 //   GET  /api/crypto?ids=bitcoin,ethereum      -> CoinGecko
 //   POST /api/contact                          -> emails the partner inbox via Resend
+//   /api/sign/*, /sign, /s                     -> Solaria Sign (see server/sign/)
 //
 // Same-origin from the browser, so the live ticker stops paying the CORS tax
 // and the contact form never exposes the partner email address to the DOM.
@@ -602,6 +603,38 @@ async function serveStatic(req, res, urlPath) {
   res.end(data);
 }
 
+// ---- Solaria Sign pages ---------------------------------------------------
+// Signing pages hold private documents, so they load nothing from any other
+// origin and can't be framed. wasm-unsafe-eval lets pdf.js decode JPEG 2000 scans.
+const SIGN_CSP = [
+  "default-src 'none'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  "base-uri 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+const isSignPage = (pathname) =>
+  pathname === '/s' || pathname === '/sign' || pathname === '/sign.html' || pathname.startsWith('/sign/');
+
+async function serveSignPage(res) {
+  const data = await fs.readFile(path.join(DIST, 'sign.html'));
+  res.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    'Content-Security-Policy': SIGN_CSP,
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Robots-Tag': 'noindex, nofollow',
+  });
+  res.end(data);
+}
+
 // ---- request router -------------------------------------------------------
 const server = http.createServer(async (req, res) => {
   const startedAt = Date.now();
@@ -612,6 +645,18 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/healthz') {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('ok');
+      return;
+    }
+
+    // Imported on first use, so the marketing site never pays its cold-start cost.
+    if (pathname.startsWith('/api/sign/')) {
+      const { handleSignApi } = await import('./sign/index.js');
+      await handleSignApi(req, res, url);
+      return;
+    }
+
+    if (isSignPage(pathname)) {
+      await serveSignPage(res);
       return;
     }
 

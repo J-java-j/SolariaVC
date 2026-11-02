@@ -7,3 +7,8 @@ dist
 .vscode
 .idea
 README.md
+.env
+.env.*
+!.env.example
+.sign-data
+tests
