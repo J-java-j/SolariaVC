@@ -13,6 +13,7 @@ function signPages(): Plugin {
       server.middlewares.use((req, _res, next) => {
         const path = (req.url ?? '').split('?')[0];
         if (path === '/s' || path === '/sign' || path.startsWith('/sign/')) req.url = '/sign.html';
+        if (path === '/staff' || path === '/staff/') req.url = '/staff.html';
         next();
       });
     },
@@ -33,7 +34,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
     rollupOptions: {
-      input: { main: here('./index.html'), sign: here('./sign.html') },
+      input: { main: here('./index.html'), sign: here('./sign.html'), staff: here('./staff.html') },
     },
   },
   server: {

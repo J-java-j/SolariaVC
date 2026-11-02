@@ -129,6 +129,15 @@ Karl's exchange form sends `kind: "card", cardId: "karl-li"` and delivers to
 an allowlist to select the owner's inbox; it never accepts a destination email
 from the browser. Requests without `cardId` continue to use Johnson's card.
 
+## Staff page (`/staff`)
+
+`staff.html` (`src/staff/`) lists the team's tools: Solaria Sign, Solaria Terminal
+(https://terminal.solariavc.com) and the business card pages. It is linked as
+"Staff login" from the footer, the phone menu and, at 1360px and wider, the nav
+bar. It has no sign-in of its own, since each tool signs people in itself, and
+it is served with `noindex` and kept out of `robots.txt`. Add a tool by adding
+an entry to `tools` in `src/staff/Staff.tsx`.
+
 ## Solaria Sign (`/sign`)
 
 Solaria's own electronic signing, at `https://solariavc.com/sign`. Upload a PDF,

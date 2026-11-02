@@ -76,6 +76,11 @@ export default function Footer() {
                   Pitch us →
                 </a>
               </li>
+              <li>
+                <a href="/staff" className="ulink-rev hover:text-[var(--ink)]">
+                  Staff login
+                </a>
+              </li>
             </ul>
           </div>
         </div>

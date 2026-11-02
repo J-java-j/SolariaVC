@@ -3,5 +3,6 @@ Allow: /
 Disallow: /api/
 Disallow: /sign
 Disallow: /s$
+Disallow: /staff
 
 Sitemap: https://solariavc.com/sitemap.xml

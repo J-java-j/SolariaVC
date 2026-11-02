@@ -635,6 +635,19 @@ async function serveSignPage(res) {
   res.end(data);
 }
 
+// ---- staff page -----------------------------------------------------------
+// A launcher for the team's tools. Each tool signs people in itself; this page is
+// only kept out of search results.
+async function serveStaffPage(res) {
+  const data = await fs.readFile(path.join(DIST, 'staff.html'));
+  res.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    'X-Robots-Tag': 'noindex, nofollow',
+  });
+  res.end(data);
+}
+
 // ---- request router -------------------------------------------------------
 const server = http.createServer(async (req, res) => {
   const startedAt = Date.now();
@@ -657,6 +670,11 @@ const server = http.createServer(async (req, res) => {
 
     if (isSignPage(pathname)) {
       await serveSignPage(res);
+      return;
+    }
+
+    if (pathname === '/staff' || pathname === '/staff/' || pathname === '/staff.html') {
+      await serveStaffPage(res);
       return;
     }
 
