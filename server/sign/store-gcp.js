@@ -103,8 +103,9 @@ export function createGcpStore({ bucket }) {
         throw e;
       }
     },
+    // The bucket keeps old versions, so erasing has to remove those too.
     async deleteBlobs(prefix) {
-      await files.deleteFiles({ prefix });
+      await files.deleteFiles({ prefix, versions: true });
     },
     async copyBlob(from, to) {
       await files.file(from).copy(files.file(to));

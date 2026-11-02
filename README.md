@@ -142,6 +142,16 @@ and remove admins on the Team page. Admins can send documents and see everything
 the firm has sent, and removing one ends their access at once. Nobody else can
 sign in.
 
+Documents can be sorted into folders. Deleting a draft erases it. Deleting
+anything else moves it to the Deleted folder, where it can be restored, and
+signers keep their links. From there the owner can delete it forever, which
+erases its files, including older stored versions, its audit trail and its
+`/sign/verify` record. Emailed copies stay with the people who received them, and
+the bucket's soft delete policy keeps erased files recoverable in Google Cloud for
+seven days. The disclosure promises a paper copy of any record on request, so keep
+your own copy of anything you erase. A document out for signature has to be voided
+first.
+
 ### Working on it locally
 
 ```bash
@@ -176,8 +186,8 @@ Then, in this order:
    `gcloud run services update-traffic solariavc --region europe-west1 --to-revisions <new-revision>=100`
 3. Check `status.traffic` with `gcloud run services describe`. Older revisions
    show the marketing site at `/s`, so a signing link sent too early opens the
-   wrong page. Moving traffic by name can drop tags on other revisions, so add
-   back any you still need with `--set-tags`.
+   wrong page. To add a test tag, use `--update-tags`, because `--set-tags`
+   replaces every existing tag.
 4. Send yourself a test document. Check that the email arrives, that your own IP
    address is on the certificate, and that Acrobat shows the timestamp as valid.
 

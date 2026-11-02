@@ -26,6 +26,8 @@ export const LIMITS = {
   signatureBytes: 512 * 1024,
   textValue: 500,
   title: 200,
+  folderName: 60,
+  selection: 200,
   message: 2000,
   reason: 500,
 };

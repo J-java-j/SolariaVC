@@ -27,6 +27,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FIELD_TYPES = new Set(['signature', 'initials', 'date', 'name', 'text', 'checkbox']);
 const MIN_FIELD = 0.005;
 const RECIPIENT_ID = /^r[0-9a-f]{10}$/;
+const ENVELOPE_ID = /^[0-9A-Z]{12}$/;
+const FOLDER_ID = /^d[0-9a-f]{10}$/;
 const ALWAYS_REQUIRED = new Set(['signature', 'initials', 'date', 'name']);
 const INVALID_LINK = 'This signing link is not valid. Ask the sender for a new one.';
 
@@ -445,6 +447,8 @@ export function createSignService({ store, config, mail, log = console }) {
       expiresAt: env.expiresAt,
       sender: env.sender,
       recipients: env.recipients.map(publicRecipient),
+      folderId: env.folderId ?? null,
+      deletedAt: env.deletedAt ?? null,
     };
     if (!full) return summary;
     return {
@@ -486,6 +490,28 @@ export function createSignService({ store, config, mail, log = console }) {
 
   function requireOwner(user) {
     if (!user.owner) throw new HttpError(403, 'Only the owner can manage the team.');
+  }
+
+  async function requireFolder(id) {
+    const folder = FOLDER_ID.test(id) ? await store.getRecord('folders', id) : null;
+    if (!folder) throw new HttpError(404, 'That folder no longer exists.');
+    return folder;
+  }
+
+  async function cleanFolderName(input, ownId) {
+    const name = cleanText(input, LIMITS.folderName, 'Folder name', { required: true });
+    const folders = await store.listRecords('folders');
+    if (folders.some((f) => f.id !== ownId && f.name.toLowerCase() === name.toLowerCase())) {
+      throw new HttpError(409, `There is already a folder called ${name}.`);
+    }
+    return name;
+  }
+
+  function selection(ids) {
+    if (!Array.isArray(ids) || !ids.length || ids.length > LIMITS.selection || !ids.every((id) => ENVELOPE_ID.test(id))) {
+      throw new HttpError(400, 'Choose at least one document.');
+    }
+    return [...new Set(ids)];
   }
 
   return {
@@ -577,6 +603,30 @@ export function createSignService({ store, config, mail, log = console }) {
       log.log(`[sign] ${user.email} removed admin ${email}`);
     },
 
+    // ---- folders ----------------------------------------------------------
+    async listFolders() {
+      const folders = await store.listRecords('folders');
+      return folders.sort((a, b) => a.name.localeCompare(b.name));
+    },
+
+    async createFolder(sender, nameInput) {
+      const folder = { id: newId('d'), name: await cleanFolderName(nameInput), createdBy: sender.email, createdAt: nowIso() };
+      await store.putRecord('folders', folder.id, folder);
+      return folder;
+    },
+
+    async renameFolder(id, nameInput) {
+      const folder = { ...(await requireFolder(id)), name: await cleanFolderName(nameInput, id) };
+      await store.putRecord('folders', id, folder);
+      return folder;
+    },
+
+    // Its documents keep an id that now matches nothing, so they just show as unfiled.
+    async deleteFolder(id) {
+      await requireFolder(id);
+      await store.deleteRecord('folders', id);
+    },
+
     // ---- sender -----------------------------------------------------------
     async listEnvelopes() {
       const envelopes = await store.listEnvelopes(200);
@@ -587,7 +637,8 @@ export function createSignService({ store, config, mail, log = console }) {
       return adminView(await requireEnvelope(id));
     },
 
-    async createDraft(sender, fileNameInput, bytes, info) {
+    async createDraft(sender, fileNameInput, bytes, info, folderId = null) {
+      if (folderId) await requireFolder(folderId);
       const inspected = await inspectPdf(bytes);
       const fileName = fileNameInput.replace(/[\\/\p{C}]+/gu, ' ').trim().slice(0, 120) || 'Document.pdf';
       const id = newEnvelopeId();
@@ -608,6 +659,7 @@ export function createSignService({ store, config, mail, log = console }) {
         fields: [],
         sealed: null,
         events: [],
+        folderId,
       };
       appendEvent(env, 'envelope.created', { actor: senderActor(sender), ...info, details: { sha256, fileName } });
       await store.createEnvelope(env);
@@ -634,6 +686,65 @@ export function createSignService({ store, config, mail, log = console }) {
       if (env.status !== 'draft') throw new HttpError(409, 'Only drafts can be deleted. Void a sent document instead.');
       await store.deleteEnvelope(id);
       await store.deleteBlobs(`envelopes/${id}/`);
+    },
+
+    // Drafts never reached anyone, so they are erased. Anything else only leaves the
+    // firm's lists and can be restored: signers keep their links and /sign/verify
+    // still answers, until an owner erases it.
+    async deleteEnvelopes(idsInput, sender, info) {
+      for (const id of selection(idsInput)) {
+        const { status } = await requireEnvelope(id);
+        if (status === 'draft') {
+          await this.deleteDraft(id);
+          continue;
+        }
+        await mutate(id, (fresh) => {
+          if (effectiveStatus(fresh) === 'sent') {
+            throw new HttpError(409, `"${fresh.title}" is out for signature. Void it before deleting it.`);
+          }
+          if (fresh.deletedAt) return { save: false };
+          fresh.deletedAt = nowIso();
+          appendEvent(fresh, 'envelope.deleted', { actor: senderActor(sender), ...info });
+          return { save: true };
+        });
+      }
+    },
+
+    // The owner's second step, and the only way a signed contract leaves our records.
+    // Everything is checked before anything goes. Files go first, so a failure partway
+    // leaves the document listed and able to be retried.
+    async eraseEnvelopes(user, idsInput) {
+      if (!user.owner) throw new HttpError(403, 'Only the owner can permanently delete documents.');
+      const envs = await Promise.all(selection(idsInput).map((id) => requireEnvelope(id)));
+      const live = envs.find((env) => !env.deletedAt);
+      if (live) throw new HttpError(409, `"${live.title}" has to be in Deleted first.`);
+      for (const { id, sealed } of envs) {
+        await store.deleteBlobs(`envelopes/${id}/`);
+        if (sealed) await store.deleteRecord('hashes', sealed.sha256);
+        await store.deleteEnvelope(id);
+        log.log(`[sign] ${user.email} permanently deleted ${formatEnvelopeId(id)}`);
+      }
+    },
+
+    async restoreEnvelopes(idsInput, sender, info) {
+      for (const id of selection(idsInput)) {
+        await mutate(id, (fresh) => {
+          if (!fresh.deletedAt) return { save: false };
+          delete fresh.deletedAt;
+          appendEvent(fresh, 'envelope.restored', { actor: senderActor(sender), ...info });
+          return { save: true };
+        });
+      }
+    },
+
+    async moveEnvelopes(idsInput, folderId) {
+      const ids = selection(idsInput);
+      if (folderId !== null) await requireFolder(folderId);
+      for (const id of ids) {
+        await mutate(id, (fresh) => {
+          fresh.folderId = folderId;
+        });
+      }
     },
 
     async duplicate(id, sender, info) {
@@ -667,6 +778,7 @@ export function createSignService({ store, config, mail, log = console }) {
         fields: source.fields.map(({ id: _id, value, ...f }) => ({ ...f, id: newId('f'), recipientId: ids.get(f.recipientId) })),
         sealed: null,
         events: [],
+        folderId: source.folderId ?? null,
       };
       appendEvent(env, 'envelope.created', {
         actor: senderActor(sender),

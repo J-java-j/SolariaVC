@@ -56,6 +56,8 @@ export type EnvelopeSummary = {
   expiresAt?: string;
   sender: { name: string; email: string };
   recipients: Recipient[];
+  folderId: string | null;
+  deletedAt: string | null;
 };
 
 export type Envelope = EnvelopeSummary & {
@@ -78,6 +80,8 @@ export type Envelope = EnvelopeSummary & {
 export type Draft = Pick<Envelope, 'title' | 'message' | 'sequential' | 'expiryDays' | 'recipients' | 'fields'>;
 
 export type SentLink = { recipientId: string; name: string; url: string };
+
+export type Folder = { id: string; name: string };
 
 export type TeamMember = { email: string; name: string; title?: string; owner: boolean; addedAt?: string };
 
@@ -156,9 +160,18 @@ export const api = {
   addAdmin: (person: { name: string; email: string; title: string }) => call<{ admin: TeamMember; invited: boolean }>('team', post(person)),
   removeAdmin: (email: string) => call('team/remove', post({ email })),
 
+  folders: () => call<{ folders: Folder[] }>('folders'),
+  createFolder: (name: string) => call<Folder>('folders', post({ name })),
+  renameFolder: (id: string, name: string) => call<Folder>(`folders/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  }),
+  deleteFolder: (id: string) => call(`folders/${id}`, { method: 'DELETE' }),
+
   list: () => call<{ envelopes: EnvelopeSummary[] }>('envelopes'),
   get: (id: string) => call<Envelope>(`envelopes/${id}`),
-  upload: (file: File) => call<Envelope>(`envelopes?name=${encodeURIComponent(file.name)}`, {
+  upload: (file: File, folderId?: string) => call<Envelope>(`envelopes?name=${encodeURIComponent(file.name)}${folderId ? `&folder=${folderId}` : ''}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/pdf' },
     body: file,
@@ -169,6 +182,10 @@ export const api = {
     body: JSON.stringify(draft),
   }),
   remove: (id: string) => call(`envelopes/${id}`, { method: 'DELETE' }),
+  deleteDocuments: (ids: string[]) => call('envelopes/selection/delete', post({ ids })),
+  restoreDocuments: (ids: string[]) => call('envelopes/selection/restore', post({ ids })),
+  eraseDocuments: (ids: string[]) => call('envelopes/selection/erase', post({ ids })),
+  moveDocuments: (ids: string[], folderId: string | null) => call('envelopes/selection/move', post({ ids, folderId })),
   send: (id: string) => call<{ envelope: Envelope; links: SentLink[]; failed: string[] }>(`envelopes/${id}/send`, post()),
   remind: (id: string, recipientId: string) => call(`envelopes/${id}/remind`, post({ recipientId })),
   newLink: (id: string, recipientId: string) => call<{ url: string }>(`envelopes/${id}/link`, post({ recipientId })),

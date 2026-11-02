@@ -146,6 +146,7 @@ export default function Detail({ env, onChange }: { env: Envelope; onChange: (en
             {env.completedAt && <span className="muted">{formatDateTime(env.completedAt)}</span>}
           </p>
           <p className="muted">Reference {env.reference}</p>
+          {env.deletedAt && <Notice tone="quiet">This document is in Deleted. You can restore it from the Deleted folder.</Notice>}
 
           {env.sealError && (
             <div className="stack">

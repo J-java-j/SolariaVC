@@ -38,7 +38,7 @@ function SenderApp({ path }: { path: string }) {
   const envelope = /^\/sign\/e\/([0-9A-Z]{12})$/.exec(path);
   if (envelope) return <EnvelopePage key={envelope[1]} id={envelope[1]} user={user} />;
   if (path === '/sign/team' && user.owner) return <Shell user={user}><Team /></Shell>;
-  return <Shell user={user}><Dashboard /></Shell>;
+  return <Shell user={user}><Dashboard user={user} /></Shell>;
 }
 
 export default function App() {

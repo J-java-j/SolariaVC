@@ -20,6 +20,8 @@ export const EVENT_LABELS = {
   'envelope.voided': 'Voided by sender',
   'envelope.expired': 'Expired',
   'envelope.completed': 'Completed',
+  'envelope.deleted': 'Moved to Deleted',
+  'envelope.restored': 'Restored from Deleted',
   'recipient.notified': 'Signing link emailed',
   'recipient.notify_failed': 'Signing link email failed',
   'recipient.reminded': 'Reminder emailed',

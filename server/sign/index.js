@@ -171,6 +171,19 @@ async function team(req, res, svc, action) {
   throw new HttpError(404, 'Not found.');
 }
 
+async function folders(req, res, svc, id) {
+  const user = await signedInUser(req, svc);
+  const { method } = req;
+  if (!id && method === 'GET') return sendJson(res, 200, { folders: await svc.listFolders() });
+  if (!id && method === 'POST') return sendJson(res, 201, await svc.createFolder(user, (await readJson(req)).name));
+  if (id && method === 'PUT') return sendJson(res, 200, await svc.renameFolder(id, (await readJson(req)).name));
+  if (id && method === 'DELETE') {
+    await svc.deleteFolder(id);
+    return sendJson(res, 200, { ok: true });
+  }
+  throw new HttpError(405, 'Method not allowed.');
+}
+
 async function sender(req, res, url, svc, parts) {
   const user = await signedInUser(req, svc);
   const method = req.method;
@@ -182,9 +195,28 @@ async function sender(req, res, url, svc, parts) {
     if (method === 'POST') {
       const bytes = await readBody(req, LIMITS.uploadBytes);
       const name = url.searchParams.get('name') ?? 'Document.pdf';
-      return sendJson(res, 201, await svc.createDraft(user, name, bytes, info));
+      return sendJson(res, 201, await svc.createDraft(user, name, bytes, info, url.searchParams.get('folder')));
     }
     throw new HttpError(405, 'Method not allowed.');
+  }
+  if (id === 'selection' && method === 'POST') {
+    const body = await readJson(req);
+    switch (action) {
+      case 'move':
+        await svc.moveEnvelopes(body.ids, body.folderId);
+        break;
+      case 'delete':
+        await svc.deleteEnvelopes(body.ids, user, info);
+        break;
+      case 'restore':
+        await svc.restoreEnvelopes(body.ids, user, info);
+        break;
+      case 'erase':
+        await svc.eraseEnvelopes(user, body.ids);
+        break;
+      default: throw new HttpError(404, 'Not found.');
+    }
+    return sendJson(res, 200, { ok: true });
   }
   if (!/^[0-9A-Z]{12}$/.test(id)) throw new HttpError(404, 'Document not found.');
   if (!action) {
@@ -260,6 +292,7 @@ export async function handleSignApi(req, res, url) {
         return sendJson(res, 200, { user });
       }
       case 'team': return await team(req, res, svc, parts[0]);
+      case 'folders': return await folders(req, res, svc, parts[0]);
       case 'envelopes': return await sender(req, res, url, svc, parts);
       case 's': return await signer(req, res, svc, `${req.method} ${parts.join('/')}`);
       case 'verify': {

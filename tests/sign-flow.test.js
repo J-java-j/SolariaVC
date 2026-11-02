@@ -605,6 +605,144 @@ test('adding an admin checks the address and survives a failed invite', async (t
   assert.ok((await signIn(svc, mail, 'karl@example.com')).user, 'they can still sign in');
 });
 
+test('documents move between folders, and a deleted folder leaves them in place', async (t) => {
+  const { svc } = harness(t);
+  const fund = await svc.createFolder(SENDER, ' Fund I ');
+  assert.equal(fund.name, 'Fund I');
+  await svc.createFolder(SENDER, 'Archive');
+  assert.deepEqual((await svc.listFolders()).map((f) => f.name), ['Archive', 'Fund I']);
+  await assert.rejects(svc.createFolder(SENDER, 'fund i'), httpError(409), 'names are unique, ignoring case');
+  await assert.rejects(svc.createFolder(SENDER, '  '), httpError(400));
+  await assert.rejects(svc.createFolder(SENDER, 'x'.repeat(61)), httpError(400));
+
+  const uploaded = await svc.createDraft(SENDER, 'Filed.pdf', await makePdf(), INFO, fund.id);
+  assert.equal(uploaded.folderId, fund.id, 'uploading inside a folder files it there');
+  await assert.rejects(svc.createDraft(SENDER, 'Lost.pdf', await makePdf(), INFO, 'dffffffffff'), httpError(404));
+
+  const env = await draft(svc);
+  await assert.rejects(svc.moveEnvelopes([env.id], 'dffffffffff'), httpError(404));
+  await assert.rejects(svc.moveEnvelopes([], fund.id), httpError(400));
+  await assert.rejects(svc.moveEnvelopes(['nope'], fund.id), httpError(400));
+  await svc.moveEnvelopes([env.id, env.id], fund.id);
+  assert.equal((await svc.getEnvelope(env.id)).folderId, fund.id);
+  assert.equal((await svc.duplicate(env.id, SENDER, INFO)).folderId, fund.id, 'a reused document stays in its folder');
+
+  await assert.rejects(svc.renameFolder(fund.id, 'archive'), httpError(409));
+  assert.equal((await svc.renameFolder(fund.id, 'fund i')).name, 'fund i', 'a folder can change its own case');
+
+  await svc.moveEnvelopes([env.id], null);
+  assert.equal((await svc.getEnvelope(env.id)).folderId, null);
+  await svc.moveEnvelopes([env.id], fund.id);
+  await svc.deleteFolder(fund.id);
+  await assert.rejects(svc.deleteFolder(fund.id), httpError(404));
+  assert.ok(await svc.getEnvelope(env.id), 'the document survives its folder');
+  assert.equal((await svc.listEnvelopes()).length, 3);
+});
+
+test('deleting erases drafts and only hides everything else, and signers keep their copies', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const stray = await draft(svc);
+  const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
+  await sent(svc, env);
+  const token = linkIn(mail.find((m) => m.to === 'ada@example.com'));
+
+  await assert.rejects(svc.deleteEnvelopes([env.id], SENDER, INFO), httpError(409), 'it must be voided first');
+  assert.equal((await svc.getEnvelope(env.id)).deletedAt, null);
+
+  await signAs(svc, token, { name: 'Ada' });
+  await svc.deleteEnvelopes([env.id, stray.id], SENDER, INFO);
+  await assert.rejects(svc.getEnvelope(stray.id), httpError(404), 'a draft is gone');
+
+  const hidden = await svc.getEnvelope(env.id);
+  assert.ok(hidden.deletedAt);
+  assert.equal(hidden.status, 'completed');
+  assert.equal(hidden.chainValid, true);
+  assert.equal(hidden.events.at(-1).label, 'Moved to Deleted');
+  assert.equal((await svc.listEnvelopes())[0].deletedAt, hidden.deletedAt, 'the list carries it for the Deleted folder');
+
+  const copy = mail.find((m) => m.subject.startsWith('Completed') && m.to === 'ada@example.com');
+  const session = await svc.signerSession(linkIn(copy));
+  assert.equal(session.state, 'completed', 'the emailed copy link still works');
+  const { bytes } = await svc.signerSealedFile(linkIn(copy));
+  assert.equal((await svc.verifyHash(sha256Hex(bytes))).found, true, 'and so does checking the file');
+
+  const events = hidden.events.length;
+  await svc.deleteEnvelopes([env.id], SENDER, INFO);
+  assert.equal((await svc.getEnvelope(env.id)).events.length, events, 'deleting twice changes nothing');
+
+  await svc.restoreEnvelopes([env.id], SENDER, INFO);
+  const back = await svc.getEnvelope(env.id);
+  assert.equal(back.deletedAt, null);
+  assert.equal(back.events.at(-1).label, 'Restored from Deleted');
+  assert.equal(back.chainValid, true);
+  await svc.restoreEnvelopes([env.id], SENDER, INFO);
+  assert.equal((await svc.getEnvelope(env.id)).events.length, back.events.length);
+});
+
+test('only the owner can erase a document, and only from Deleted', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const { user: owner } = await signIn(svc, mail, SENDER.email);
+  await svc.addAdmin(owner, { name: 'Karl Li', email: 'karl.admin@example.com' });
+  const { user: admin } = await signIn(svc, mail, 'karl.admin@example.com');
+
+  const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
+  await sent(svc, env);
+  await signAs(svc, linkIn(mail.find((m) => m.to === 'ada@example.com')), { name: 'Ada' });
+  const copy = mail.find((m) => m.subject.startsWith('Completed') && m.to === 'ada@example.com');
+  const { bytes } = await svc.signerSealedFile(linkIn(copy));
+  const sealed = await svc.getEnvelope(env.id);
+
+  await assert.rejects(svc.eraseEnvelopes(owner, [env.id]), httpError(409), 'it has to be in Deleted first');
+  await svc.deleteEnvelopes([env.id], admin, INFO);
+  await assert.rejects(svc.eraseEnvelopes(admin, [env.id]), httpError(403), 'an admin cannot erase');
+  assert.ok(await svc.getEnvelope(env.id));
+
+  await svc.eraseEnvelopes(owner, [env.id]);
+  await assert.rejects(svc.getEnvelope(env.id), httpError(404));
+  assert.equal((await svc.listEnvelopes()).length, 0);
+  assert.deepEqual(await svc.verifyHash(sha256Hex(bytes)), { found: false }, 'the file no longer checks out');
+  assert.equal(await store.getRecord('hashes', sealed.sealed.sha256), null);
+  assert.equal(await store.getBlob(sealed.document.key ?? `envelopes/${env.id}/original.pdf`), null, 'the original is gone');
+  await assert.rejects(svc.signerSession(linkIn(copy)), httpError(404), 'the copy link stops working');
+  await assert.rejects(svc.eraseEnvelopes(owner, [env.id]), httpError(404));
+});
+
+test('erasing checks every document before it removes any', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const { user: owner } = await signIn(svc, mail, SENDER.email);
+  const voided = async () => {
+    const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
+    await sent(svc, env);
+    await svc.voidEnvelope(env.id, 'Wrong version', SENDER, INFO);
+    return env;
+  };
+  const inDeleted = await voided();
+  const stillListed = await voided();
+  await svc.deleteEnvelopes([inDeleted.id], SENDER, INFO);
+
+  await assert.rejects(svc.eraseEnvelopes(owner, [inDeleted.id, stillListed.id]), httpError(409));
+  assert.ok(await svc.getEnvelope(inDeleted.id), 'the one in Deleted is still there');
+});
+
+test('a voided document can be deleted, and every signer hears when all have signed', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const voided = await draft(svc);
+  await sent(svc, voided);
+  await svc.voidEnvelope(voided.id, 'Wrong version', SENDER, INFO);
+  await svc.deleteEnvelopes([voided.id], SENDER, INFO);
+  assert.ok((await svc.getEnvelope(voided.id)).deletedAt);
+
+  const env = await draft(svc);
+  await sent(svc, env);
+  const [ada, karl] = ['ada@example.com', 'karl@example.com'].map((to) => mail.filter((m) => m.to === to && /Subscription Agreement" to sign/.test(m.subject)).at(-1));
+  await signAs(svc, linkIn(ada), { name: 'Ada' });
+  assert.equal(mail.filter((m) => m.subject.startsWith('Completed')).length, 0, 'nobody hears until everyone has signed');
+  await signAs(svc, linkIn(karl), { name: 'Karl' });
+  const done = mail.filter((m) => m.subject.startsWith('Completed'));
+  assert.deepEqual(done.map((m) => m.to).sort(), ['ada@example.com', SENDER.email, 'karl@example.com'].sort());
+  assert.ok(done.every((m) => m.attachments?.length === 1), 'each one carries the signed PDF');
+});
+
 test('non-Latin names and values seal, keeping pages and text', async (t) => {
   const { svc, store, sent: mail } = harness(t);
   const env = await draft(svc, {
