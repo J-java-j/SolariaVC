@@ -805,3 +805,78 @@ test('a name is stored without path pieces and the hash is of the uploaded bytes
   assert.equal(env.document.fileName.includes('/'), false);
   assert.equal(env.document.sha256, sha256Hex(bytes));
 });
+
+test('a bulk send gives each person their own envelope and leaves the draft for next time', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const template = await draft(svc, {
+    recipients: [
+      { id: 'n', name: '', email: '' },
+      { id: 'j', name: 'Johnson Jiang', email: 'johnsonjiang@solariavc.com' },
+      { id: 'h', name: 'Records', email: 'records@example.com', role: 'cc' },
+    ],
+  });
+  const people = [
+    { name: 'Ada Hire', email: 'Ada@Example.com ' },
+    { name: 'Bo Hire', email: 'bo@example.com' },
+    { name: 'Cy Hire', email: 'cy@example.com' },
+  ];
+  const { results } = await svc.bulkSend(template.id, SENDER, INFO, { recipientId: template.recipients[0].id, people });
+  assert.deepEqual(results.map((r) => [r.email, r.ok]), [['ada@example.com', true], ['bo@example.com', true], ['cy@example.com', true]]);
+
+  const all = await svc.listEnvelopes();
+  assert.equal(all.length, 4, 'three copies plus the draft');
+  assert.equal((await svc.getEnvelope(template.id)).status, 'draft', 'the draft stays as it was');
+  for (const r of results) {
+    const env = await svc.getEnvelope(r.id);
+    assert.equal(env.status, 'sent');
+    assert.deepEqual(env.recipients.map((p) => p.email), [r.email, 'johnsonjiang@solariavc.com', 'records@example.com']);
+    assert.ok(env.fields.every((f) => env.recipients.some((p) => p.id === f.recipientId)));
+    assert.equal(env.events[0].details.bulkFrom, template.id);
+    assert.equal(verifyChain((await store.getEnvelope(r.id)).data.events), true);
+  }
+  assert.equal(new Set(results.map((r) => r.id)).size, 3);
+  for (const p of ['ada@example.com', 'bo@example.com', 'cy@example.com', 'johnsonjiang@solariavc.com']) {
+    assert.equal(mail.filter((m) => m.to === p).length, p.startsWith('johnson') ? 3 : 1, `${p} got the right number of emails`);
+  }
+
+  // One person signing touches only their own copy.
+  const ada = linkIn(mail.find((m) => m.to === 'ada@example.com'));
+  await signAs(svc, ada, { name: 'Ada Hire' });
+  const statuses = await Promise.all(results.map(async (r) => (await svc.getEnvelope(r.id)).recipients[0].status));
+  assert.equal(statuses[0], 'signed');
+  assert.notEqual(statuses[1], 'signed');
+});
+
+test('a bulk list with any bad row sends nothing', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const template = await draft(svc, { recipients: [{ id: 'n', name: '', email: '' }, { id: 'j', name: 'Johnson Jiang', email: 'johnsonjiang@solariavc.com' }] });
+  const slot = template.recipients[0].id;
+  const bulk = (people, recipientId = slot) => svc.bulkSend(template.id, SENDER, INFO, { recipientId, people });
+  await assert.rejects(bulk([]), httpError(400));
+  await assert.rejects(bulk([{ name: 'A', email: 'a@example.com' }, { name: 'B', email: 'not-an-email' }]), httpError(400));
+  await assert.rejects(bulk([{ name: 'A', email: 'a@example.com' }, { name: 'A again', email: 'A@example.com' }]), httpError(400));
+  await assert.rejects(bulk([{ name: '', email: 'a@example.com' }]), httpError(400));
+  await assert.rejects(bulk([{ name: 'Me', email: 'johnsonjiang@solariavc.com' }]), httpError(400), 'a fixed signer cannot be on the list');
+  await assert.rejects(bulk([{ name: 'A', email: 'a@example.com' }], 'rnope'), httpError(400));
+  await assert.rejects(bulk(Array.from({ length: 51 }, (_, i) => ({ name: `P${i}`, email: `p${i}@example.com` }))), httpError(400));
+
+  const unsigned = await draft(svc, { recipients: [{ id: 'n', name: '', email: '' }], fields: [] });
+  await assert.rejects(svc.bulkSend(unsigned.id, SENDER, INFO, { recipientId: unsigned.recipients[0].id, people: [{ name: 'A', email: 'a@example.com' }] }), httpError(400));
+
+  assert.equal(mail.length, 0);
+  assert.equal((await svc.listEnvelopes()).length, 2, 'no copies were made');
+
+  await sent(svc, await svc.updateDraft(template.id, { ...template, recipients: [{ ...template.recipients[0], name: 'X', email: 'x@example.com' }, template.recipients[1]] }));
+  await assert.rejects(bulk([{ name: 'A', email: 'a@example.com' }]), httpError(409), 'a sent document is not a template');
+});
+
+test('a bulk send by link hands back one link per person', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const template = await draft(svc, { recipients: [{ id: 'n', name: '', email: '', delivery: 'link' }] });
+  const { results } = await svc.bulkSend(template.id, SENDER, INFO, {
+    recipientId: template.recipients[0].id,
+    people: [{ name: 'Ada', email: 'ada@example.com' }, { name: 'Bo', email: 'bo@example.com' }],
+  });
+  assert.ok(results.every((r) => r.ok && r.links.length === 1 && r.links[0].url.includes('/s#')));
+  assert.equal(mail.length, 0, 'link signers are not emailed');
+});

@@ -131,6 +131,22 @@ function assertReadyToSend(env) {
   }
 }
 
+// A pasted list of people for a bulk send. Rows that repeat an address are refused
+// rather than dropped, so nobody is left out without the sender seeing why.
+function bulkList(input) {
+  if (!Array.isArray(input) || !input.length) throw new HttpError(400, 'Add at least one person to the list.');
+  if (input.length > LIMITS.bulk) throw new HttpError(400, `A list can have ${LIMITS.bulk} people at most. Send the rest in a second batch.`);
+  const seen = new Set();
+  return input.map((p, i) => {
+    const name = cleanText(p?.name, 120, `Name on row ${i + 1}`, { required: true });
+    const email = cleanText(p?.email, 200, `Email on row ${i + 1}`, { required: true }).toLowerCase();
+    if (!EMAIL_RE.test(email)) throw new HttpError(400, `"${email}" on row ${i + 1} is not a valid email address.`);
+    if (seen.has(email)) throw new HttpError(400, `${email} is on the list twice.`);
+    seen.add(email);
+    return { name, email };
+  });
+}
+
 export function createSignService({ store, config, mail, log = console }) {
   const signerUrl = (token) => `${config.baseUrl}/s#${token}`;
   const adminUrl = (id) => `${config.baseUrl}/sign/e/${id}`;
@@ -514,6 +530,45 @@ export function createSignService({ store, config, mail, log = console }) {
     return [...new Set(ids)];
   }
 
+  async function cloneEnvelope(source, sender, info, { swap = null, details = {} } = {}) {
+    const copyId = newEnvelopeId();
+    const key = `envelopes/${copyId}/original.pdf`;
+    await store.copyBlob(source.document.key, key);
+    const ids = new Map(source.recipients.map((r) => [r.id, newId('r')]));
+    const env = {
+      id: copyId,
+      title: source.title,
+      message: source.message,
+      status: 'draft',
+      sequential: source.sequential,
+      expiryDays: source.expiryDays,
+      createdAt: nowIso(),
+      sender: { email: sender.email, name: sender.name },
+      document: { ...source.document, key },
+      recipients: source.recipients.map((r) => ({
+        id: ids.get(r.id),
+        name: swap?.id === r.id ? swap.name : r.name,
+        email: swap?.id === r.id ? swap.email : r.email,
+        role: r.role,
+        order: r.order,
+        delivery: r.delivery,
+        requireCode: r.requireCode,
+        status: 'draft',
+      })),
+      fields: source.fields.map(({ id: _id, value, ...f }) => ({ ...f, id: newId('f'), recipientId: ids.get(f.recipientId) })),
+      sealed: null,
+      events: [],
+      folderId: source.folderId ?? null,
+    };
+    appendEvent(env, 'envelope.created', {
+      actor: senderActor(sender),
+      ...info,
+      details: { sha256: env.document.sha256, fileName: env.document.fileName, copiedFrom: source.id, ...details },
+    });
+    await store.createEnvelope(env);
+    return env;
+  }
+
   return {
     // ---- sign in ----------------------------------------------------------
     // Answers identically for unknown addresses, so nobody can probe who has access.
@@ -748,45 +803,49 @@ export function createSignService({ store, config, mail, log = console }) {
     },
 
     async duplicate(id, sender, info) {
+      return adminView(await cloneEnvelope(await requireEnvelope(id), sender, info));
+    },
+
+    // One draft, many people: each person gets their own copy of the draft with
+    // their name in the chosen signer's place, so every signature has its own
+    // envelope, audit trail and sealed PDF. The draft itself stays, for next time.
+    async bulkSend(id, sender, info, body) {
       const source = await requireEnvelope(id);
-      const copyId = newEnvelopeId();
-      const key = `envelopes/${copyId}/original.pdf`;
-      await store.copyBlob(source.document.key, key);
-      const recipients = source.recipients.map((r) => ({
-        id: newId('r'),
-        name: r.name,
-        email: r.email,
-        role: r.role,
-        order: r.order,
-        delivery: r.delivery,
-        requireCode: r.requireCode,
-        status: 'draft',
-        sourceId: r.id,
-      }));
-      const ids = new Map(recipients.map((r) => [r.sourceId, r.id]));
-      const env = {
-        id: copyId,
-        title: source.title,
-        message: source.message,
-        status: 'draft',
-        sequential: source.sequential,
-        expiryDays: source.expiryDays,
-        createdAt: nowIso(),
-        sender: { email: sender.email, name: sender.name },
-        document: { ...source.document, key },
-        recipients: recipients.map(({ sourceId, ...r }) => r),
-        fields: source.fields.map(({ id: _id, value, ...f }) => ({ ...f, id: newId('f'), recipientId: ids.get(f.recipientId) })),
-        sealed: null,
-        events: [],
-        folderId: source.folderId ?? null,
-      };
-      appendEvent(env, 'envelope.created', {
-        actor: senderActor(sender),
-        ...info,
-        details: { sha256: env.document.sha256, fileName: env.document.fileName, copiedFrom: source.id },
-      });
-      await store.createEnvelope(env);
-      return adminView(env);
+      if (source.status !== 'draft') throw new HttpError(409, 'Only a draft can be sent to a list.');
+      const slot = source.recipients.find((r) => r.id === body?.recipientId && r.role === 'signer');
+      if (!slot) throw new HttpError(400, 'Choose which signer changes for each person.');
+      const people = bulkList(body?.people);
+      const fixed = source.recipients.filter((r) => r !== slot);
+      for (const person of people) {
+        if (fixed.some((r) => r.email === person.email)) {
+          throw new HttpError(400, `${person.email} is already on the document, so it can't also be on the list.`);
+        }
+      }
+      // Every copy is checked before any is made, so a bad row sends nothing.
+      for (const person of people) {
+        assertReadyToSend({ ...source, recipients: source.recipients.map((r) => (r === slot ? { ...r, ...person } : r)) });
+      }
+      const batch = newId('b');
+      const results = [];
+      for (const [i, person] of people.entries()) {
+        if (i && config.bulkPaceMs) await new Promise((done) => setTimeout(done, config.bulkPaceMs));
+        let copyId = null;
+        try {
+          const copy = await cloneEnvelope(source, sender, info, {
+            swap: { id: slot.id, ...person },
+            details: { bulkFrom: source.id, batch, position: i + 1, of: people.length },
+          });
+          copyId = copy.id;
+          const sent = await this.send(copy.id, sender, info);
+          copyId = null;
+          results.push({ ...person, ok: true, id: copy.id, links: sent.links, emailFailed: sent.failed.length > 0 });
+        } catch (e) {
+          log.error('[sign] bulk copy failed:', e.message);
+          if (copyId) await this.deleteDraft(copyId).catch(() => undefined);
+          results.push({ ...person, ok: false, error: e instanceof HttpError ? e.message : 'Something went wrong.' });
+        }
+      }
+      return { batch, results };
     },
 
     async send(id, sender, info) {

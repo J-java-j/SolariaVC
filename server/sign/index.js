@@ -242,6 +242,7 @@ async function sender(req, res, url, svc, parts) {
         await svc.voidEnvelope(id, body.reason, user, info);
         return sendJson(res, 200, { ok: true });
       case 'duplicate': return sendJson(res, 201, await svc.duplicate(id, user, info));
+      case 'bulk': return sendJson(res, 200, await svc.bulkSend(id, user, info, body));
       case 'finish': return sendJson(res, 200, await svc.finish(id));
       case 'timestamp': return sendJson(res, 200, await svc.retryTimestamp(id));
       default: break;

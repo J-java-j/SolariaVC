@@ -22,6 +22,8 @@ export const LIMITS = {
   // reject messages over 25 MB and base64 adds a third.
   attachmentBytes: 15 * 1024 * 1024,
   recipients: 10,
+  // One request sends the whole list, so this also bounds how long it runs.
+  bulk: 50,
   fields: 300,
   signatureBytes: 512 * 1024,
   textValue: 500,
@@ -63,6 +65,8 @@ export function loadConfig(env = process.env) {
     dataDir: env.SIGN_DATA_DIR || new URL('../../.sign-data/', import.meta.url).pathname,
     from: env.SIGN_FROM_EMAIL || 'Solaria Capital <sign@solariavc.com>',
     resendKey: env.RESEND_API_KEY || '',
+    // Resend allows a few requests a second, so a list is sent at a steady pace.
+    bulkPaceMs: onCloudRun ? 600 : 0,
     tsaUrls: env.SIGN_TSA_URLS === undefined
       ? DEFAULT_TSAS
       : env.SIGN_TSA_URLS.split(',').map((s) => s.trim()).filter(Boolean),

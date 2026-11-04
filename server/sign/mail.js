@@ -185,7 +185,7 @@ export function createMailer(config) {
       }, null, 2));
       return id;
     }
-    const res = await fetch('https://api.resend.com/emails', {
+    const post = () => fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${config.resendKey}`,
@@ -204,10 +204,19 @@ export function createMailer(config) {
       }),
       signal: AbortSignal.timeout(30_000),
     });
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
-      throw new Error(`resend http ${res.status}: ${body.slice(0, 200)}`);
+    // A burst can meet Resend's rate limit; waiting and trying again is all it asks.
+    for (let attempt = 1; ; attempt++) {
+      const res = await post();
+      if (res.status === 429 && attempt < 4) {
+        const wait = Number(res.headers.get('retry-after')) || attempt;
+        await new Promise((done) => setTimeout(done, Math.min(wait, 5) * 1000));
+        continue;
+      }
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`resend http ${res.status}: ${body.slice(0, 200)}`);
+      }
+      return (await res.json().catch(() => ({}))).id ?? null;
     }
-    return (await res.json().catch(() => ({}))).id ?? null;
   };
 }

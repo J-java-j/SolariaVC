@@ -152,6 +152,13 @@ and remove admins on the Team page. Admins can send documents and see everything
 the firm has sent, and removing one ends their access at once. Nobody else can
 sign in.
 
+To send the same document to many people (onboarding, say), leave one signer's
+name and email blank, place their fields, then choose **Review and send → Send to
+a list** and paste one person per line (`Name, email`, a spreadsheet column pair,
+or `"Name" <email>`). Each person gets their own copy with its own audit trail and
+sealed PDF; anyone else on the draft, such as a countersigner, is on every copy.
+Up to 50 people per batch. The draft stays, so it can be reused for the next group.
+
 Documents can be sorted into folders. Deleting a draft erases it. Deleting
 anything else moves it to the Deleted folder, where it can be restored, and
 signers keep their links. From there the owner can delete it forever, which

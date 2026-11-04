@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
-import { api, type Draft, type Envelope, type Field, type FieldType, type PageSize, type Recipient, type SentLink } from './api';
+import { api, type BulkResult, type Draft, type Envelope, type Field, type FieldType, type PageSize, type Recipient, type SentLink } from './api';
+import { BULK_LIMIT, parseList, type Person } from './bulk';
 import type { User } from './App';
 import { openPdf, type PdfDocument } from './pdf';
 import { PdfPages } from './PdfPages';
@@ -196,24 +197,79 @@ function PersonRow({ person, tint, active, sequential, position, count, onPick, 
   );
 }
 
-function SendSheet({ draft, onChange, onSend, onClose, busy, error }: {
+type Bulk = { slotId: string; list: string };
+
+function SendSheet({ draft, onChange, onSend, onBulkSend, onClose, busy, error }: {
   draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
   onSend: () => void;
+  onBulkSend: (slotId: string, people: Person[]) => void;
   onClose: () => void;
   busy: boolean;
   error: string;
 }) {
+  const signers = draft.recipients.filter((r) => r.role === 'signer');
+  const [mode, setMode] = useState<'once' | 'list'>('once');
+  // The signer left blank is the obvious one to fill from the list.
+  const [bulk, setBulk] = useState<Bulk>(() => ({ slotId: (signers.find((r) => !r.email) ?? signers[0])?.id ?? '', list: '' }));
+  const parsed = useMemo(() => parseList(bulk.list), [bulk.list]);
+  const slot = signers.find((r) => r.id === bulk.slotId);
+  const others = draft.recipients.filter((r) => r.id !== bulk.slotId);
+  const listReady = Boolean(slot) && parsed.people.length > 0 && parsed.problems.length === 0;
+  const count = parsed.people.length;
   return (
     <Sheet title="Send for signature" onClose={onClose}>
-      <ul className="send-list">
-        {draft.recipients.map((r) => (
-          <li key={r.id}>
-            <strong>{r.name || 'Unnamed'}</strong>
-            <span>{r.role === 'cc' ? `gets a copy at ${r.email}` : r.delivery === 'link' ? `signs by a link you share, confirmed at ${r.email}` : `signs by email at ${r.email}`}</span>
-          </li>
-        ))}
-      </ul>
+      {signers.length > 0 && (
+        <div className="tabs" role="group" aria-label="How to send">
+          <button type="button" aria-pressed={mode === 'once'} onClick={() => setMode('once')}>Send once</button>
+          <button type="button" aria-pressed={mode === 'list'} onClick={() => setMode('list')}>Send to a list</button>
+        </div>
+      )}
+      {mode === 'once' ? (
+        <ul className="send-list">
+          {draft.recipients.map((r) => (
+            <li key={r.id}>
+              <strong>{r.name || 'Unnamed'}</strong>
+              <span>{r.role === 'cc' ? `gets a copy at ${r.email}` : r.delivery === 'link' ? `signs by a link you share, confirmed at ${r.email}` : `signs by email at ${r.email}`}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="bulk">
+          <p className="muted">
+            Each person gets their own copy to sign, with its own record. Up to {BULK_LIMIT} at a time. This draft stays, so you can use it again.
+          </p>
+          {signers.length > 1 && (
+            <label className="field">
+              Signer to fill from the list
+              <select value={bulk.slotId} onChange={(e) => setBulk({ ...bulk, slotId: e.target.value })}>
+                {signers.map((r) => <option key={r.id} value={r.id}>{r.name || r.email || 'Unnamed signer'}</option>)}
+              </select>
+            </label>
+          )}
+          <label className="field">
+            People, one per line
+            <textarea
+              rows={7}
+              spellCheck={false}
+              placeholder={'Ada Lovelace, ada@example.com\nAlan Turing, alan@example.com'}
+              value={bulk.list}
+              onChange={(e) => setBulk({ ...bulk, list: e.target.value })}
+            />
+          </label>
+          <p className="muted">Paste from a spreadsheet, a CSV or an email. Each line needs a name and an email address.</p>
+          {parsed.problems.length > 0 ? (
+            <Notice>{parsed.problems.slice(0, 4).join(' ')}{parsed.problems.length > 4 ? ` And ${parsed.problems.length - 4} more.` : ''}</Notice>
+          ) : count > 0 && (
+            <p className="bulk-count" role="status">{count} {count === 1 ? 'person' : 'people'} ready</p>
+          )}
+          {others.length > 0 && (
+            <p className="muted">
+              Also on every copy: {others.map((r) => `${r.name || r.email || 'an unnamed person'}${r.role === 'cc' ? ' (copy)' : ''}`).join(', ')}.
+            </p>
+          )}
+        </div>
+      )}
       <label className="field">
         Message to signers (optional)
         <textarea rows={3} maxLength={2000} value={draft.message} onChange={(e) => onChange({ message: e.target.value })} />
@@ -229,9 +285,62 @@ function SendSheet({ draft, onChange, onSend, onClose, busy, error }: {
         documents, some legal notices, or anything that must be notarized.
       </p>
       {error && <Notice>{error}</Notice>}
+      {busy && mode === 'list' && <p className="muted" role="status">Sending {count} copies. Keep this page open; it takes about {Math.max(5, Math.ceil(count * 1.2))} seconds.</p>}
       <div className="actions">
-        <button type="button" className="primary" disabled={busy} onClick={onSend}>{busy ? 'Sending' : 'Send'}</button>
+        {mode === 'once' ? (
+          <button type="button" className="primary" disabled={busy} onClick={onSend}>{busy ? 'Sending' : 'Send'}</button>
+        ) : (
+          <button type="button" className="primary" disabled={busy || !listReady} onClick={() => onBulkSend(bulk.slotId, parsed.people)}>
+            {busy ? 'Sending' : count > 0 ? `Send ${count} ${count === 1 ? 'copy' : 'copies'}` : 'Send copies'}
+          </button>
+        )}
         <button type="button" className="quiet" disabled={busy} onClick={onClose}>Keep editing</button>
+      </div>
+    </Sheet>
+  );
+}
+
+function BulkSentSheet({ results, onDone }: { results: BulkResult[]; onDone: () => void }) {
+  const [copied, setCopied] = useState('');
+  const sent = results.filter((r) => r.ok);
+  const failed = results.filter((r) => !r.ok);
+  const unmailed = sent.filter((r) => r.emailFailed);
+  const links = sent.flatMap((r) => r.links ?? []);
+  const copy = async (key: string, text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(key);
+  };
+  return (
+    <Sheet title={failed.length ? `Sent ${sent.length} of ${results.length}` : `Sent ${sent.length} ${sent.length === 1 ? 'copy' : 'copies'}`} onClose={onDone}>
+      {failed.length > 0 && (
+        <Notice>
+          These were not sent: {failed.map((r) => `${r.name} (${r.error})`).join('; ')}. Fix them and send again with just those people.
+        </Notice>
+      )}
+      {unmailed.length > 0 && (
+        <Notice>Email to {unmailed.map((r) => r.name).join(', ')} did not go through. Open their document to get a link instead.</Notice>
+      )}
+      {links.length > 0 ? (
+        <>
+          <p>Each link belongs to one person. Copy them now, because they can't be shown again.</p>
+          <button type="button" className="secondary" onClick={() => copy('all', links.map((l) => `${l.name}\t${l.url}`).join('\n'))}>
+            {copied === 'all' ? 'Copied all' : 'Copy all links'}
+          </button>
+          <ul className="link-list">
+            {links.map((link) => (
+              <li key={link.recipientId}>
+                <span>{link.name}</span>
+                <input readOnly aria-label={`Signing link for ${link.name}`} value={link.url} onFocus={(e) => e.target.select()} />
+                <button type="button" className="secondary" onClick={() => copy(link.recipientId, link.url)}>{copied === link.recipientId ? 'Copied' : 'Copy link'}</button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : sent.length > 0 && (
+        <p>Everyone on the list has an email asking them to sign. Each copy shows on your documents page, where you can follow it.</p>
+      )}
+      <div className="actions">
+        <button type="button" className="primary" onClick={onDone}>Done</button>
       </div>
     </Sheet>
   );
@@ -282,6 +391,7 @@ export default function Editor({ env, user, onSent }: Props) {
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'failed'>('saved');
   const [sheet, setSheet] = useState<'send' | 'delete' | null>(null);
   const [result, setResult] = useState<{ envelope: Envelope; links: SentLink[]; failed: string[] } | null>(null);
+  const [bulkResult, setBulkResult] = useState<BulkResult[] | null>(null);
   const { busy, error, run, setError } = useBusy();
 
   const latest = useRef(draft);
@@ -425,6 +535,14 @@ export default function Editor({ env, user, onSent }: Props) {
     }
   });
 
+  const bulkSend = (slotId: string, people: Person[]) => run(async () => {
+    window.clearTimeout(timer.current);
+    await save();
+    const { results } = await api.bulkSend(env.id, slotId, people);
+    setSheet(null);
+    setBulkResult(results);
+  });
+
   const remove = () => run(async () => {
     edited.current = false;
     await api.remove(env.id);
@@ -541,7 +659,7 @@ export default function Editor({ env, user, onSent }: Props) {
         {doc ? <PdfPages doc={doc} sizes={env.document.sizes} overlay={overlay} /> : !loadError && <Loading label="Opening the document" />}
       </main>
 
-      {sheet === 'send' && <SendSheet draft={draft} onChange={update} onSend={send} onClose={() => setSheet(null)} busy={busy} error={error} />}
+      {sheet === 'send' && <SendSheet draft={draft} onChange={update} onSend={send} onBulkSend={bulkSend} onClose={() => setSheet(null)} busy={busy} error={error} />}
       {sheet === 'delete' && (
         <Sheet title="Delete this draft?" onClose={() => setSheet(null)}>
           <p>The uploaded file and everything placed on it will be gone. Nothing has been sent.</p>
@@ -553,6 +671,7 @@ export default function Editor({ env, user, onSent }: Props) {
         </Sheet>
       )}
       {result && <SentSheet links={result.links} failed={result.failed} onDone={() => onSent(result.envelope)} />}
+      {bulkResult && <BulkSentSheet results={bulkResult} onDone={() => navigate('/sign')} />}
     </div>
   );
 }

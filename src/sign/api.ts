@@ -81,6 +81,8 @@ export type Draft = Pick<Envelope, 'title' | 'message' | 'sequential' | 'expiryD
 
 export type SentLink = { recipientId: string; name: string; url: string };
 
+export type BulkResult = { name: string; email: string; ok: boolean; id?: string; links?: SentLink[]; emailFailed?: boolean; error?: string };
+
 export type Folder = { id: string; name: string };
 
 export type TeamMember = { email: string; name: string; title?: string; owner: boolean; addedAt?: string };
@@ -191,6 +193,8 @@ export const api = {
   newLink: (id: string, recipientId: string) => call<{ url: string }>(`envelopes/${id}/link`, post({ recipientId })),
   voidEnvelope: (id: string, reason: string) => call(`envelopes/${id}/void`, post({ reason })),
   duplicate: (id: string) => call<Envelope>(`envelopes/${id}/duplicate`, post()),
+  bulkSend: (id: string, recipientId: string, people: { name: string; email: string }[]) =>
+    call<{ batch: string; results: BulkResult[] }>(`envelopes/${id}/bulk`, post({ recipientId, people })),
   finish: (id: string) => call<Envelope>(`envelopes/${id}/finish`, post()),
   timestamp: (id: string) => call<Envelope>(`envelopes/${id}/timestamp`, post()),
   original: (id: string) => bytes(`envelopes/${id}/original`),

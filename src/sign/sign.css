@@ -515,6 +515,9 @@ img { display: block; max-width: 100%; }
 .send-list { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--paper-line); }
 .send-list li { display: grid; font-size: 15px; }
 .send-list span { color: var(--ink-soft); font-size: 14px; overflow-wrap: anywhere; }
+.bulk { display: grid; gap: 12px; }
+.bulk textarea { font-family: var(--mono); font-size: 13px; }
+.bulk-count { font-size: 14px; font-weight: 600; color: var(--title-green); }
 .link-list { display: grid; gap: 14px; }
 .link-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; }
 .link-list li > span { grid-column: 1 / -1; font-weight: 600; }
