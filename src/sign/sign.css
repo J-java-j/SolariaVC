@@ -327,6 +327,9 @@ img { display: block; max-width: 100%; }
 .pad-canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; touch-action: none; }
 .pad-line { position: absolute; right: 20px; bottom: 46px; left: 20px; border-bottom: 1.5px solid var(--ink-soft); pointer-events: none; }
 .pad-clear { position: absolute; top: 2px; right: 4px; }
+.pad-hint { position: absolute; bottom: 10px; left: 20px; right: 20px; font-size: 12.5px; color: var(--ink-soft); pointer-events: none; }
+.pad-pen { box-shadow: inset 0 0 0 2px var(--sun-deep); }
+.pad-pen .pad-hint { color: var(--ink); font-weight: 600; }
 .pad-typed > span:first-child {
   position: absolute;
   right: 22px;
