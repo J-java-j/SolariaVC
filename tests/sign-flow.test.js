@@ -909,3 +909,22 @@ test('several documents can be voided at once, and a stale selection voids none'
   assert.equal(mail.length, 4, 'both signers on both documents were told');
   await assert.rejects(svc.voidEnvelopes([one.id], 'Again', SENDER, INFO), httpError(409));
 });
+
+test('reminding many documents emails only the people whose turn it is', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const both = await draft(svc);
+  const half = await draft(svc);
+  const ordered = await draft(svc, { sequential: true });
+  const mine = await draft(svc, { recipients: [{ id: 'a', name: 'Johnson Jiang', email: SENDER.email }, { id: 'b', name: 'By Link', email: 'link@example.com', delivery: 'link' }] });
+  for (const env of [both, half, ordered, mine]) await sent(svc, env);
+  await signAs(svc, linkIn(mail.find((m) => m.to === 'ada@example.com' && m.text.includes(half.id))), { name: 'Ada' });
+  const unsent = await draft(svc);
+
+  mail.length = 0;
+  const outcome = await svc.remindEnvelopes([both.id, half.id, ordered.id, mine.id, unsent.id], SENDER);
+  assert.deepEqual(outcome, { reminded: 4, skipped: 2, failed: [] });
+  assert.deepEqual(mail.map((m) => m.to).sort(), ['ada@example.com', 'ada@example.com', 'karl@example.com', 'karl@example.com']);
+  assert.ok(mail.every((m) => m.subject.startsWith('Reminder:') && linkIn(m)));
+  const reminded = (await svc.getEnvelope(both.id)).events.filter((e) => e.type === 'recipient.reminded');
+  assert.equal(reminded.length, 2);
+});

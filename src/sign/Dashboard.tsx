@@ -127,10 +127,11 @@ function FolderSheet({ title, action, initial = '', onClose, onSave }: {
   );
 }
 
-function ConfirmSheet({ title, action, keep, onClose, onConfirm, children }: {
+function ConfirmSheet({ title, action, keep, tone = 'danger', onClose, onConfirm, children }: {
   title: string;
   action: string;
   keep: string;
+  tone?: 'danger' | 'primary';
   onClose: () => void;
   onConfirm: () => Promise<unknown>;
   children: ReactNode;
@@ -141,7 +142,7 @@ function ConfirmSheet({ title, action, keep, onClose, onConfirm, children }: {
       {children}
       {error && <Notice>{error}</Notice>}
       <div className="actions">
-        <button type="button" className="danger" disabled={busy} onClick={() => run(onConfirm)}>{action}</button>
+        <button type="button" className={tone} disabled={busy} onClick={() => run(onConfirm)}>{busy && tone === 'primary' ? 'Sending' : action}</button>
         <button type="button" className="quiet" onClick={onClose}>{keep}</button>
       </div>
     </Sheet>
@@ -242,13 +243,13 @@ function DocRow({ env, picked, showSender, onToggle, person }: {
   );
 }
 
-export default function Dashboard({ user }: { user: { owner: boolean } }) {
+export default function Dashboard({ user }: { user: { owner: boolean; email: string } }) {
   const [envelopes, setEnvelopes] = useState<EnvelopeSummary[] | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [view, setView] = useState(savedView);
   const [sentBy, setSentBy] = useState('');
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const [sheet, setSheet] = useState<'new' | 'rename' | 'delete-folder' | 'delete' | 'erase' | 'void' | null>(null);
+  const [sheet, setSheet] = useState<'new' | 'rename' | 'delete-folder' | 'delete' | 'erase' | 'void' | 'remind' | null>(null);
   const [over, setOver] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
   const { busy, error, run, setError } = useBusy();
@@ -275,6 +276,9 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
   const selected = shown.filter((env) => picked.has(env.id));
   const stillOut = selected.some((env) => env.status === 'sent');
   const voidable = selected.filter((env) => env.status === 'sent' && !env.sealing);
+  // Who a reminder would reach: emailed signers whose turn it is, other than you.
+  const due = voidable.flatMap((env) => env.recipients.filter((r) => r.role === 'signer' && r.delivery === 'email' && r.email !== user.email && r.status !== 'signed' && r.status !== 'waiting'));
+  const [notice, setNotice] = useState('');
 
   const open = (next: string) => {
     setView(next);
@@ -374,6 +378,7 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
           <input ref={picker} type="file" accept="application/pdf,.pdf" hidden onChange={pick} />
         </header>
         {error && <Notice>{error}</Notice>}
+        {notice && <Notice tone="quiet">{notice}</Notice>}
         {empty && <p className="ledger-empty">Upload a PDF to prepare it for signature, or drop one anywhere on this page.</p>}
 
         {envelopes && !empty && (
@@ -425,6 +430,7 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
                     {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                     <option value={NO_FOLDER}>No folder</option>
                   </select>
+                  {due.length > 0 && <button type="button" className="secondary" disabled={busy} onClick={() => setSheet('remind')}>Remind{due.length > 1 ? ` ${due.length}` : ''}</button>}
                   {voidable.length > 0 && <button type="button" className="quiet quiet-danger" disabled={busy} onClick={() => setSheet('void')}>Void{voidable.length > 1 ? ` ${voidable.length}` : ''}</button>}
                   <button type="button" className="quiet quiet-danger" disabled={busy || stillOut} onClick={() => setSheet('delete')}>Delete</button>
                 </>
@@ -537,6 +543,27 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
           }}
         >
           <p>Drafts are erased for good. Anything else moves to Deleted, where you can restore it. Signers keep their copies either way.</p>
+        </ConfirmSheet>
+      )}
+      {sheet === 'remind' && (
+        <ConfirmSheet
+          title={`Remind ${due.length === 1 ? '1 person' : `${due.length} people`}?`}
+          action="Send reminders"
+          keep="Not now"
+          tone="primary"
+          onClose={() => setSheet(null)}
+          onConfirm={async () => {
+            const sent = await api.remindDocuments(voidable.map((env) => env.id));
+            setNotice(sent.failed.length
+              ? `Reminded ${sent.reminded}. Email to ${sent.failed.join(', ')} did not go through.`
+              : `Reminded ${sent.reminded} ${sent.reminded === 1 ? 'person' : 'people'}.`);
+            await finish();
+          }}
+        >
+          <p>Everyone whose turn it is gets a fresh email with their signing link. People who already signed or are still waiting for someone before them are left alone.</p>
+          {voidable.some((env) => env.recipients.some((r) => r.role === 'signer' && r.status !== 'signed' && (r.delivery === 'link' || r.email === user.email))) && (
+            <p className="muted">You aren't emailed, and neither are signers whose links you hand out yourself.</p>
+          )}
         </ConfirmSheet>
       )}
       {sheet === 'void' && (

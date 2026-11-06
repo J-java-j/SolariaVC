@@ -908,6 +908,43 @@ export function createSignService({ store, config, mail, log = console }) {
       if (!result?.ok) throw new HttpError(502, 'The reminder could not be sent. Try again shortly.');
     },
 
+    // Emails everyone whose turn it is on each document. Unlike voiding, a document
+    // that moved on since it was ticked is skipped rather than stopping the rest.
+    // Link signers are left out, since the sender chose to hand those links over
+    // personally, and so is the sender, who signs from the documents page.
+    async remindEnvelopes(idsInput, user) {
+      const outcome = { reminded: 0, skipped: 0, failed: [] };
+      let first = true;
+      for (const id of selection(idsInput)) {
+        let notices = [];
+        try {
+          const { env } = await mutate(id, (fresh) => {
+            notices = [];
+            if (fresh.deletedAt || effectiveStatus(fresh) !== 'sent' || allSigned(fresh)) return { save: false };
+            for (const rec of signersOf(fresh)) {
+              if (rec.status === 'signed' || rec.status === 'waiting' || rec.delivery === 'link' || rec.email === user.email) continue;
+              notices.push({ recipientId: rec.id, token: issueToken(fresh, rec) });
+            }
+            return { save: notices.length > 0 };
+          });
+          if (!notices.length) {
+            outcome.skipped++;
+            continue;
+          }
+          if (!first && config.bulkPaceMs) await new Promise((done) => setTimeout(done, config.bulkPaceMs));
+          first = false;
+          for (const result of await deliver(id, env, notices, { reminder: true })) {
+            if (result.ok) outcome.reminded++;
+            else outcome.failed.push(result.rec.name);
+          }
+        } catch (e) {
+          if (!(e instanceof HttpError)) throw e;
+          outcome.skipped++;
+        }
+      }
+      return outcome;
+    },
+
     // Replaces every earlier link for this person, because links are stored only
     // as hashes and an existing one can't be shown again.
     async newLink(id, recipientId, sender, info) {
