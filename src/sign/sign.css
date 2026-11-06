@@ -610,3 +610,25 @@ img { display: block; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .ink, .seal-strike, .finished-struck .note { animation: none; }
 }
+
+/* Signing your own documents from the documents page */
+.mine { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 14px; padding: 12px 14px; border-left: 3px solid var(--sun-deep); border-radius: var(--radius); background: var(--paper-tint); font-size: 15px; }
+.queue { display: grid; gap: 16px; max-width: 920px; margin: 4px auto 40px; padding: 32px clamp(18px, 4vw, 40px) 36px; border-radius: var(--radius); background: var(--paper); color: var(--ink); box-shadow: var(--lift); }
+@media (max-width: 960px) { .queue { margin: 4px var(--gutter) 40px; } }
+.queue h1 { font-size: 28px; }
+.queue-step { color: var(--ink-soft); font-size: 14px; }
+.queue-doc { display: grid; gap: 6px; }
+.queue-window { max-height: 60dvh; padding: 12px; }
+.queue-spot { position: absolute; display: grid; place-items: center; overflow: hidden; border: 1.5px dashed var(--sun-deep); border-radius: 3px; background: rgb(245 184 65 / 0.16); }
+.queue-spot img { max-width: 100%; max-height: 100%; }
+.queue-spot em { color: #8a5a00; font-size: 11px; font-style: normal; font-weight: 600; }
+.queue-steps { display: grid; gap: 14px; padding-top: 18px; border-top: 1px solid var(--paper-line); }
+.queue-check { align-items: flex-start; font-size: 15px; line-height: 1.5; }
+.queue-check input { flex: none; margin-top: 3px; }
+.queue-terms summary { cursor: pointer; color: var(--title-green); font-size: 14px; font-weight: 500; }
+.queue-terms .legal { display: grid; gap: 10px; max-height: 260px; margin-top: 10px; overflow: auto; font-size: 15px; }
+.queue-marks { display: flex; flex-wrap: wrap; gap: 12px; }
+.queue-mark { display: inline-flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1.5px solid var(--ink); background: var(--paper-tint); }
+.queue-mark img { height: 44px; }
+.queue-intent { font-size: 15px; }
+.queue-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; font-size: 14px; }

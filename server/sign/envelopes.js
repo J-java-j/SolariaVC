@@ -476,6 +476,7 @@ export function createSignService({ store, config, mail, log = console }) {
       folderId: env.folderId ?? null,
       deletedAt: env.deletedAt ?? null,
       batch: batchOf(env),
+      sha256: env.document.sha256,
     };
     if (!full) return summary;
     return {
@@ -579,6 +580,62 @@ export function createSignService({ store, config, mail, log = console }) {
     });
     await store.createEnvelope(env);
     return env;
+  }
+
+  // The signing step shared by a signer's link and the sender's own documents
+  // page: fills the signer's fields, stores their marks, and moves the document on.
+  async function signFor(env, rec, body, info, { before, signedDetails = {} } = {}) {
+    const recipientId = rec.id;
+    const own = env.fields.filter((f) => f.recipientId === rec.id);
+    const values = validateValues(own, body.values);
+    const signature = await parseMark(body.signature, 'Your signature');
+    const initials = own.some((f) => f.type === 'initials') ? await parseMark(body.initials, 'Your initials') : null;
+
+    const suffix = randomSecret().slice(0, 8);
+    const signatureKey = `envelopes/${env.id}/marks/${rec.id}-signature-${suffix}.png`;
+    await store.putBlob(signatureKey, signature.bytes, 'image/png');
+    const initialsKey = initials ? `envelopes/${env.id}/marks/${rec.id}-initials-${suffix}.png` : null;
+    if (initials) await store.putBlob(initialsKey, initials.bytes, 'image/png');
+
+    const { date, zone } = signingDate(String(body.timeZone ?? ''));
+    let notices = [];
+    const { env: saved, result } = await mutate(env.id, (e) => {
+      const r = requireActiveSigner(e, recipientId);
+      before?.(e, r);
+      const fields = e.fields.filter((f) => f.recipientId === r.id);
+      for (const f of fields) {
+        if (f.type === 'date') f.value = date;
+        else if (f.type === 'name') f.value = signature.name;
+        else if (f.type === 'text' || f.type === 'checkbox') f.value = values[f.id];
+        else f.value = true;
+      }
+      r.status = 'signed';
+      r.signedAt = nowIso();
+      r.ip = info.ip;
+      r.ua = info.ua;
+      r.timeZone = zone;
+      r.signature = { key: signatureKey, sha256: sha256Hex(signature.bytes), method: signature.method, name: signature.name };
+      if (initials) r.initials = { key: initialsKey, sha256: sha256Hex(initials.bytes), method: initials.method };
+      r.otp = null;
+      appendEvent(e, 'recipient.signed', {
+        actor: signerActor(r),
+        ...info,
+        details: {
+          documentSha256: e.document.sha256,
+          fieldsSha256: sha256Hex(canonicalJson(fields.map(({ id, type, page, x, y, w, h, value }) => ({ id, type, page, x, y, w, h, value })))),
+          signatureSha256: r.signature.sha256,
+          disclosureVersion: r.consent.version,
+          intentVersion: INTENT_VERSION,
+          intentSha256: INTENT_SHA256,
+          timeZone: zone,
+          ...signedDetails,
+        },
+      });
+      notices = activateNext(e);
+      return { complete: allSigned(e) };
+    });
+    await deliver(env.id, saved, notices);
+    if (result.complete) await finalize(env.id);
   }
 
   return {
@@ -1142,56 +1199,47 @@ export function createSignService({ store, config, mail, log = console }) {
       const { env, rec: { id: recipientId } } = await signerAccess(token, verifiedSecret);
       const rec = requireActiveSigner(env, recipientId);
       if (!rec.consent) throw new HttpError(409, 'Agree to electronic records first.');
-
-      const own = env.fields.filter((f) => f.recipientId === rec.id);
-      const values = validateValues(own, body.values);
-      const signature = await parseMark(body.signature, 'Your signature');
-      const initials = own.some((f) => f.type === 'initials') ? await parseMark(body.initials, 'Your initials') : null;
-
-      const suffix = randomSecret().slice(0, 8);
-      const signatureKey = `envelopes/${env.id}/marks/${rec.id}-signature-${suffix}.png`;
-      await store.putBlob(signatureKey, signature.bytes, 'image/png');
-      const initialsKey = initials ? `envelopes/${env.id}/marks/${rec.id}-initials-${suffix}.png` : null;
-      if (initials) await store.putBlob(initialsKey, initials.bytes, 'image/png');
-
-      const { date, zone } = signingDate(String(body.timeZone ?? ''));
-      let notices = [];
-      const { env: saved, result } = await mutate(env.id, (e) => {
-        const r = requireActiveSigner(e, recipientId);
-        const fields = e.fields.filter((f) => f.recipientId === r.id);
-        for (const f of fields) {
-          if (f.type === 'date') f.value = date;
-          else if (f.type === 'name') f.value = signature.name;
-          else if (f.type === 'text' || f.type === 'checkbox') f.value = values[f.id];
-          else f.value = true;
-        }
-        r.status = 'signed';
-        r.signedAt = nowIso();
-        r.ip = info.ip;
-        r.ua = info.ua;
-        r.timeZone = zone;
-        r.signature = { key: signatureKey, sha256: sha256Hex(signature.bytes), method: signature.method, name: signature.name };
-        if (initials) r.initials = { key: initialsKey, sha256: sha256Hex(initials.bytes), method: initials.method };
-        r.otp = null;
-        appendEvent(e, 'recipient.signed', {
-          actor: signerActor(r),
-          ...info,
-          details: {
-            documentSha256: e.document.sha256,
-            fieldsSha256: sha256Hex(canonicalJson(fields.map(({ id, type, page, x, y, w, h, value }) => ({ id, type, page, x, y, w, h, value })))),
-            signatureSha256: r.signature.sha256,
-            disclosureVersion: r.consent.version,
-            intentVersion: INTENT_VERSION,
-            intentSha256: INTENT_SHA256,
-            timeZone: zone,
-          },
-        });
-        notices = activateNext(e);
-        return { complete: allSigned(e) };
-      });
-      await deliver(env.id, saved, notices);
-      if (result.complete) await finalize(env.id);
+      await signFor(env, rec, body, info);
       return this.signerSession(token, verifiedSecret);
+    },
+
+    // Lets a signed-in sender sign the documents waiting on their own signature from
+    // the documents page, many in a row. Only ever their own place on a document,
+    // and only a document whose file this browser displayed: the client lists the
+    // file hashes it rendered, so copies of one file can follow the one shown.
+    async signMine(user, id, body, info) {
+      if (body?.intent !== true) throw new HttpError(400, 'Confirm that you intend to sign.');
+      if (body?.consent !== true || body?.disclosureVersion !== DISCLOSURE_VERSION) {
+        throw new HttpError(409, 'Agree to electronic records first.');
+      }
+      const env = await requireEnvelope(id);
+      const rec = signersOf(env).find((r) => r.email === user.email && signerState(env, r, false) === 'sign');
+      if (!rec || env.deletedAt) throw new HttpError(409, `"${env.title}" has nothing waiting for your signature.`);
+      if (!Array.isArray(body.rendered) || !body.rendered.includes(env.document.sha256)) {
+        throw new HttpError(409, `Open "${env.title}" before signing it.`);
+      }
+      if (env.fields.some((f) => f.recipientId === rec.id && f.required && (f.type === 'text' || f.type === 'checkbox'))) {
+        throw new HttpError(409, `"${env.title}" has fields only you can fill in. Open it from your email to sign.`);
+      }
+      const via = { via: 'documents page' };
+      await signFor(env, rec, body, info, {
+        signedDetails: via,
+        before(e, r) {
+          if (!r.viewedAt) {
+            r.viewedAt = nowIso();
+            appendEvent(e, 'recipient.viewed', { actor: signerActor(r), ...info, details: { documentSha256: e.document.sha256, ...via } });
+          }
+          if (!r.consent) {
+            r.consent = { version: DISCLOSURE_VERSION, sha256: DISCLOSURE_SHA256, at: nowIso(), ...info };
+            appendEvent(e, 'recipient.consented', {
+              actor: signerActor(r),
+              ...info,
+              details: { disclosureVersion: DISCLOSURE_VERSION, disclosureSha256: DISCLOSURE_SHA256, documentRendered: true, ...via },
+            });
+          }
+        },
+      });
+      return { ok: true };
     },
 
     async finishFromSigner(token, verifiedSecret) {

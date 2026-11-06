@@ -5,6 +5,7 @@
 // Authorization header. That keeps them out of Cloud Run request logs, Referer
 // headers and the mail scanners that follow every link they see.
 import { LIMITS, loadConfig } from './config.js';
+import { DISCLOSURE, INTENT } from './disclosure.js';
 import { createMailer } from './mail.js';
 import { HttpError, createSignService } from './envelopes.js';
 import { PdfRejected } from './pdf.js';
@@ -247,6 +248,7 @@ async function sender(req, res, url, svc, parts) {
         return sendJson(res, 200, { ok: true });
       case 'duplicate': return sendJson(res, 201, await svc.duplicate(id, user, info));
       case 'bulk': return sendJson(res, 200, await svc.bulkSend(id, user, info, body));
+      case 'sign-mine': return sendJson(res, 200, await svc.signMine(user, id, body, info));
       case 'finish': return sendJson(res, 200, await svc.finish(id));
       case 'timestamp': return sendJson(res, 200, await svc.retryTimestamp(id));
       default: break;
@@ -295,6 +297,10 @@ export async function handleSignApi(req, res, url) {
       case 'me': {
         const user = await svc.authenticate(cookies(req)[SESSION_COOKIE]);
         return sendJson(res, 200, { user });
+      }
+      case 'disclosure': {
+        // The same public words every signer agrees to, for a sender signing their own documents.
+        return sendJson(res, 200, { disclosure: DISCLOSURE, intent: INTENT });
       }
       case 'team': return await team(req, res, svc, parts[0]);
       case 'folders': return await folders(req, res, svc, parts[0]);

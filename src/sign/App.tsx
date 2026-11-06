@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type Envelope } from './api';
 import Dashboard from './Dashboard';
+import SignQueue from './SignQueue';
 import Detail from './Detail';
 import Editor from './Editor';
 import { Login, LoginLanding } from './Login';
@@ -37,6 +38,7 @@ function SenderApp({ path }: { path: string }) {
   if (!user) return <Login />;
   const envelope = /^\/sign\/e\/([0-9A-Z]{12})$/.exec(path);
   if (envelope) return <EnvelopePage key={envelope[1]} id={envelope[1]} user={user} />;
+  if (path === '/sign/queue') return <Shell user={user}><SignQueue user={user} /></Shell>;
   if (path === '/sign/team' && user.owner) return <Shell user={user}><Team /></Shell>;
   return <Shell user={user}><Dashboard user={user} /></Shell>;
 }

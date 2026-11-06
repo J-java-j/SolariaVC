@@ -159,6 +159,19 @@ or `"Name" <email>`). Each person gets their own copy with its own audit trail a
 sealed PDF; anyone else on the draft, such as a countersigner, is on every copy.
 Up to 50 people per batch. The draft stays, so it can be reused for the next group.
 
+A list send shows as one row that opens to show each person. Tick documents (or a
+whole group with the checkbox on its heading) to remind, void, move or delete them
+together. **Remind** emails each signer whose turn it is, skipping you and anyone
+you share a link with yourself.
+
+When documents are waiting for your own signature, the documents page offers
+**Sign all**. You see each distinct file, agree to electronic records, adopt your
+signature once, and sign every copy of that file in one go; a different file is
+shown before it can be signed. Each copy still gets its own viewed, agreed and
+signed entries in its audit trail, marked as signed from the documents page. A
+document with text or checkbox fields only you can fill in has to be signed from
+its email.
+
 Documents can be sorted into folders. Deleting a draft erases it. Deleting
 anything else moves it to the Deleted folder, where it can be restored, and
 signers keep their links. From there the owner can delete it forever, which

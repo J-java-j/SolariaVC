@@ -928,3 +928,52 @@ test('reminding many documents emails only the people whose turn it is', async (
   const reminded = (await svc.getEnvelope(both.id)).events.filter((e) => e.type === 'recipient.reminded');
   assert.equal(reminded.length, 2);
 });
+
+test('a sender signs their own place on many copies from the documents page', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const template = await draft(svc, {
+    recipients: [{ id: 'n', name: '', email: '' }, { id: 'j', name: 'Johnson Jiang', email: SENDER.email }],
+  });
+  const people = ['ada', 'bo', 'cy'].map((n) => ({ name: n, email: `${n}@example.com` }));
+  const { results } = await svc.bulkSend(template.id, SENDER, INFO, { recipientId: template.recipients[0].id, people });
+  const [first] = await Promise.all(results.map((r) => svc.getEnvelope(r.id)));
+  // Ada signs first, so Johnson's signature finishes her copy.
+  await signAs(svc, linkIn(mail.find((m) => m.to === 'ada@example.com')), { name: 'Ada' });
+
+  const body = { rendered: [first.document.sha256], consent: true, disclosureVersion: '2026-10-31', intent: true, signature: mark('Johnson Jiang'), timeZone: 'America/Los_Angeles' };
+  const other = { email: 'karl@solariavc.com', name: 'Karl' };
+  await assert.rejects(svc.signMine(other, results[0].id, body, INFO), httpError(409), 'nobody signs in another person\'s place');
+  await assert.rejects(svc.signMine(SENDER, results[0].id, { ...body, rendered: ['abc'] }, INFO), httpError(409), 'the file must have been shown');
+  await assert.rejects(svc.signMine(SENDER, results[0].id, { ...body, consent: false }, INFO), httpError(409));
+  await assert.rejects(svc.signMine(SENDER, results[0].id, { ...body, intent: false }, INFO), httpError(400));
+
+  for (const r of results) await svc.signMine(SENDER, r.id, body, INFO);
+  await assert.rejects(svc.signMine(SENDER, results[0].id, body, INFO), httpError(409), 'twice is refused');
+
+  const ada = await svc.getEnvelope(results[0].id);
+  assert.equal(ada.status, 'completed', 'the last signature seals the document');
+  for (const r of results) {
+    const stored = (await store.getEnvelope(r.id)).data;
+    const me = stored.recipients.find((p) => p.email === SENDER.email);
+    assert.equal(me.status, 'signed');
+    const types = stored.events.filter((e) => e.actor?.recipientId === me.id).map((e) => e.type);
+    assert.deepEqual(types.filter((type) => type !== 'recipient.notified').slice(0, 3), ['recipient.viewed', 'recipient.consented', 'recipient.signed']);
+    assert.equal(stored.events.find((e) => e.type === 'recipient.signed' && e.actor.recipientId === me.id).details.via, 'documents page');
+    assert.equal(verifyChain(stored.events), true);
+  }
+  assert.equal((await svc.getEnvelope(results[1].id)).status, 'sent', 'Bo still has to sign his own copy');
+});
+
+test('a sender cannot batch-sign a document with fields only they can fill in', async (t) => {
+  const { svc } = harness(t);
+  const env = await draft(svc, {
+    recipients: [{ id: 'j', name: 'Johnson Jiang', email: SENDER.email }],
+    fields: [
+      { recipientId: 'j', type: 'signature', page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.05 },
+      { recipientId: 'j', type: 'text', page: 1, x: 0.1, y: 0.7, w: 0.3, h: 0.03, required: true, label: 'Title' },
+    ],
+  });
+  await sent(svc, env);
+  const body = { rendered: [env.document.sha256], consent: true, disclosureVersion: '2026-10-31', intent: true, signature: mark('Johnson Jiang'), timeZone: 'UTC' };
+  await assert.rejects(svc.signMine(SENDER, env.id, body, INFO), httpError(409));
+});

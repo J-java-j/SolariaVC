@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent, type ReactNode } from 'react';
 import { api, type EnvelopeSummary, type Folder } from './api';
 import { Link, navigate } from './router';
+import { waitingOn } from './SignQueue';
 import { formatDate, Notice, Sheet, SignerDots, statusLabel, useBusy } from './ui';
 
 const MAX_UPLOAD = 20 * 1024 * 1024;
@@ -268,6 +269,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
   const inDeleted = view === DELETED;
   const current = inDeleted ? DELETED : folder?.id ?? ALL;
   const live = (envelopes ?? []).filter((env) => !env.deletedAt);
+  const mine = waitingOn(envelopes ?? [], user.email);
   const deleted = (envelopes ?? []).filter((env) => env.deletedAt);
   const inFolder = (id: string) => live.filter((env) => env.folderId === id);
   const inView = inDeleted ? deleted : folder ? inFolder(folder.id) : live;
@@ -379,6 +381,12 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
         </header>
         {error && <Notice>{error}</Notice>}
         {notice && <Notice tone="quiet">{notice}</Notice>}
+        {mine.length > 0 && !inDeleted && (
+          <div className="mine">
+            <span><strong>{mine.length === 1 ? '1 document is' : `${mine.length} documents are`} waiting for your signature.</strong> Sign them here without opening each email.</span>
+            <button type="button" className="primary" onClick={() => navigate('/sign/queue')}>{mine.length === 1 ? 'Sign it' : 'Sign all'}</button>
+          </div>
+        )}
         {empty && <p className="ledger-empty">Upload a PDF to prepare it for signature, or drop one anywhere on this page.</p>}
 
         {envelopes && !empty && (
