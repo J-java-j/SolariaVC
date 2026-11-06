@@ -933,7 +933,7 @@ test('reminding many documents emails each person once, with everything waiting 
 
   const toAda = mail.find((m) => m.to === 'ada@example.com');
   assert.match(toAda.subject, /2 documents waiting/);
-  const link = /\/sign\/my#(\S+)/.exec(toAda.text)?.[1];
+  const link = /\/sign#(\S+)/.exec(toAda.text)?.[1];
   assert.ok(link, 'several documents link to the documents page');
   const { sessionId } = await svc.openMyDocuments(link);
   assert.equal(await svc.myEmail(sessionId), 'ada@example.com');
@@ -1011,7 +1011,7 @@ test('a sender batch-signs with text answers given once, but not a box only they
   await assert.rejects(svc.signMine(SENDER, boxed.id, { ...body, rendered: [boxed.document.sha256] }, INFO), httpError(409));
 });
 
-test('a signer sees all their documents at /sign/my and can open each one', async (t) => {
+test('a signer sees all their documents at /sign and can open each one', async (t) => {
   const { svc, sent: mail } = harness(t);
   const one = await draft(svc);
   const two = await draft(svc, { sequential: true, recipients: [{ id: 'b', name: 'Karl Partner', email: 'karl@example.com' }, { id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
@@ -1020,12 +1020,12 @@ test('a signer sees all their documents at /sign/my and can open each one', asyn
 
   mail.length = 0;
   await svc.requestLogin('ada@example.com');
-  assert.match(mail[0]?.text ?? '', /\/sign\/my#\S+/, 'the one sign-in page sends someone off the team a link to their documents');
+  assert.match(mail[0]?.text ?? '', /\/sign#\S+/, 'the one sign-in page sends someone off the team a link to their documents');
   mail.length = 0;
   await svc.requestMyDocuments('stranger@example.com');
   assert.equal(mail.length, 0, 'an address with nothing gets nothing, and the answer looks the same');
   await svc.requestMyDocuments(' ADA@example.com ');
-  const link = /\/sign\/my#(\S+)/.exec(mail[0].text)?.[1];
+  const link = /\/sign#(\S+)/.exec(mail[0].text)?.[1];
   assert.ok(link, 'the email carries a one-time link');
   const { sessionId } = await svc.openMyDocuments(link);
   await assert.rejects(svc.openMyDocuments(link), httpError(400), 'it works once');

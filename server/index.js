@@ -668,6 +668,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // The old signers' page is now /sign itself. Browsers carry a link's #code
+    // across the redirect, so links already in inboxes still open.
+    if (pathname === '/sign/my' || pathname === '/sign/my/') {
+      res.writeHead(301, { Location: '/sign', 'Cache-Control': 'no-cache' });
+      res.end();
+      return;
+    }
+
     if (isSignPage(pathname)) {
       await serveSignPage(res);
       return;

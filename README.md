@@ -184,7 +184,8 @@ sign-in link to the full documents page. Anyone else gets a one-time link (sent
 only if that address has documents) to a page of just their own: what is waiting
 for them, what they have signed, and what is complete, with a button to sign or
 download each. The page says the same either way, so it never reveals who is on
-the team. Every signing email links there; older `/sign/my` links still work.
+the team. Every signing email links there. The old `/sign/my` address redirects to `/sign`,
+so links already sent still open.
 
 When a PDF is uploaded, the editor reads it for places to fill in and adds fields
 for the first signer to check: signature lines (`Signature: ____`, `By:`), dates,

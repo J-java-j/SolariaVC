@@ -69,6 +69,7 @@ export default function App() {
   if (path === '/s') return <Signer />;
   if (path === '/sign/verify') return <Verify />;
   if (path === '/sign/login') return <LoginLanding />;
-  if (path === '/sign/my') return <MyDocuments />;
+  // A signer's emailed link: /sign#code. (Team sign-in links use /sign/login.)
+  if (path === '/sign' && window.location.hash.length > 1) return <MyDocuments />;
   return <SenderApp path={path} />;
 }

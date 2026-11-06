@@ -674,7 +674,7 @@ export function createSignService({ store, config, mail, log = console }) {
     },
 
     // ---- a signer's own documents --------------------------------------------
-    // Anyone sent a document can see all of theirs at /sign/my after proving the
+    // Anyone sent a document can see all of theirs at /sign after proving the
     // address by email. Answers the same whether or not the address has documents.
     async requestMyDocuments(emailInput) {
       const email = String(emailInput ?? '').trim().toLowerCase();
@@ -687,7 +687,7 @@ export function createSignService({ store, config, mail, log = console }) {
       if (earlier) await store.deleteRecord('my_logins', earlier.tokenHash);
       await store.putRecord('my_logins', sha256Hex(token), { email, expiresAt: new Date(Date.now() + TIMES.loginToken).toISOString() });
       await store.putRecord('my_latest', person, { tokenHash: sha256Hex(token) });
-      await mail({ to: email, ...myDocumentsEmail({ url: `${config.baseUrl}/sign/my#${token}` }) });
+      await mail({ to: email, ...myDocumentsEmail({ url: `${config.baseUrl}/sign#${token}` }) });
     },
 
     async openMyDocuments(token) {
@@ -1087,7 +1087,7 @@ export function createSignService({ store, config, mail, log = console }) {
             if (!result?.ok) throw new Error('reminder failed');
           } else {
             const envs = await Promise.all(person.docs.map(({ id }) => requireEnvelope(id)));
-            const url = `${config.baseUrl}/sign/my#${await myDocumentsLink(email)}`;
+            const url = `${config.baseUrl}/sign#${await myDocumentsLink(email)}`;
             const messageId = await mail({ to: email, ...digestReminderEmail({ name: person.name, senders: [...new Map(envs.map((e) => [e.sender.email, e.sender])).values()], titles: envs.map((e) => e.title), url }) });
             for (const { id, recipientId } of person.docs) {
               await mutate(id, (fresh) => {
