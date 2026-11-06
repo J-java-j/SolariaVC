@@ -184,7 +184,11 @@ sign-in link to the full documents page. Anyone else gets a one-time link (sent
 only if that address has documents) to a page of just their own: what is waiting
 for them, what they have signed, and what is complete, with a button to sign or
 download each. The page says the same either way, so it never reveals who is on
-the team. Every signing email links there. The old `/sign/my` address redirects to `/sign`,
+the team. Every signing email opens this page rather than the one document: it
+names the new document, lists anything else still waiting for that person's
+signature, and its button signs them straight in. The button stays valid until the
+document's deadline (at least 14 days), and the last ten such links per person all
+work, so an older email still opens. The old `/sign/my` address redirects to `/sign`,
 so links already sent still open.
 
 When a PDF is uploaded, the editor reads it for places to fill in and adds fields

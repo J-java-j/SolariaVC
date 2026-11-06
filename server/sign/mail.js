@@ -31,27 +31,40 @@ ${body}${cta}${small}
 </td></tr></table></body></html>`;
 }
 
-export function signRequestEmail({ env, rec, url, reminder }) {
+// Points to the signer's documents page rather than one document, and names
+// anything else still waiting on them, so one place holds everything to sign.
+export function signRequestEmail({ env, rec, url, reminder, others = [] }) {
   const senderName = env.sender.name;
   const codeNote = rec.requireCode ? ' You will be asked for a code we email to you.' : '';
+  const total = others.length;
+  const more = total
+    ? `You also have ${total === 1 ? 'one other document' : `${total} other documents`} waiting for your signature:`
+    : '';
+  const until = new Date(env.expiresAt).toUTCString().slice(5, 16);
+  // Two copies with one title read as "NDA (2 copies)".
+  const counts = new Map();
+  for (const t of others) counts.set(t, (counts.get(t) ?? 0) + 1);
+  others = [...counts].map(([t, n]) => (n > 1 ? `${t} (${n} copies)` : t));
   return {
     subject: `${reminder ? 'Reminder: ' : ''}${senderName} sent you "${env.title}" to sign`,
     replyTo: env.sender.email,
+    envelopeId: env.id,
     html: layout({
-      heading: `${esc(senderName)} sent you a document to sign`,
+      heading: `${esc(senderName)} sent you ${esc(env.title)} to sign`,
       paragraphs: [
-        `<strong>${esc(env.title)}</strong>`,
         ...(env.message ? [esc(env.message).replace(/\n/g, '<br>')] : []),
+        `Open your documents page to review and sign it.`,
+        ...(more ? [esc(more), `<ul style="margin:0;padding-left:20px;">${others.map((t) => `<li style="margin:0 0 4px;">${esc(t)}</li>`).join('')}</ul>`] : []),
       ],
-      button: { url, label: 'Review and sign' },
-      note: `This link is personal to you, so please don't forward it.${esc(codeNote)} It works until ${esc(new Date(env.expiresAt).toUTCString().slice(5, 16))}. You can ask for a paper version at any time. To see everything you've been sent in one place, go to ${esc(`${new URL(url).origin}/sign`)}.`,
+      button: { url, label: total ? 'Open my documents' : 'Review and sign' },
+      note: `This link is personal to you, so please don't forward it.${esc(codeNote)} Please sign by ${esc(until)}. You can ask for a paper version at any time. If the link stops working, go to ${esc(`${new URL(url).origin}/sign`)} and enter your email.`,
     }),
     text: [
-      `${senderName} sent you a document to sign: ${env.title}`,
+      `${senderName} sent you ${env.title} to sign.`,
       env.message || null,
-      `Review and sign: ${url}`,
+      more ? `${more}\n${others.map((t) => `- ${t}`).join('\n')}` : null,
+      `Open your documents to review and sign: ${url}`,
       `This link is personal to you, so please don't forward it.${codeNote}`,
-      `Everything you've been sent, in one place: ${new URL(url).origin}/sign`,
     ].filter(Boolean).join('\n\n'),
   };
 }

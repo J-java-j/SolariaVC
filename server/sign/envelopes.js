@@ -156,6 +156,7 @@ function bulkList(input) {
 }
 
 const LIST_LIMIT = 500;
+const MY_LINKS_KEPT = 10;
 
 export function createSignService({ store, config, mail, log = console }) {
   const signerUrl = (token) => `${config.baseUrl}/s#${token}`;
@@ -206,7 +207,12 @@ export function createSignService({ store, config, mail, log = console }) {
           await mail({ to: env.sender.email, ...nextSignerEmail({ env, rec, url: adminUrl(env.id) }) });
           return null;
         }
-        const message = signRequestEmail({ env, rec, url: signerUrl(notice.token), reminder });
+        // The email opens the signer's documents page, where this one waits with
+        // anything else of theirs. The link lasts as long as the document does.
+        const others = await waitingTitles(rec.email, env.id);
+        const until = Math.max(Date.now() + 14 * 86_400_000, Date.parse(env.expiresAt) || 0);
+        const url = `${config.baseUrl}/sign#${await myDocumentsLink(rec.email, until)}`;
+        const message = signRequestEmail({ env, rec, url, reminder, others });
         return { rec, messageId: await mail({ to: rec.email, ...message }), ok: true };
       } catch (e) {
         log.error('[sign] request email failed:', e.message);
@@ -641,14 +647,29 @@ export function createSignService({ store, config, mail, log = console }) {
   // A link into someone's documents page, sent in a reminder. Unlike a requested
   // link it can be opened more than once until it lapses, like a signing link, and
   // a newer reminder replaces it.
-  async function myDocumentsLink(email) {
+  // Every signing email carries one, so the last few stay valid: someone sent four
+  // documents in a row can use the button in any of the four emails.
+  async function myDocumentsLink(email, until = Date.now() + 14 * 86_400_000) {
     const token = randomSecret();
     const person = sha256Hex(email);
     const earlier = await store.getRecord('my_link_latest', person);
-    if (earlier) await store.deleteRecord('my_links', earlier.tokenHash);
-    await store.putRecord('my_links', sha256Hex(token), { email, expiresAt: new Date(Date.now() + 14 * 86_400_000).toISOString() });
-    await store.putRecord('my_link_latest', person, { tokenHash: sha256Hex(token) });
+    const kept = [...(earlier?.tokenHashes ?? (earlier?.tokenHash ? [earlier.tokenHash] : []))];
+    while (kept.length >= MY_LINKS_KEPT) await store.deleteRecord('my_links', kept.shift());
+    await store.putRecord('my_links', sha256Hex(token), { email, expiresAt: new Date(until).toISOString() });
+    await store.putRecord('my_link_latest', person, { tokenHashes: [...kept, sha256Hex(token)] });
     return token;
+  }
+
+  // Titles of the other documents waiting on this address. A bulk send asks once
+  // per person in quick succession, so the list is read at most every few seconds.
+  let recent = { at: 0, envs: [] };
+  async function waitingTitles(email, exceptId) {
+    if (Date.now() - recent.at > 5000) recent = { at: Date.now(), envs: await store.listEnvelopes(LIST_LIMIT) };
+    return recent.envs
+      .filter((env) => env.id !== exceptId && !env.deletedAt && env.status === 'sent')
+      .filter((env) => signersOf(env).some((r) => r.email === email && signerState(env, r, false) === 'sign'))
+      .map((env) => env.title)
+      .slice(0, 20);
   }
 
   return {

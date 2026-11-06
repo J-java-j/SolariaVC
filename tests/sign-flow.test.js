@@ -29,7 +29,7 @@ test('two signers and a copy recipient reach a sealed, delivered document', asyn
   });
   await sent(svc, env);
 
-  const [toAda, toKarl] = ['ada@example.com', 'karl@example.com'].map((to) => linkIn(mail.find((m) => m.to === to)));
+  const [toAda, toKarl] = await Promise.all(['ada@example.com', 'karl@example.com'].map((to) => linkIn(svc, mail.find((m) => m.to === to))));
   assert.ok(toAda && toKarl, 'both signers were emailed a link');
   assert.equal(mail.some((m) => m.to === 'records@example.com'), false, 'a copy recipient gets nothing until the end');
 
@@ -67,7 +67,7 @@ test('two signers and a copy recipient reach a sealed, delivered document', asyn
   assert.ok(copies.every((m) => m.attachments?.length === 1), 'every party got the file');
   assert.ok(copies[0].text.includes(view.sealed.sha256), 'the email carries the hash the file cannot hold');
 
-  const toRecords = linkIn(copies.find((m) => m.to === 'records@example.com'));
+  const toRecords = await linkIn(svc, copies.find((m) => m.to === 'records@example.com'));
   const file = await svc.signerSealedFile(toRecords);
   assert.equal(sha256Hex(file.bytes), view.sealed.sha256);
 });
@@ -78,11 +78,11 @@ test('signers go in order, and a later signer cannot act early', async (t) => {
   await sent(svc, env);
   assert.deepEqual(mail.map((m) => m.to), ['ada@example.com'], 'only the first signer is told');
 
-  await signAs(svc, linkIn(mail[0]), { name: 'Ada Investor' });
+  await signAs(svc, await linkIn(svc, mail[0]), { name: 'Ada Investor' });
   const toKarl = mail.find((m) => m.to === 'karl@example.com');
   assert.ok(toKarl, 'the next signer is told once it is their turn');
 
-  const session = await svc.signerSession(linkIn(toKarl));
+  const session = await svc.signerSession(await linkIn(svc, toKarl));
   assert.equal(session.state, 'sign');
   assert.equal(session.others.length, 1, 'they see what the first signer placed');
   assert.match(session.others[0].image, /^data:image\/png;base64,/);
@@ -134,7 +134,7 @@ test('a code link shows where things stand once there is nothing to sign', async
   assert.equal(waiting.state, 'waiting', 'a code cannot be sent yet, so none is asked for');
   assert.equal(waiting.title, undefined);
 
-  const ada = linkIn(mail[0]);
+  const ada = await linkIn(svc, mail[0]);
   await svc.sendCode(ada, INFO);
   const code = /(\d{6})/.exec(mail[1].subject)[1];
   const { verified } = await svc.verifyCode(ada, code, INFO);
@@ -171,7 +171,7 @@ test('a signature needs consent, intent and a rendered document', async (t) => {
   const { svc, sent: mail } = harness(t);
   const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
   await sent(svc, env);
-  const token = linkIn(mail[0]);
+  const token = await linkIn(svc, mail[0]);
 
   await assert.rejects(svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: false }, INFO), httpError(400));
   await assert.rejects(svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO), httpError(409));
@@ -203,7 +203,7 @@ test('required fields are enforced, and values and marks land on the record', as
     ],
   });
   await sent(svc, env);
-  const token = linkIn(mail[0]);
+  const token = await linkIn(svc, mail[0]);
   await svc.recordViewed(token, undefined, INFO);
   await svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO);
 
@@ -230,7 +230,7 @@ test('declining stops everyone and reaches the sender', async (t) => {
   const { svc, sent: mail } = harness(t);
   const env = await draft(svc);
   await sent(svc, env);
-  const [ada, karl] = [linkIn(mail[0]), linkIn(mail[1])];
+  const [ada, karl] = [await linkIn(svc, mail[0]), await linkIn(svc, mail[1])];
   await svc.decline(ada, undefined, { reason: 'Wrong amount' }, INFO);
   assert.equal((await svc.signerSession(karl)).state, 'declined');
   await assert.rejects(signAs(svc, karl), httpError(409));
@@ -243,7 +243,7 @@ test('asking for paper is recorded as the signer withdrawing, with no reason nee
   const { svc, sent: mail } = harness(t);
   const env = await draft(svc);
   await sent(svc, env);
-  await svc.decline(linkIn(mail[0]), undefined, { paper: true }, INFO);
+  await svc.decline(await linkIn(svc, mail[0]), undefined, { paper: true }, INFO);
   const view = await svc.getEnvelope(env.id);
   assert.equal(view.status, 'declined');
   assert.ok(view.events.some((e) => e.type === 'recipient.paper_requested'));
@@ -253,7 +253,7 @@ test('voiding kills every link and tells those already contacted', async (t) => 
   const { svc, sent: mail } = harness(t);
   const env = await draft(svc);
   await sent(svc, env);
-  const token = linkIn(mail[0]);
+  const token = await linkIn(svc, mail[0]);
   await assert.rejects(svc.voidEnvelope(env.id, ' ', SENDER, INFO), httpError(400));
   await svc.voidEnvelope(env.id, 'Terms changed', SENDER, INFO);
   assert.equal((await svc.signerSession(token)).state, 'voided');
@@ -269,7 +269,7 @@ test('an expired document cannot be signed', async (t) => {
   const current = await store.getEnvelope(env.id);
   current.data.expiresAt = new Date(Date.now() - 1000).toISOString();
   await store.saveEnvelope(current.data, current.rev);
-  const token = linkIn(mail[0]);
+  const token = await linkIn(svc, mail[0]);
   assert.equal((await svc.signerSession(token)).state, 'expired');
   await assert.rejects(signAs(svc, token), httpError(409));
   assert.equal((await svc.getEnvelope(env.id)).status, 'expired');
@@ -279,7 +279,7 @@ test('forged and replaced links are refused', async (t) => {
   const { svc, sent: mail } = harness(t);
   const env = await draft(svc);
   await sent(svc, env);
-  const token = linkIn(mail[0]);
+  const token = await linkIn(svc, mail[0]);
   const [envelopeId, recipientId] = token.split('.');
 
   await assert.rejects(svc.signerSession('nonsense'), httpError(404));
@@ -297,10 +297,10 @@ test('a reminder leaves the first email working', async (t) => {
   const { svc, sent: mail } = harness(t);
   const env = await draft(svc);
   await sent(svc, env);
-  const first = linkIn(mail[0]);
+  const first = await linkIn(svc, mail[0]);
   const view = await svc.getEnvelope(env.id);
   await svc.remind(env.id, view.recipients[0].id);
-  const second = linkIn(mail.at(-1));
+  const second = await linkIn(svc, mail.at(-1));
   assert.notEqual(first, second);
   assert.equal((await svc.signerSession(first)).state, 'sign');
   assert.equal((await svc.signerSession(second)).state, 'sign');
@@ -310,7 +310,7 @@ test('a double submit records one signature, and simultaneous last signers seal 
   const { svc, sent: mail } = harness(t);
   const env = await draft(svc);
   await sent(svc, env);
-  const [ada, karl] = [linkIn(mail[0]), linkIn(mail[1])];
+  const [ada, karl] = [await linkIn(svc, mail[0]), await linkIn(svc, mail[1])];
   for (const token of [ada, karl]) {
     await svc.recordViewed(token, undefined, INFO);
     await svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO);
@@ -338,8 +338,8 @@ test('email trouble is visible and recoverable, and never loses a signature', as
 
   failMailWhen(() => false);
   await svc.remind(env.id, view.recipients.find((r) => r.email === 'karl@example.com').id);
-  const ada = linkIn(mail.find((m) => m.to === 'ada@example.com'));
-  const karl = linkIn(mail.find((m) => m.to === 'karl@example.com'));
+  const ada = await linkIn(svc, mail.find((m) => m.to === 'ada@example.com'));
+  const karl = await linkIn(svc, mail.find((m) => m.to === 'karl@example.com'));
   await signAs(svc, ada);
 
   failMailWhen((m) => m.to === 'ada@example.com');
@@ -358,7 +358,7 @@ test('a sealing failure keeps every signature and can be retried', async (t) => 
   const { svc, store, sent: mail } = harness(t);
   const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
   await sent(svc, env);
-  const token = linkIn(mail[0]);
+  const token = await linkIn(svc, mail[0]);
 
   const realGet = store.getBlob;
   store.getBlob = async () => { throw new Error('storage is down'); };
@@ -379,7 +379,7 @@ test('a changed stored original refuses to seal', async (t) => {
   const key = (await store.getEnvelope(env.id)).data.document.key;
   const realGet = store.getBlob;
   store.getBlob = async (k) => (k === key ? makePdf(1) : realGet(k));
-  const session = await signAs(svc, linkIn(mail[0]));
+  const session = await signAs(svc, await linkIn(svc, mail[0]));
   assert.equal(session.state, 'sealing');
   assert.equal((await svc.getEnvelope(env.id)).sealed, null);
 });
@@ -395,7 +395,7 @@ test('editing any audit event breaks the chain', async (t) => {
   const { svc, sent: mail } = harness(t);
   const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
   await sent(svc, env);
-  await signAs(svc, linkIn(mail[0]));
+  await signAs(svc, await linkIn(svc, mail[0]));
   const view = await svc.getEnvelope(env.id);
   const store = (await import('../server/sign/crypto.js'));
   const raw = view.events.map((e) => ({ seq: e.seq, at: e.at, type: e.type, hash: e.hash }));
@@ -404,7 +404,7 @@ test('editing any audit event breaks the chain', async (t) => {
   const { svc: other, store: otherStore, sent: otherMail } = harness(t);
   const second = await draft(other, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
   await sent(other, second);
-  await signAs(other, linkIn(otherMail[0]));
+  await signAs(other, await linkIn(other, otherMail[0]));
   const stored = (await otherStore.getEnvelope(second.id)).data.events;
   assert.equal(store.verifyChain(stored), true);
 
@@ -644,7 +644,7 @@ test('deleting moves documents, drafts included, to Deleted, and signers keep th
   const stray = await draft(svc);
   const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
   await sent(svc, env);
-  const token = linkIn(mail.find((m) => m.to === 'ada@example.com'));
+  const token = await linkIn(svc, mail.find((m) => m.to === 'ada@example.com'));
 
   await assert.rejects(svc.deleteEnvelopes([env.id], SENDER, INFO), httpError(409), 'it must be voided first');
   assert.equal((await svc.getEnvelope(env.id)).deletedAt, null);
@@ -666,9 +666,9 @@ test('deleting moves documents, drafts included, to Deleted, and signers keep th
   assert.equal((await svc.listEnvelopes()).find((e) => e.id === env.id).deletedAt, hidden.deletedAt, 'the list carries it for the Deleted folder');
 
   const copy = mail.find((m) => m.subject.startsWith('Completed') && m.to === 'ada@example.com');
-  const session = await svc.signerSession(linkIn(copy));
+  const session = await svc.signerSession(await linkIn(svc, copy));
   assert.equal(session.state, 'completed', 'the emailed copy link still works');
-  const { bytes } = await svc.signerSealedFile(linkIn(copy));
+  const { bytes } = await svc.signerSealedFile(await linkIn(svc, copy));
   assert.equal((await svc.verifyHash(sha256Hex(bytes))).found, true, 'and so does checking the file');
 
   const events = hidden.events.length;
@@ -692,9 +692,9 @@ test('only the owner can erase a document, and only from Deleted', async (t) => 
 
   const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
   await sent(svc, env);
-  await signAs(svc, linkIn(mail.find((m) => m.to === 'ada@example.com')), { name: 'Ada' });
+  await signAs(svc, await linkIn(svc, mail.find((m) => m.to === 'ada@example.com')), { name: 'Ada' });
   const copy = mail.find((m) => m.subject.startsWith('Completed') && m.to === 'ada@example.com');
-  const { bytes } = await svc.signerSealedFile(linkIn(copy));
+  const { bytes } = await svc.signerSealedFile(await linkIn(svc, copy));
   const sealed = await svc.getEnvelope(env.id);
 
   await assert.rejects(svc.eraseEnvelopes(owner, [env.id]), httpError(409), 'it has to be in Deleted first');
@@ -708,7 +708,7 @@ test('only the owner can erase a document, and only from Deleted', async (t) => 
   assert.deepEqual(await svc.verifyHash(sha256Hex(bytes)), { found: false }, 'the file no longer checks out');
   assert.equal(await store.getRecord('hashes', sealed.sealed.sha256), null);
   assert.equal(await store.getBlob(sealed.document.key ?? `envelopes/${env.id}/original.pdf`), null, 'the original is gone');
-  await assert.rejects(svc.signerSession(linkIn(copy)), httpError(404), 'the copy link stops working');
+  await assert.rejects(svc.signerSession(await linkIn(svc, copy)), httpError(404), 'the copy link stops working');
   await assert.rejects(svc.eraseEnvelopes(owner, [env.id]), httpError(404));
 });
 
@@ -740,9 +740,9 @@ test('a voided document can be deleted, and every signer hears when all have sig
   const env = await draft(svc);
   await sent(svc, env);
   const [ada, karl] = ['ada@example.com', 'karl@example.com'].map((to) => mail.filter((m) => m.to === to && /Subscription Agreement" to sign/.test(m.subject)).at(-1));
-  await signAs(svc, linkIn(ada), { name: 'Ada' });
+  await signAs(svc, await linkIn(svc, ada), { name: 'Ada' });
   assert.equal(mail.filter((m) => m.subject.startsWith('Completed')).length, 0, 'nobody hears until everyone has signed');
-  await signAs(svc, linkIn(karl), { name: 'Karl' });
+  await signAs(svc, await linkIn(svc, karl), { name: 'Karl' });
   const done = mail.filter((m) => m.subject.startsWith('Completed'));
   assert.deepEqual(done.map((m) => m.to).sort(), ['ada@example.com', SENDER.email, 'karl@example.com'].sort());
   assert.ok(done.every((m) => m.attachments?.length === 1), 'each one carries the signed PDF');
@@ -758,7 +758,7 @@ test('non-Latin names and values seal, keeping pages and text', async (t) => {
     ],
   });
   await sent(svc, env);
-  const token = linkIn(mail[0]);
+  const token = await linkIn(svc, mail[0]);
   await svc.recordViewed(token, undefined, INFO);
   await svc.recordConsent(token, undefined, { version: '2026-10-31', previewed: true }, INFO);
   const fields = (await svc.signerSession(token)).fields;
@@ -850,7 +850,7 @@ test('a bulk send gives each person their own envelope and leaves the draft for 
   }
 
   // One person signing touches only their own copy.
-  const ada = linkIn(mail.find((m) => m.to === 'ada@example.com'));
+  const ada = await linkIn(svc, mail.find((m) => m.to === 'ada@example.com'));
   await signAs(svc, ada, { name: 'Ada Hire' });
   const statuses = await Promise.all(results.map(async (r) => (await svc.getEnvelope(r.id)).recipients[0].status));
   assert.equal(statuses[0], 'signed');
@@ -915,6 +915,25 @@ test('several documents can be voided at once, and a stale selection voids none'
   await assert.rejects(svc.voidEnvelopes([one.id], 'Again', SENDER, INFO), httpError(409));
 });
 
+test('a signing email opens the documents page and names what else is waiting', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const first = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
+  await sent(svc, first);
+  const second = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
+  await sent(svc, second);
+  const [one, two] = mail.filter((m) => m.to === 'ada@example.com');
+  assert.match(one.text, /\/sign#\S+/);
+  assert.doesNotMatch(one.text, /\/s#/, 'no direct document link');
+  assert.doesNotMatch(one.text, /other document/);
+  assert.match(two.text, /one other document waiting/);
+  assert.match(two.text, new RegExp(`- ${first.title}`));
+  // Both emails' buttons work.
+  for (const m of [one, two]) {
+    const { sessionId } = await svc.openMyDocuments(/\/sign#(\S+)/.exec(m.text)[1]);
+    assert.equal(await svc.myEmail(sessionId), 'ada@example.com');
+  }
+});
+
 test('reminding many documents emails each person once, with everything waiting for them', async (t) => {
   const { svc, sent: mail } = harness(t);
   const both = await draft(svc);
@@ -923,7 +942,7 @@ test('reminding many documents emails each person once, with everything waiting 
   const mine = await draft(svc, { recipients: [{ id: 'a', name: 'Johnson Jiang', email: SENDER.email }, { id: 'b', name: 'By Link', email: 'link@example.com', delivery: 'link' }] });
   const solo = await draft(svc, { recipients: [{ id: 'c', name: 'Cy Solo', email: 'cy@example.com' }] });
   for (const env of [both, half, ordered, mine, solo]) await sent(svc, env);
-  await signAs(svc, linkIn(mail.find((m) => m.to === 'ada@example.com' && m.text.includes(half.id))), { name: 'Ada' });
+  await signAs(svc, await linkIn(svc, mail.find((m) => m.to === 'ada@example.com' && m.envelopeId === half.id)), { name: 'Ada' });
   const unsent = await draft(svc);
 
   mail.length = 0;
@@ -942,11 +961,13 @@ test('reminding many documents emails each person once, with everything waiting 
   assert.equal((await svc.listMyDocuments('ada@example.com')).filter((d) => d.state === 'sign').length, 2);
 
   const toCy = mail.find((m) => m.to === 'cy@example.com');
-  assert.ok(linkIn(toCy) && toCy.subject.startsWith('Reminder:'), 'a single document links straight to it');
+  assert.ok(await linkIn(svc, toCy) && toCy.subject.startsWith('Reminder:'), 'a single document gets its own reminder');
   assert.equal((await svc.getEnvelope(both.id)).events.filter((e) => e.type === 'recipient.reminded').length, 2);
 
   await svc.remindEnvelopes([both.id, ordered.id], SENDER);
-  await assert.rejects(svc.openMyDocuments(link), httpError(400), 'a newer reminder replaces the old link');
+  assert.ok((await svc.openMyDocuments(link)).sessionId, 'an earlier email still opens after a newer one');
+  for (let i = 0; i < 10; i++) await svc.remindEnvelopes([both.id, ordered.id], SENDER);
+  await assert.rejects(svc.openMyDocuments(link), httpError(400), 'only the most recent links stay valid');
 });
 
 test('a sender signs their own place on many copies from the documents page', async (t) => {
@@ -958,7 +979,7 @@ test('a sender signs their own place on many copies from the documents page', as
   const { results } = await svc.bulkSend(template.id, SENDER, INFO, { recipientId: template.recipients[0].id, people });
   const [first] = await Promise.all(results.map((r) => svc.getEnvelope(r.id)));
   // Ada signs first, so Johnson's signature finishes her copy.
-  await signAs(svc, linkIn(mail.find((m) => m.to === 'ada@example.com')), { name: 'Ada' });
+  await signAs(svc, await linkIn(svc, mail.find((m) => m.to === 'ada@example.com')), { name: 'Ada' });
 
   const body = { rendered: [first.document.sha256], consent: true, disclosureVersion: '2026-10-31', intent: true, signature: mark('Johnson Jiang'), timeZone: 'America/Los_Angeles' };
   const other = { email: 'karl@solariavc.com', name: 'Karl' };

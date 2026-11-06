@@ -69,7 +69,17 @@ export function harness(t, { tsaUrls = [] } = {}) {
   return { svc, store, sent, failMailWhen: (fn) => { failMail = fn; } };
 }
 
-export const linkIn = (message) => /\/s#(\S+)/.exec(message.text)?.[1];
+// A signing email opens the signer's documents page; this follows it to the
+// document the email is about and returns that document's signing token.
+export async function linkIn(svc, message) {
+  const direct = /\/s#(\S+)/.exec(message?.text ?? '')?.[1];
+  if (direct) return direct;
+  const code = /\/sign#(\S+)/.exec(message?.text ?? '')?.[1];
+  if (!code || !message.envelopeId) return undefined;
+  const { sessionId } = await svc.openMyDocuments(code);
+  const { url } = await svc.openMyDocument(await svc.myEmail(sessionId), message.envelopeId);
+  return /\/s#(\S+)/.exec(url)[1];
+}
 
 // A two-signer document with a signature field each, ready to send.
 export async function draft(svc, { recipients, sequential = false, fields } = {}) {

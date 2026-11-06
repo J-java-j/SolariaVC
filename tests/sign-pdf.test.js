@@ -161,7 +161,7 @@ test('without a timestamp the file still completes, with no empty signature fiel
   const { svc, store, sent } = harness(t, { tsaUrls: ['http://127.0.0.1:9/never'] });
   const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada', email: 'ada@example.com' }] });
   await svc.send(env.id, SENDER, INFO);
-  await signAs(svc, linkIn(sent[0]));
+  await signAs(svc, await linkIn(svc, sent[0]));
   const view = await svc.getEnvelope(env.id);
   assert.equal(view.status, 'completed');
   assert.equal(view.sealed.timestamp, null);
@@ -186,8 +186,8 @@ test('a real timestamp seals the whole file and any change breaks it', { timeout
   });
   const env = await draft(svc);
   await svc.send(env.id, SENDER, INFO);
-  await signAs(svc, linkIn(sent[0]), { name: 'Ada Investor' });
-  await signAs(svc, linkIn(sent[1]), { name: 'Karl Partner' });
+  await signAs(svc, await linkIn(svc, sent[0]), { name: 'Ada Investor' });
+  await signAs(svc, await linkIn(svc, sent[1]), { name: 'Karl Partner' });
 
   const view = await svc.getEnvelope(env.id);
   assert.equal(view.status, 'completed');
