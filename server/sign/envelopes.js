@@ -131,6 +131,14 @@ function assertReadyToSend(env) {
   }
 }
 
+// Copies from one bulk send share a batch, so the documents list can show them as one row.
+// Older copies only carry it on their first event.
+function batchOf(env) {
+  if (env.batch) return env.batch;
+  const first = env.events?.[0]?.details;
+  return first?.batch ? { id: first.batch, size: first.of } : null;
+}
+
 // A pasted list of people for a bulk send. Rows that repeat an address are refused
 // rather than dropped, so nobody is left out without the sender seeing why.
 function bulkList(input) {
@@ -146,6 +154,8 @@ function bulkList(input) {
     return { name, email };
   });
 }
+
+const LIST_LIMIT = 500;
 
 export function createSignService({ store, config, mail, log = console }) {
   const signerUrl = (token) => `${config.baseUrl}/s#${token}`;
@@ -465,6 +475,7 @@ export function createSignService({ store, config, mail, log = console }) {
       recipients: env.recipients.map(publicRecipient),
       folderId: env.folderId ?? null,
       deletedAt: env.deletedAt ?? null,
+      batch: batchOf(env),
     };
     if (!full) return summary;
     return {
@@ -559,6 +570,7 @@ export function createSignService({ store, config, mail, log = console }) {
       sealed: null,
       events: [],
       folderId: source.folderId ?? null,
+      ...(details.batch ? { batch: { id: details.batch, size: details.of } } : {}),
     };
     appendEvent(env, 'envelope.created', {
       actor: senderActor(sender),
@@ -684,7 +696,8 @@ export function createSignService({ store, config, mail, log = console }) {
 
     // ---- sender -----------------------------------------------------------
     async listEnvelopes() {
-      const envelopes = await store.listEnvelopes(200);
+      // Bulk sends add up fast, and the list folds each batch into one row.
+      const envelopes = await store.listEnvelopes(LIST_LIMIT);
       return envelopes.map((env) => adminView(env, { full: false }));
     },
 

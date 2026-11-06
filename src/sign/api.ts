@@ -58,6 +58,8 @@ export type EnvelopeSummary = {
   recipients: Recipient[];
   folderId: string | null;
   deletedAt: string | null;
+  // Set on each copy from one bulk send.
+  batch: { id: string; size: number } | null;
 };
 
 export type Envelope = EnvelopeSummary & {

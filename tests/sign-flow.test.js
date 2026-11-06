@@ -835,6 +835,11 @@ test('a bulk send gives each person their own envelope and leaves the draft for 
     assert.equal(verifyChain((await store.getEnvelope(r.id)).data.events), true);
   }
   assert.equal(new Set(results.map((r) => r.id)).size, 3);
+  const listed = (await svc.listEnvelopes()).filter((e) => e.batch);
+  assert.equal(listed.length, 3, 'every copy is marked with its batch');
+  assert.equal(new Set(listed.map((e) => e.batch.id)).size, 1);
+  assert.equal(listed[0].batch.size, 3);
+  assert.equal((await svc.listEnvelopes()).find((e) => e.id === template.id).batch, null, 'the draft is not part of it');
   for (const p of ['ada@example.com', 'bo@example.com', 'cy@example.com', 'johnsonjiang@solariavc.com']) {
     assert.equal(mail.filter((m) => m.to === p).length, p.startsWith('johnson') ? 3 : 1, `${p} got the right number of emails`);
   }

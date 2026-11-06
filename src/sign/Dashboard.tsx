@@ -4,18 +4,68 @@ import { Link, navigate } from './router';
 import { formatDate, Notice, Sheet, SignerDots, statusLabel, useBusy } from './ui';
 
 const MAX_UPLOAD = 20 * 1024 * 1024;
-const LIST_LIMIT = 200;
+const LIST_LIMIT = 500;
 const ALL = 'all';
 const DELETED = 'deleted';
 const NO_FOLDER = 'none';
 const VIEW_KEY = 'solaria-sign-view';
 
-const GROUPS: [string, (e: EnvelopeSummary) => boolean][] = [
-  ['Drafts', (e) => e.status === 'draft'],
-  ['Out for signature', (e) => e.status === 'sent'],
-  ['Completed', (e) => e.status === 'completed'],
-  ['Closed', (e) => e.status === 'declined' || e.status === 'voided' || e.status === 'expired'],
+type Status = EnvelopeSummary['status'];
+
+const GROUPS: [string, (status: Status) => boolean][] = [
+  ['Drafts', (s) => s === 'draft'],
+  ['Out for signature', (s) => s === 'sent'],
+  ['Completed', (s) => s === 'completed'],
+  ['Closed', (s) => s === 'declined' || s === 'voided' || s === 'expired'],
 ];
+
+// A bulk send is one row, filed where its liveliest copy belongs: out for
+// signature while anyone still has to sign, then completed, then closed.
+type Item =
+  | { kind: 'one'; env: EnvelopeSummary; status: Status }
+  | { kind: 'batch'; id: string; envs: EnvelopeSummary[]; status: Status };
+
+function itemsOf(envs: EnvelopeSummary[]): Item[] {
+  const items: Item[] = [];
+  const batches = new Map<string, Extract<Item, { kind: 'batch' }>>();
+  for (const env of envs) {
+    if (!env.batch) {
+      items.push({ kind: 'one', env, status: env.status });
+      continue;
+    }
+    let batch = batches.get(env.batch.id);
+    if (!batch) {
+      batch = { kind: 'batch', id: env.batch.id, envs: [], status: env.status };
+      batches.set(env.batch.id, batch);
+      items.push(batch);
+    }
+    batch.envs.push(env);
+  }
+  for (const batch of batches.values()) {
+    const has = (status: Status) => batch.envs.some((e) => e.status === status);
+    batch.status = batch.envs.length === 1 ? batch.envs[0].status : has('sent') ? 'sent' : has('completed') ? 'completed' : 'voided';
+  }
+  // A batch of one is just a document.
+  return items.map((item) => (item.kind === 'batch' && item.envs.length === 1 ? { kind: 'one', env: item.envs[0], status: item.status } : item));
+}
+
+// The person a copy was sent to is the signer who differs from copy to copy.
+function byPerson(envs: EnvelopeSummary[]): [EnvelopeSummary, string][] {
+  const signers = (env: EnvelopeSummary) => env.recipients.filter((r) => r.role === 'signer');
+  const shared = new Set(signers(envs[0]).map((r) => r.email).filter((email) => envs.every((env) => signers(env).some((r) => r.email === email))));
+  return envs
+    .map((env): [EnvelopeSummary, string] => [env, (signers(env).find((r) => !shared.has(r.email)) ?? signers(env)[0])?.name ?? ''])
+    .sort((a, b) => a[1].localeCompare(b[1], undefined, { numeric: true }));
+}
+
+function batchSummary(envs: EnvelopeSummary[]) {
+  const count = (status: Status) => envs.filter((e) => e.status === status).length;
+  const parts = [`${count('completed')} of ${envs.length} complete`];
+  for (const [status, label] of [['declined', 'declined'], ['voided', 'voided'], ['expired', 'expired']] as const) {
+    if (count(status)) parts.push(`${count(status)} ${label}`);
+  }
+  return parts.join(' · ');
+}
 
 function people(env: EnvelopeSummary) {
   const names = env.recipients.filter((r) => r.role === 'signer').map((r) => r.name).filter(Boolean);
@@ -150,6 +200,48 @@ function EraseSheet({ count, onClose, onConfirm }: { count: number; onClose: () 
   );
 }
 
+function PickBox({ label, rows, picked, onChange }: { label: string; rows: EnvelopeSummary[]; picked: ReadonlySet<string>; onChange: () => void }) {
+  const all = rows.every((env) => picked.has(env.id));
+  const some = rows.some((env) => picked.has(env.id));
+  return (
+    <label className="pick">
+      <input
+        type="checkbox"
+        aria-label={label}
+        checked={all}
+        ref={(box) => {
+          if (box) box.indeterminate = some && !all;
+        }}
+        onChange={onChange}
+      />
+    </label>
+  );
+}
+
+// Inside a batch the title is the same on every row, so the person leads instead.
+function DocRow({ env, picked, showSender, onToggle, person }: {
+  env: EnvelopeSummary;
+  picked: ReadonlySet<string>;
+  showSender: boolean;
+  onToggle: () => void;
+  person?: string;
+}) {
+  const title = env.title || 'Untitled document';
+  return (
+    <li className="row-item">
+      <label className="pick">
+        <input type="checkbox" aria-label={`Select ${person ? `${person}'s copy` : title}`} checked={picked.has(env.id)} onChange={onToggle} />
+      </label>
+      <Link to={`/sign/e/${env.id}`} className="row">
+        <span className="row-title">{person ?? title}</span>
+        <span className="row-people">{person ? env.recipients.find((r) => r.name === person)?.email : people(env)}</span>
+        <SignerDots recipients={env.recipients} />
+        <span className="row-when">{when(env)}{showSender && ` by ${env.sender.name}`}</span>
+      </Link>
+    </li>
+  );
+}
+
 export default function Dashboard({ user }: { user: { owner: boolean } }) {
   const [envelopes, setEnvelopes] = useState<EnvelopeSummary[] | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -199,6 +291,12 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
       else next.add(env.id);
     }
     setPicked(next);
+  };
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
+  const flip = (id: string) => {
+    const next = new Set(opened);
+    if (!next.delete(id)) next.add(id);
+    setOpened(next);
   };
   const allPicked = shown.length > 0 && shown.every((env) => picked.has(env.id));
 
@@ -346,43 +444,41 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
           </p>
         )}
         {GROUPS.map(([title, match]) => {
-          const rows = shown.filter(match);
-          if (!rows.length) return null;
+          const items = itemsOf(shown).filter((item) => match(item.status));
+          if (!items.length) return null;
+          const rows = items.flatMap((item) => (item.kind === 'one' ? [item.env] : item.envs));
           return (
             <section key={title}>
               <h2 className="group-head">
-                <label className="pick">
-                  <input
-                    type="checkbox"
-                    aria-label={`Select all ${title.toLowerCase()}`}
-                    checked={rows.every((env) => picked.has(env.id))}
-                    ref={(box) => {
-                      if (box) box.indeterminate = rows.some((env) => picked.has(env.id)) && !rows.every((env) => picked.has(env.id));
-                    }}
-                    onChange={() => toggleAll(rows)}
-                  />
-                </label>
-                {title} ({rows.length})
+                <PickBox label={`Select all ${title.toLowerCase()}`} rows={rows} picked={picked} onChange={() => toggleAll(rows)} />
+                {title} ({items.length})
               </h2>
               <ul>
-                {rows.map((env) => (
-                  <li key={env.id} className="row-item">
-                    <label className="pick">
-                      <input
-                        type="checkbox"
-                        aria-label={`Select ${env.title || 'Untitled document'}`}
-                        checked={picked.has(env.id)}
-                        onChange={() => toggle(env.id)}
-                      />
-                    </label>
-                    <Link to={`/sign/e/${env.id}`} className="row">
-                      <span className="row-title">{env.title || 'Untitled document'}</span>
-                      <span className="row-people">{people(env)}</span>
-                      <SignerDots recipients={env.recipients} />
-                      <span className="row-when">{when(env)}{senders.size > 1 && ` by ${env.sender.name}`}</span>
-                    </Link>
-                  </li>
-                ))}
+                {items.map((item) => (item.kind === 'one'
+                  ? <DocRow key={item.env.id} env={item.env} picked={picked} showSender={senders.size > 1} onToggle={() => toggle(item.env.id)} />
+                  : (
+                    <li key={item.id} className="batch">
+                      <div className="row-item">
+                        <PickBox label={`Select all ${item.envs.length} copies of ${item.envs[0].title}`} rows={item.envs} picked={picked} onChange={() => toggleAll(item.envs)} />
+                        <button type="button" className="row row-batch" aria-expanded={opened.has(item.id)} onClick={() => flip(item.id)}>
+                          <span className="row-title">{item.envs[0].title || 'Untitled document'}</span>
+                          <span className="row-people"><span className="batch-count">{item.envs.length} people</span> sent as a list</span>
+                          <span className="batch-bar" role="img" aria-label={batchSummary(item.envs)}>
+                            <i style={{ width: `${(100 * item.envs.filter((e) => e.status === 'completed').length) / item.envs.length}%` }} />
+                          </span>
+                          <span className="row-when">{batchSummary(item.envs)}</span>
+                          <span className="batch-chevron" aria-hidden="true" />
+                        </button>
+                      </div>
+                      {opened.has(item.id) && (
+                        <ul className="batch-list">
+                          {byPerson(item.envs).map(([env, person]) => (
+                            <DocRow key={env.id} env={env} person={person} picked={picked} showSender={senders.size > 1} onToggle={() => toggle(env.id)} />
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  )))}
               </ul>
             </section>
           );

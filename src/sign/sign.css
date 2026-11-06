@@ -402,6 +402,14 @@ img { display: block; max-width: 100%; }
   text-decoration: none;
 }
 .row:hover { background: var(--paper-tint); }
+.row-batch { position: relative; width: 100%; padding-right: 34px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.batch-count { color: var(--ink); font-weight: 600; }
+.batch-bar { display: block; height: 6px; overflow: hidden; border-radius: 3px; background: var(--paper-line); }
+.batch-bar i { display: block; height: 100%; background: var(--title-green); }
+.batch-chevron { position: absolute; top: 50%; right: 14px; width: 8px; height: 8px; margin-top: -6px; border-right: 1.5px solid var(--ink-soft); border-bottom: 1.5px solid var(--ink-soft); transform: rotate(45deg); transition: transform .15s, margin-top .15s; }
+.row-batch[aria-expanded='true'] .batch-chevron { margin-top: -2px; transform: rotate(225deg); }
+.batch-list { margin: 0 0 8px 34px; border-left: 2px solid var(--paper-line); }
+.batch-list .row-item:first-child { border-top: 1px dashed var(--paper-line); }
 .row-title { overflow: hidden; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .row-people, .row-when { overflow: hidden; color: var(--ink-soft); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .ledger-filter { max-width: 240px; margin-top: 12px; }
