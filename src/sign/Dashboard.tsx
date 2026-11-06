@@ -190,6 +190,18 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
     setPicked(new Set());
   };
 
+  // Ticks every row given, or clears them if they are all ticked already.
+  const toggleAll = (rows: EnvelopeSummary[]) => {
+    const next = new Set(picked);
+    const all = rows.every((env) => next.has(env.id));
+    for (const env of rows) {
+      if (all) next.delete(env.id);
+      else next.add(env.id);
+    }
+    setPicked(next);
+  };
+  const allPicked = shown.length > 0 && shown.every((env) => picked.has(env.id));
+
   const toggle = (id: string) => {
     const next = new Set(picked);
     if (!next.delete(id)) next.add(id);
@@ -319,8 +331,12 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
                   <button type="button" className="quiet quiet-danger" disabled={busy || stillOut} onClick={() => setSheet('delete')}>Delete</button>
                 </>
               )}
+            {!allPicked && <button type="button" className="quiet" onClick={() => toggleAll(shown)}>Select all {shown.length}</button>}
             <button type="button" className="quiet" onClick={() => setPicked(new Set())}>Clear</button>
           </div>
+        )}
+        {selected.length === 0 && shown.length > 1 && (
+          <button type="button" className="quiet select-all" onClick={() => toggleAll(shown)}>Select all</button>
         )}
         {stillOut && !inDeleted && <p className="muted">To delete a document that is out for signature, void it first.</p>}
 
@@ -334,7 +350,20 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
           if (!rows.length) return null;
           return (
             <section key={title}>
-              <h2>{title} ({rows.length})</h2>
+              <h2 className="group-head">
+                <label className="pick">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select all ${title.toLowerCase()}`}
+                    checked={rows.every((env) => picked.has(env.id))}
+                    ref={(box) => {
+                      if (box) box.indeterminate = rows.some((env) => picked.has(env.id)) && !rows.every((env) => picked.has(env.id));
+                    }}
+                    onChange={() => toggleAll(rows)}
+                  />
+                </label>
+                {title} ({rows.length})
+              </h2>
               <ul>
                 {rows.map((env) => (
                   <li key={env.id} className="row-item">

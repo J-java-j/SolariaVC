@@ -388,6 +388,9 @@ img { display: block; max-width: 100%; }
 .picked strong { font-size: 15px; }
 .picked select { max-width: 220px; min-height: 38px; padding: 6px 8px; border: 0; border-bottom: 1.5px solid var(--title-green); background: var(--paper); font-size: 15px; }
 .row-item { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; border-top: 1px solid var(--paper-line); }
+.group-head { display: flex; align-items: center; }
+.group-head .pick { min-height: 32px; }
+.select-all { display: block; margin: 14px 0 -14px auto; font-size: 14px; }
 .pick { display: grid; place-items: center; width: 34px; min-height: 44px; cursor: pointer; }
 .pick input { width: 18px; height: 18px; accent-color: var(--title-green); }
 .row {
