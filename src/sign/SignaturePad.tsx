@@ -51,11 +51,6 @@ function DrawPad({ onChange }: { onChange: (canvas: HTMLCanvasElement | null) =>
   const ratio = useRef(1);
   const last = useRef<Nib | null>(null);
   const [inked, setInked] = useState(false);
-  // On a trackpad, a click puts the pen down and the next click lifts it, so a
-  // signature can be swiped without holding the button. A press-and-drag still
-  // draws as usual, and touch and stylus draw while touching.
-  const [penDown, setPenDown] = useState(false);
-  const pressed = useRef<{ x: number; y: number; dragged: boolean } | null>(null);
 
   const reset = () => {
     const canvas = box.current!;
@@ -66,8 +61,6 @@ function DrawPad({ onChange }: { onChange: (canvas: HTMLCanvasElement | null) =>
     context.lineCap = 'round';
     context.strokeStyle = INK;
     setInked(false);
-    setPenDown(false);
-    last.current = null;
     onChange(null);
   };
   useEffect(reset, []);
@@ -80,35 +73,15 @@ function DrawPad({ onChange }: { onChange: (canvas: HTMLCanvasElement | null) =>
     return { x: (e.clientX - rect.left) * scale, y: (e.clientY - rect.top) * scale, time: e.timeStamp };
   };
 
-  const begin = (e: PointerEvent<HTMLCanvasElement>) => {
+  const start = (e: PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
     const at = point(e);
     last.current = { ...at, width: MAX_WIDTH * 0.7, midX: at.x, midY: at.y };
-  };
-
-  const start = (e: PointerEvent<HTMLCanvasElement>) => {
-    if (e.pointerType !== 'mouse') {
-      e.currentTarget.setPointerCapture(e.pointerId);
-      begin(e);
-      return;
-    }
-    // A click while the pen is down lifts it.
-    if (penDown) {
-      finish(e.currentTarget);
-      setPenDown(false);
-      pressed.current = null;
-      return;
-    }
-    e.currentTarget.setPointerCapture(e.pointerId);
-    pressed.current = { x: e.clientX, y: e.clientY, dragged: false };
-    begin(e);
   };
 
   // Faster strokes run thinner, the way a real nib does.
   const move = (e: PointerEvent<HTMLCanvasElement>) => {
     if (!last.current) return;
-    if (pressed.current && !pressed.current.dragged && Math.hypot(e.clientX - pressed.current.x, e.clientY - pressed.current.y) > 4) {
-      pressed.current.dragged = true;
-    }
     const context = e.currentTarget.getContext('2d')!;
     const events = e.nativeEvent.getCoalescedEvents?.() ?? [];
     for (const event of events.length ? events : [e.nativeEvent]) {
@@ -132,22 +105,7 @@ function DrawPad({ onChange }: { onChange: (canvas: HTMLCanvasElement | null) =>
 
   const end = (e: PointerEvent<HTMLCanvasElement>) => {
     if (!last.current) return;
-    if (e.pointerType === 'mouse' && e.type === 'pointerup') {
-      const press = pressed.current;
-      pressed.current = null;
-      // A click without dragging leaves the pen down until the next click.
-      if (press && !press.dragged) {
-        setPenDown(true);
-        return;
-      }
-    }
-    finish(e.currentTarget);
-    setPenDown(false);
-  };
-
-  const finish = (canvas: HTMLCanvasElement) => {
-    if (!last.current) return;
-    const context = canvas.getContext('2d')!;
+    const context = e.currentTarget.getContext('2d')!;
     const { x, y, width, midX, midY } = last.current;
     context.lineWidth = width * ratio.current;
     context.beginPath();
@@ -156,18 +114,11 @@ function DrawPad({ onChange }: { onChange: (canvas: HTMLCanvasElement | null) =>
     context.stroke();
     last.current = null;
     setInked(true);
-    onChange(canvas);
-  };
-
-  // Moving off the pad lifts the pen.
-  const leave = (e: PointerEvent<HTMLCanvasElement>) => {
-    if (!penDown) return;
-    finish(e.currentTarget);
-    setPenDown(false);
+    onChange(e.currentTarget);
   };
 
   return (
-    <div className={`pad${penDown ? ' pad-pen' : ''}`}>
+    <div className="pad">
       <canvas
         ref={box}
         className="pad-canvas"
@@ -176,11 +127,7 @@ function DrawPad({ onChange }: { onChange: (canvas: HTMLCanvasElement | null) =>
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
-        onPointerLeave={leave}
       />
-      <span className="pad-hint" aria-live="polite">
-        {penDown ? 'Pen down: swipe to sign, click to lift the pen.' : inked ? 'Click to put the pen down again.' : 'Click once, then swipe on the trackpad to sign. Or draw with your finger.'}
-      </span>
       <span className="pad-line" aria-hidden="true" />
       {inked && <button type="button" className="quiet pad-clear" onClick={reset}>Clear</button>}
     </div>

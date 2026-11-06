@@ -177,10 +177,7 @@ shown before it can be signed. Each copy still gets its own viewed, agreed and
 signed entries in its audit trail, marked as signed from the documents page. Each text
 blank (Title, Email) gets its own numbered box matching a numbered marker on the
 document, and its answer is filled on every copy (Email starts as your address).
-Signatures are drawn by default. On a trackpad there is no need to hold the
-button: click once to put the pen down, swipe to sign, and click again to lift it
-(moving off the pad lifts it too). Press-and-drag, touch and stylus draw as usual,
-and Type is there as an alternative. A document with a checkbox only you can tick has to be signed
+Signatures are drawn by default, with Type as an alternative. A document with a checkbox only you can tick has to be signed
 from its email.
 
 `/sign` is one door for everyone. A team member who enters their address gets a
