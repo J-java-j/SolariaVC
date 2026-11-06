@@ -9,30 +9,14 @@ export type PortfolioCompany = {
   imageFit?: 'cover' | 'logo';
 };
 
-/** Set false when real portfolio companies are ready — removes overlay and restores scroll depth. */
-export const PORTFOLIO_COMING_SOON = false;
+/**
+ * While true, the Portfolio showcase sits dimmed under a "Coming Soon" stamp.
+ * Set false once real portfolio companies are listed below — removes the overlay and restores scroll depth.
+ */
+export const PORTFOLIO_COMING_SOON = true;
 
+/** Ssam.ai and Match'a were removed on purpose; they remain in git history. */
 export const portfolioCompanies: PortfolioCompany[] = [
-  {
-    name: 'Ssam.ai',
-    tagline:
-      'An AI study workspace that reads handwritten work, understands where students get stuck, and delivers personalized hints instead of answers—keeping students engaged in the learning process.',
-    tags: ['EdTech', 'B2C', 'B2B'],
-    status: 'Portfolio',
-    stage: 'Pre-seed',
-    imageUrl: '/portfolio/ssam-ai.png',
-    imageFit: 'logo',
-  },
-  {
-    name: 'Match\u2019a',
-    tagline:
-      "An AI agent-to-agent social matching platform that introduces the right people before they ever meet. Match'a builds rich context, evaluates mutual compatibility and intent, and delivers explained introductions across dating, friendship, and professional networking.",
-    tags: ['Consumer AI', 'Social', 'B2C'],
-    status: 'Portfolio',
-    stage: 'Pre-seed',
-    imageUrl: '/portfolio/matcha.png',
-    imageFit: 'logo',
-  },
   {
     name: 'Your company',
     tagline: 'The next breakthrough.',

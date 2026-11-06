@@ -20,7 +20,7 @@ export default function Community() {
             <SectionIntro
               eyebrow="Community"
               title="A network for people who build."
-              description="Solaria VC is more than a check — it's founders, researchers, and operators in the same room, learning from each other and pushing frontier work forward."
+              description="Solaria Capital is more than a check — it's founders, researchers, and operators in the same room, learning from each other and pushing frontier work forward."
             />
             <p className="mt-5 max-w-md text-body text-[var(--fg-muted)]">
               Open to ambitious students, alumni founders, and collaborators across campus.

@@ -45,7 +45,7 @@ export default function Nav() {
         <a href="#top" className="flex items-center gap-3.5">
           <Mark size={atHero ? 44 : 36} />
           <span className="nav-brand font-semibold leading-none tracking-tight text-[var(--fg)]">
-            Solaria VC
+            Solaria Capital
           </span>
         </a>
 

@@ -10,10 +10,21 @@ export default function Footer() {
           <div className="sm:col-span-6">
             <div className="flex items-center gap-2.5">
               <Mark size={32} />
-              <span className="text-[22px] font-semibold tracking-tight">Solaria VC</span>
+              <span className="text-[22px] font-semibold tracking-tight">Solaria Capital</span>
             </div>
             <p className="mt-6 max-w-md text-body text-[var(--ink-soft)]">
               Student venture capital for frontier builders at UC San Diego.
+            </p>
+            <p className="mt-3 max-w-md text-[15px] leading-relaxed text-[var(--ink-soft)]">
+              Supported by the{' '}
+              <a
+                href="https://rady.ucsd.edu/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ulink-rev hover:text-[var(--ink)]"
+              >
+                Rady School of Management
+              </a>.
             </p>
           </div>
           <div className="sm:col-span-3">

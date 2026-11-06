@@ -188,7 +188,7 @@ export default function Staff() {
           className="flex items-center gap-3 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent-soft)]"
         >
           <Mark size={36} />
-          <span className="text-[20px] font-semibold leading-none tracking-tight">Solaria VC</span>
+          <span className="text-[20px] font-semibold leading-none tracking-tight">Solaria Capital</span>
         </a>
         <a href="/" className="text-[16px] text-[var(--fg-muted)] transition-colors hover:text-[var(--fg)]">
           Back to the site

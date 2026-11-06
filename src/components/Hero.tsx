@@ -42,18 +42,18 @@ export default function Hero() {
 
           <h1 className="hero-headline">
             <span className="hero-headline__line hero-headline__primary">
-              <span className="hero-headline__word">Backing</span>{' '}
-              <span className="hero-headline__word">Builders</span>
+              <span className="hero-headline__word">Back</span>{' '}
+              <span className="hero-headline__word">It</span>,
             </span>
             <span className="hero-headline__line hero-headline__secondary">
-              <span className="hero-headline__word">at</span>{' '}
-              <span className="hero-headline__word">the</span>{' '}
-              <span className="hero-headline__word">Frontier.</span>
+              <span className="hero-headline__word">Before</span>{' '}
+              <span className="hero-headline__word">It</span>{' '}
+              <span className="hero-headline__word">Rises.</span>
             </span>
           </h1>
 
           <p className="hero-lede">
-            Solaria VC is a student-led venture platform — sourcing startups, writing first
+            Solaria Capital is a student-led venture platform — sourcing startups, writing first
             checks, and building a community around ambitious founders and frontier technology.
           </p>
         </motion.div>

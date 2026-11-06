@@ -12,6 +12,8 @@ type PortraitFit = {
   brightness?: number;
   /** Darkens image edges to tone down bright backgrounds (0–1). */
   vignette?: number;
+  /** Horizontal nudge in px on the image; positive shifts the subject right in the frame. */
+  shiftX?: number;
 };
 
 /** Karl Li is the brightness reference (brightness 1). */
@@ -20,16 +22,16 @@ const PORTRAIT_BRIGHTNESS_DEFAULT = 1.1;
 
 /** Esteban Reyes is the shoulder-margin reference (scale 1.24). */
 const PORTRAIT_FIT_BY_IMAGE: Record<string, PortraitFit> = {
-  '/team/esteban-reyes.png': { y: 6, scale: 1.24, brightness: 1.1, vignette: 0.34 },
-  '/team/monica.png': { x: 58, y: 5, scale: 1.45, brightness: 1.1 },
-  '/team/daniel-zhang.png': { x: 56, y: 5, scale: 1.56, brightness: 1.1 },
-  '/team/johnson-jiang.png': { y: 6, scale: 1.24, brightness: 1.1 },
-  '/team/kail-li.png': { x: 58, y: 13, scale: 1.45, brightness: PORTRAIT_BRIGHTNESS_REFERENCE },
-  '/team/jack-zhang.png': { x: 63, y: 7, scale: 1.24, brightness: 1.1 },
-  '/team/greesh.png': { y: 6, scale: 1.24, brightness: 1.12 },
-  '/team/placeholder.png': { y: 6, scale: 1.24, brightness: 1.48 },
-  '/team/placeholder-3.png': { y: 6, scale: 1.24, brightness: 1.15 },
-  '/team/elliott-yaroslavsky.png': { y: 50, scale: 1, brightness: 1 },
+  '/team/esteban-reyes.png': { y: 6, scale: 1.24, brightness: 1 },
+  '/team/monica.png': { x: 62, y: 5, scale: 1.45, brightness: 1 },
+  '/team/daniel-zhang.png': { x: 86, y: 0, scale: 1.04, brightness: 1 },
+  '/team/johnson-jiang.png': { y: 6, scale: 1.24, brightness: 1 },
+  '/team/kail-li.png': { x: 65, y: 13, scale: 1.45, brightness: 1 },
+  '/team/jack-zhang.png': { x: 63, y: 7, scale: 1.24, brightness: 1 },
+  '/team/greesh.png': { x: 54, y: 6, scale: 1.24, brightness: 1 },
+  '/team/placeholder.png': { x: 54, y: 6, scale: 1.24, brightness: 1 },
+  '/team/placeholder-3.png': { x: 60, y: 6, scale: 1.24, brightness: 1 },
+  '/team/elliott-yaroslavsky.png': { x: 16, y: 50, scale: 1, brightness: 1, shiftX: 8 },
 };
 
 function portraitFitFor(imageUrl?: string): PortraitFit {
@@ -100,7 +102,7 @@ function PortraitTile({
 
   return (
     <div
-      className={`${dims} relative mb-5 overflow-hidden border border-[var(--border-strong)] bg-[var(--bg-soft)]`}
+      className={`${dims} relative mb-5 overflow-hidden`}
       aria-hidden={!imageUrl}
     >
       {imageUrl ? (
@@ -111,7 +113,7 @@ function PortraitTile({
             className="h-full w-full max-w-none object-cover"
             style={{
               objectPosition: `${fit.x ?? 50}% ${fit.y}%`,
-              transform: `scale(${fit.scale})`,
+              transform: `scale(${fit.scale}) translateX(${fit.shiftX ?? 0}px)`,
               transformOrigin: `${fit.x ?? 50}% top`,
               filter: portraitImageFilter(fit.brightness ?? PORTRAIT_BRIGHTNESS_DEFAULT),
             }}
