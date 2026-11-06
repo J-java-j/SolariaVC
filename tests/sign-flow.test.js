@@ -639,7 +639,7 @@ test('documents move between folders, and a deleted folder leaves them in place'
   assert.equal((await svc.listEnvelopes()).length, 3);
 });
 
-test('deleting erases drafts and only hides everything else, and signers keep their copies', async (t) => {
+test('deleting moves documents, drafts included, to Deleted, and signers keep their copies', async (t) => {
   const { svc, sent: mail } = harness(t);
   const stray = await draft(svc);
   const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
@@ -651,14 +651,19 @@ test('deleting erases drafts and only hides everything else, and signers keep th
 
   await signAs(svc, token, { name: 'Ada' });
   await svc.deleteEnvelopes([env.id, stray.id], SENDER, INFO);
-  await assert.rejects(svc.getEnvelope(stray.id), httpError(404), 'a draft is gone');
+  const binned = await svc.getEnvelope(stray.id);
+  assert.ok(binned.deletedAt, 'a draft waits in Deleted too');
+  await assert.rejects(svc.updateDraft(stray.id, { title: 'X', recipients: [], fields: [] }), httpError(409), 'and cannot be edited there');
+  await assert.rejects(svc.send(stray.id, SENDER, INFO), httpError(409), 'or sent');
+  await svc.restoreEnvelopes([stray.id], SENDER, INFO);
+  assert.equal((await svc.getEnvelope(stray.id)).status, 'draft');
 
   const hidden = await svc.getEnvelope(env.id);
   assert.ok(hidden.deletedAt);
   assert.equal(hidden.status, 'completed');
   assert.equal(hidden.chainValid, true);
   assert.equal(hidden.events.at(-1).label, 'Moved to Deleted');
-  assert.equal((await svc.listEnvelopes())[0].deletedAt, hidden.deletedAt, 'the list carries it for the Deleted folder');
+  assert.equal((await svc.listEnvelopes()).find((e) => e.id === env.id).deletedAt, hidden.deletedAt, 'the list carries it for the Deleted folder');
 
   const copy = mail.find((m) => m.subject.startsWith('Completed') && m.to === 'ada@example.com');
   const session = await svc.signerSession(linkIn(copy));

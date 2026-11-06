@@ -274,13 +274,23 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
   const inFolder = (id: string) => live.filter((env) => env.folderId === id);
   const inView = inDeleted ? deleted : folder ? inFolder(folder.id) : live;
   const senders = new Map((envelopes ?? []).map((env) => [env.sender.email, env.sender.name] as const));
-  const shown = inView.filter((env) => !sentBy || env.sender.email === sentBy);
+  const [query, setQuery] = useState('');
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  // Matches every word typed against the title and everyone on the document.
+  const matches = (env: EnvelopeSummary) => {
+    if (!terms.length) return true;
+    const text = [env.title, env.reference, ...env.recipients.flatMap((r) => [r.name, r.email])].join(' ').toLowerCase();
+    return terms.every((term) => text.includes(term));
+  };
+  const shown = inView.filter((env) => (!sentBy || env.sender.email === sentBy) && matches(env));
   const selected = shown.filter((env) => picked.has(env.id));
   const stillOut = selected.some((env) => env.status === 'sent');
   const voidable = selected.filter((env) => env.status === 'sent' && !env.sealing);
   // Who a reminder would reach: emailed signers whose turn it is, other than you.
   const due = voidable.flatMap((env) => env.recipients.filter((r) => r.role === 'signer' && r.delivery === 'email' && r.email !== user.email && r.status !== 'signed' && r.status !== 'waiting'));
   const [notice, setNotice] = useState('');
+  // The documents the last delete moved, so it can be undone.
+  const [undo, setUndo] = useState<string[] | null>(null);
 
   const open = (next: string) => {
     setView(next);
@@ -380,7 +390,23 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
           <input ref={picker} type="file" accept="application/pdf,.pdf" hidden onChange={pick} />
         </header>
         {error && <Notice>{error}</Notice>}
-        {notice && <Notice tone="quiet">{notice}</Notice>}
+        {notice && (
+          <div className="toast" role="status">
+            <span>{notice}</span>
+            {undo && (
+              <>
+                <button type="button" className="quiet" disabled={busy} onClick={() => run(async () => {
+                  await api.restoreDocuments(undo);
+                  setUndo(null);
+                  setNotice(`Restored ${undo.length === 1 ? 'the document' : `${undo.length} documents`}.`);
+                  await load();
+                })}>Undo</button>
+                {!inDeleted && <button type="button" className="quiet" onClick={() => open(DELETED)}>Open Deleted</button>}
+              </>
+            )}
+            <button type="button" className="quiet toast-close" aria-label="Dismiss" onClick={() => { setNotice(''); setUndo(null); }}>×</button>
+          </div>
+        )}
         {mine.length > 0 && !inDeleted && (
           <div className="mine">
             <span><strong>{mine.length === 1 ? '1 document is' : `${mine.length} documents are`} waiting for your signature.</strong> Sign them here without opening each email.</span>
@@ -393,8 +419,18 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
           <nav className="folders" aria-label="Folders">
             {tab(ALL, 'All documents', live.length)}
             {folders.map((f) => tab(f.id, f.name, inFolder(f.id).length))}
-            {(deleted.length > 0 || inDeleted) && tab(DELETED, 'Deleted', deleted.length)}
             <button type="button" className="quiet" onClick={() => setSheet('new')}>New folder</button>
+            <button
+              type="button"
+              className="folder-deleted"
+              aria-current={inDeleted ? 'true' : undefined}
+              onClick={() => open(DELETED)}
+            >
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5M6.8 7v4M9.2 7v4" />
+              </svg>
+              Deleted ({deleted.length})
+            </button>
           </nav>
         )}
         {folder && (
@@ -403,8 +439,30 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
             <button type="button" className="quiet quiet-danger" onClick={() => setSheet('delete-folder')}>Delete folder</button>
           </div>
         )}
-        {inDeleted && <p className="muted">Documents here stay on record and can be restored. Signers keep their copies and links.</p>}
+        {inDeleted && <p className="muted">Deleted documents wait here until you restore them. Signers keep their copies and links.{user.owner ? ' Only you, as owner, can delete them forever.' : ''}</p>}
 
+        {envelopes && !empty && (
+          <div className="ledger-tools">
+            <label className="search">
+              <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="7" cy="7" r="4.5" /><path d="M10.5 10.5L14 14" />
+              </svg>
+              <input
+                type="search"
+                aria-label="Search documents"
+                placeholder="Search by title, name or email"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPicked(new Set());
+                }}
+              />
+            </label>
+            {selected.length === 0 && shown.length > 1 && (
+              <button type="button" className="quiet" onClick={() => toggleAll(shown)}>Select all {shown.length}</button>
+            )}
+          </div>
+        )}
         {senders.size > 1 && (
           <label className="field ledger-filter">
             Sent by
@@ -447,14 +505,14 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
             <button type="button" className="quiet" onClick={() => setPicked(new Set())}>Clear</button>
           </div>
         )}
-        {selected.length === 0 && shown.length > 1 && (
-          <button type="button" className="quiet select-all" onClick={() => toggleAll(shown)}>Select all</button>
-        )}
         {stillOut && !inDeleted && <p className="muted">To delete a document that is out for signature, void it first.</p>}
 
         {envelopes && !empty && !shown.length && (
           <p className="ledger-empty">
-            {folder ? 'This folder is empty. Select documents in All documents and move them here, or upload a PDF while this folder is open.' : 'Nothing here.'}
+            {terms.length ? `Nothing matches "${query.trim()}".`
+              : inDeleted ? 'Nothing deleted. When you delete documents, they wait here so you can restore them.'
+              : folder ? 'This folder is empty. Select documents in All documents and move them here, or upload a PDF while this folder is open.'
+              : 'Nothing here.'}
           </p>
         )}
         {GROUPS.map(([title, match]) => {
@@ -547,10 +605,12 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
           onClose={() => setSheet(null)}
           onConfirm={async () => {
             await api.deleteDocuments(ids);
+            setUndo(ids);
+            setNotice(`Moved ${ids.length === 1 ? '1 document' : `${ids.length} documents`} to Deleted.`);
             await finish();
           }}
         >
-          <p>Drafts are erased for good. Anything else moves to Deleted, where you can restore it. Signers keep their copies either way.</p>
+          <p>{selected.length === 1 ? 'It moves' : 'They move'} to the Deleted folder, where you can restore {selected.length === 1 ? 'it' : 'them'}. Signers keep their copies.</p>
         </ConfirmSheet>
       )}
       {sheet === 'remind' && (
@@ -562,6 +622,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
           onClose={() => setSheet(null)}
           onConfirm={async () => {
             const sent = await api.remindDocuments(voidable.map((env) => env.id));
+            setUndo(null);
             setNotice(sent.failed.length
               ? `Reminded ${sent.reminded}. Email to ${sent.failed.join(', ')} did not go through.`
               : `Reminded ${sent.reminded} ${sent.reminded === 1 ? 'person' : 'people'}.`);

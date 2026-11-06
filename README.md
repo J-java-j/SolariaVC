@@ -172,9 +172,10 @@ signed entries in its audit trail, marked as signed from the documents page. A
 document with text or checkbox fields only you can fill in has to be signed from
 its email.
 
-Documents can be sorted into folders. Deleting a draft erases it. Deleting
-anything else moves it to the Deleted folder, where it can be restored, and
-signers keep their links. From there the owner can delete it forever, which
+Documents can be sorted into folders, and the list can be searched by title,
+name or email. Deleting anything, drafts included, moves it to the Deleted
+folder (always shown beside the folders), with Undo right after; it can be
+restored from there, and signers keep their links. From there the owner can delete it forever, which
 erases its files, including older stored versions, its audit trail and its
 `/sign/verify` record. Emailed copies stay with the people who received them, and
 the bucket's soft delete policy keeps erased files recoverable in Google Cloud for

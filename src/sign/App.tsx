@@ -5,13 +5,31 @@ import SignQueue from './SignQueue';
 import Detail from './Detail';
 import Editor from './Editor';
 import { Login, LoginLanding } from './Login';
-import { usePath } from './router';
+import { Link, usePath } from './router';
 import Signer from './Signer';
 import Team from './Team';
-import { Loading, PageMessage, Shell } from './ui';
+import { Loading, Notice, PageMessage, Shell, useBusy } from './ui';
 import Verify from './Verify';
 
 export type User = { name: string; email: string; owner: boolean };
+
+// A deleted draft can't be edited until it is back among the documents.
+function DeletedDraft({ env, onRestored }: { env: Envelope; onRestored: () => void }) {
+  const { busy, error, run } = useBusy();
+  return (
+    <PageMessage title={`"${env.title || 'Untitled document'}" is in Deleted`}>
+      <p>Restore this draft to keep working on it.</p>
+      {error && <Notice>{error}</Notice>}
+      <div className="actions">
+        <button type="button" className="primary" disabled={busy} onClick={() => run(async () => {
+          await api.restoreDocuments([env.id]);
+          onRestored();
+        })}>Restore draft</button>
+        <Link to="/sign" className="link">Back to documents</Link>
+      </div>
+    </PageMessage>
+  );
+}
 
 function EnvelopePage({ id, user }: { id: string; user: User }) {
   const [env, setEnv] = useState<Envelope | null>(null);
@@ -24,6 +42,7 @@ function EnvelopePage({ id, user }: { id: string; user: User }) {
 
   if (error) return <Shell user={user}><PageMessage title={error} /></Shell>;
   if (!env) return <Loading />;
+  if (env.status === 'draft' && env.deletedAt) return <Shell user={user}><DeletedDraft env={env} onRestored={reload} /></Shell>;
   if (env.status === 'draft') return <Editor key={env.id} env={env} user={user} onSent={setEnv} />;
   return <Shell user={user}><Detail key={env.id} env={env} onChange={setEnv} /></Shell>;
 }

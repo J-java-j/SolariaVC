@@ -130,6 +130,14 @@ export default function Detail({ env, onChange }: { env: Envelope; onChange: (en
   const finish = () => run(async () => onChange(await api.finish(env.id)));
   const retryTimestamp = () => run(async () => onChange(await api.timestamp(env.id)));
   const downloadSealed = () => run(async () => saveFile(await api.sealed(env.id), signedFileName(env.title)));
+  const restore = () => run(async () => {
+    await api.restoreDocuments([env.id]);
+    await refresh();
+  });
+  const remove = () => run(async () => {
+    await api.deleteDocuments([env.id]);
+    await refresh();
+  });
   const downloadOriginal = () => run(async () => saveFile(await api.original(env.id), env.document.fileName));
 
   const stamp = env.sealed?.timestamp;
@@ -146,7 +154,12 @@ export default function Detail({ env, onChange }: { env: Envelope; onChange: (en
             {env.completedAt && <span className="muted">{formatDateTime(env.completedAt)}</span>}
           </p>
           <p className="muted">Reference {env.reference}</p>
-          {env.deletedAt && <Notice tone="quiet">This document is in Deleted. You can restore it from the Deleted folder.</Notice>}
+          {env.deletedAt && (
+            <div className="toast">
+              <span>This document is in the Deleted folder.</span>
+              <button type="button" className="secondary" disabled={busy} onClick={restore}>Restore</button>
+            </div>
+          )}
 
           {env.sealError && (
             <div className="stack">
@@ -164,6 +177,7 @@ export default function Detail({ env, onChange }: { env: Envelope; onChange: (en
             <button type="button" className="secondary" disabled={busy} onClick={downloadOriginal}>Download original</button>
             <button type="button" className="quiet" disabled={busy} onClick={useAgain}>Use again</button>
             {env.status === 'sent' && !env.sealing && <button type="button" className="quiet quiet-danger" onClick={() => setVoiding(true)}>Void</button>}
+            {env.status !== 'sent' && !env.deletedAt && <button type="button" className="quiet quiet-danger" disabled={busy} onClick={remove}>Move to Deleted</button>}
           </div>
 
           <h2>People</h2>

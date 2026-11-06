@@ -794,6 +794,7 @@ export function createSignService({ store, config, mail, log = console }) {
     async updateDraft(id, body) {
       const { env } = await mutate(id, (fresh) => {
         if (fresh.status !== 'draft') throw new HttpError(409, 'This document has already been sent.');
+        if (fresh.deletedAt) throw new HttpError(409, 'This draft is in Deleted. Restore it first.');
         fresh.title = cleanText(body.title, LIMITS.title, 'Title');
         fresh.message = cleanText(body.message, LIMITS.message, 'Message');
         fresh.sequential = body.sequential === true;
@@ -817,12 +818,8 @@ export function createSignService({ store, config, mail, log = console }) {
     // firm's lists and can be restored: signers keep their links and /sign/verify
     // still answers, until an owner erases it.
     async deleteEnvelopes(idsInput, sender, info) {
+      // Drafts go to Deleted too, so nothing vanishes from one click.
       for (const id of selection(idsInput)) {
-        const { status } = await requireEnvelope(id);
-        if (status === 'draft') {
-          await this.deleteDraft(id);
-          continue;
-        }
         await mutate(id, (fresh) => {
           if (effectiveStatus(fresh) === 'sent') {
             throw new HttpError(409, `"${fresh.title}" is out for signature. Void it before deleting it.`);
@@ -882,6 +879,7 @@ export function createSignService({ store, config, mail, log = console }) {
     async bulkSend(id, sender, info, body) {
       const source = await requireEnvelope(id);
       if (source.status !== 'draft') throw new HttpError(409, 'Only a draft can be sent to a list.');
+      if (source.deletedAt) throw new HttpError(409, 'This draft is in Deleted. Restore it first.');
       const slot = source.recipients.find((r) => r.id === body?.recipientId && r.role === 'signer');
       if (!slot) throw new HttpError(400, 'Choose which signer changes for each person.');
       const people = bulkList(body?.people);
@@ -923,6 +921,7 @@ export function createSignService({ store, config, mail, log = console }) {
       let notices = [];
       const { env } = await mutate(id, (fresh) => {
         if (fresh.status !== 'draft') throw new HttpError(409, 'This document has already been sent.');
+        if (fresh.deletedAt) throw new HttpError(409, 'This draft is in Deleted. Restore it first.');
         assertReadyToSend(fresh);
         links.length = 0;
         const now = nowIso();

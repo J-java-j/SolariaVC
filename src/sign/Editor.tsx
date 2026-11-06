@@ -545,7 +545,7 @@ export default function Editor({ env, user, onSent }: Props) {
 
   const remove = () => run(async () => {
     edited.current = false;
-    await api.remove(env.id);
+    await api.deleteDocuments([env.id]);
     navigate('/sign');
   });
 
@@ -662,7 +662,7 @@ export default function Editor({ env, user, onSent }: Props) {
       {sheet === 'send' && <SendSheet draft={draft} onChange={update} onSend={send} onBulkSend={bulkSend} onClose={() => setSheet(null)} busy={busy} error={error} />}
       {sheet === 'delete' && (
         <Sheet title="Delete this draft?" onClose={() => setSheet(null)}>
-          <p>The uploaded file and everything placed on it will be gone. Nothing has been sent.</p>
+          <p>It moves to the Deleted folder on your documents page, where you can restore it. Nothing has been sent.</p>
           {error && <Notice>{error}</Notice>}
           <div className="actions">
             <button type="button" className="danger" disabled={busy} onClick={remove}>Delete draft</button>
