@@ -925,6 +925,20 @@ export function createSignService({ store, config, mail, log = console }) {
       await Promise.allSettled(notified.map((r) => mail({ to: r.email, ...voidedEmail({ env, reason }) })));
     },
 
+    // Every document is checked before any is voided, so a stale selection voids nothing.
+    async voidEnvelopes(idsInput, reasonInput, sender, info) {
+      const ids = selection(idsInput);
+      const reason = cleanText(reasonInput, LIMITS.reason, 'Reason', { required: true });
+      for (const id of ids) {
+        const env = await requireEnvelope(id);
+        if (env.deletedAt || effectiveStatus(env) !== 'sent' || allSigned(env)) {
+          throw new HttpError(409, `"${env.title}" is no longer out for signature, so it can't be voided.`);
+        }
+      }
+      for (const id of ids) await this.voidEnvelope(id, reason, sender, info);
+      return { voided: ids.length };
+    },
+
     async finish(id) {
       await finalize(id);
       return this.getEnvelope(id);

@@ -880,3 +880,27 @@ test('a bulk send by link hands back one link per person', async (t) => {
   assert.ok(results.every((r) => r.ok && r.links.length === 1 && r.links[0].url.includes('/s#')));
   assert.equal(mail.length, 0, 'link signers are not emailed');
 });
+
+test('several documents can be voided at once, and a stale selection voids none', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const one = await draft(svc);
+  const two = await draft(svc);
+  const still = await draft(svc);
+  for (const env of [one, two, still]) await sent(svc, env);
+
+  await assert.rejects(svc.voidEnvelopes([one.id, two.id], '  ', SENDER, INFO), httpError(400), 'a reason is required');
+  const unsent = await draft(svc);
+  await assert.rejects(svc.voidEnvelopes([one.id, unsent.id], 'Wrong terms', SENDER, INFO), httpError(409));
+  assert.equal((await svc.getEnvelope(one.id)).status, 'sent', 'nothing was voided');
+
+  mail.length = 0;
+  assert.deepEqual(await svc.voidEnvelopes([one.id, two.id, one.id], 'Wrong terms', SENDER, INFO), { voided: 2 });
+  for (const env of [one, two]) {
+    const view = await svc.getEnvelope(env.id);
+    assert.equal(view.status, 'voided');
+    assert.equal(view.events.find((e) => e.type === 'envelope.voided').details.reason, 'Wrong terms');
+  }
+  assert.equal((await svc.getEnvelope(still.id)).status, 'sent');
+  assert.equal(mail.length, 4, 'both signers on both documents were told');
+  await assert.rejects(svc.voidEnvelopes([one.id], 'Again', SENDER, INFO), httpError(409));
+});

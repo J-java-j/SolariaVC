@@ -98,6 +98,32 @@ function ConfirmSheet({ title, action, keep, onClose, onConfirm, children }: {
   );
 }
 
+function VoidSheet({ count, skipped, onClose, onConfirm }: { count: number; skipped: number; onClose: () => void; onConfirm: (reason: string) => Promise<unknown> }) {
+  const [reason, setReason] = useState('');
+  const { busy, error, run } = useBusy();
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    run(() => onConfirm(reason));
+  };
+  return (
+    <Sheet title={`Void ${count === 1 ? 'this document' : `${count} documents`}?`} onClose={onClose}>
+      <p>Signing stops for everyone on {count === 1 ? 'it' : 'them'}, and anyone already asked to sign is emailed the reason. This can't be undone.</p>
+      {skipped > 0 && <p className="muted">{skipped} other selected {skipped === 1 ? 'document isn\'t' : 'documents aren\'t'} out for signature and will be left as {skipped === 1 ? 'it is' : 'they are'}.</p>}
+      <form onSubmit={submit} className="stack">
+        <label className="field">
+          Reason, sent to signers
+          <textarea rows={2} required maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+        </label>
+        {error && <Notice>{error}</Notice>}
+        <div className="actions">
+          <button className="danger" disabled={busy}>{busy ? 'Voiding' : count === 1 ? 'Void document' : `Void ${count} documents`}</button>
+          <button type="button" className="quiet" onClick={onClose}>Keep them out for signature</button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}
+
 function EraseSheet({ count, onClose, onConfirm }: { count: number; onClose: () => void; onConfirm: () => Promise<unknown> }) {
   const [typed, setTyped] = useState('');
   const { busy, error, run } = useBusy();
@@ -130,7 +156,7 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
   const [view, setView] = useState(savedView);
   const [sentBy, setSentBy] = useState('');
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const [sheet, setSheet] = useState<'new' | 'rename' | 'delete-folder' | 'delete' | 'erase' | null>(null);
+  const [sheet, setSheet] = useState<'new' | 'rename' | 'delete-folder' | 'delete' | 'erase' | 'void' | null>(null);
   const [over, setOver] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
   const { busy, error, run, setError } = useBusy();
@@ -156,6 +182,7 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
   const shown = inView.filter((env) => !sentBy || env.sender.email === sentBy);
   const selected = shown.filter((env) => picked.has(env.id));
   const stillOut = selected.some((env) => env.status === 'sent');
+  const voidable = selected.filter((env) => env.status === 'sent' && !env.sealing);
 
   const open = (next: string) => {
     setView(next);
@@ -288,13 +315,14 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
                     {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                     <option value={NO_FOLDER}>No folder</option>
                   </select>
+                  {voidable.length > 0 && <button type="button" className="quiet quiet-danger" disabled={busy} onClick={() => setSheet('void')}>Void{voidable.length > 1 ? ` ${voidable.length}` : ''}</button>}
                   <button type="button" className="quiet quiet-danger" disabled={busy || stillOut} onClick={() => setSheet('delete')}>Delete</button>
                 </>
               )}
             <button type="button" className="quiet" onClick={() => setPicked(new Set())}>Clear</button>
           </div>
         )}
-        {stillOut && !inDeleted && <p className="muted">To delete a document that is out for signature, open it and void it first.</p>}
+        {stillOut && !inDeleted && <p className="muted">To delete a document that is out for signature, void it first.</p>}
 
         {envelopes && !empty && !shown.length && (
           <p className="ledger-empty">
@@ -385,6 +413,17 @@ export default function Dashboard({ user }: { user: { owner: boolean } }) {
         >
           <p>Drafts are erased for good. Anything else moves to Deleted, where you can restore it. Signers keep their copies either way.</p>
         </ConfirmSheet>
+      )}
+      {sheet === 'void' && (
+        <VoidSheet
+          count={voidable.length}
+          skipped={selected.length - voidable.length}
+          onClose={() => setSheet(null)}
+          onConfirm={async (reason) => {
+            await api.voidDocuments(voidable.map((env) => env.id), reason);
+            await finish();
+          }}
+        />
       )}
       {sheet === 'erase' && (
         <EraseSheet

@@ -187,6 +187,7 @@ export const api = {
   deleteDocuments: (ids: string[]) => call('envelopes/selection/delete', post({ ids })),
   restoreDocuments: (ids: string[]) => call('envelopes/selection/restore', post({ ids })),
   eraseDocuments: (ids: string[]) => call('envelopes/selection/erase', post({ ids })),
+  voidDocuments: (ids: string[], reason: string) => call('envelopes/selection/void', post({ ids, reason })),
   moveDocuments: (ids: string[], folderId: string | null) => call('envelopes/selection/move', post({ ids, folderId })),
   send: (id: string) => call<{ envelope: Envelope; links: SentLink[]; failed: string[] }>(`envelopes/${id}/send`, post()),
   remind: (id: string, recipientId: string) => call(`envelopes/${id}/remind`, post({ recipientId })),

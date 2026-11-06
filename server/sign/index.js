@@ -214,6 +214,9 @@ async function sender(req, res, url, svc, parts) {
       case 'erase':
         await svc.eraseEnvelopes(user, body.ids);
         break;
+      case 'void':
+        await svc.voidEnvelopes(body.ids, body.reason, user, info);
+        break;
       default: throw new HttpError(404, 'Not found.');
     }
     return sendJson(res, 200, { ok: true });
