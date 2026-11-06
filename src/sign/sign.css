@@ -647,3 +647,5 @@ img { display: block; max-width: 100%; }
 
 .palette-find { width: 100%; margin-top: 10px; }
 .palette-items button[draggable='true'] { cursor: grab; }
+
+.your-turn { color: #8a5a00; font-weight: 600; }

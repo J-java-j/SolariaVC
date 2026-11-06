@@ -195,7 +195,7 @@ export const api = {
   disclosure: () => call<{ disclosure: Disclosure; intent: { version: string; adopt: string; finish: string } }>('disclosure'),
   signMine: (id: string, body: { rendered: string[]; consent: true; disclosureVersion: string; intent: true; signature: Mark; initials?: Mark; timeZone: string }) =>
     call<{ ok: true }>(`envelopes/${id}/sign-mine`, post(body)),
-  remindDocuments: (ids: string[]) => call<{ reminded: number; skipped: number; failed: string[] }>('envelopes/selection/remind', post({ ids })),
+  remindDocuments: (ids: string[]) => call<{ reminded: number; documents: number; skipped: number; failed: string[] }>('envelopes/selection/remind', post({ ids })),
   moveDocuments: (ids: string[], folderId: string | null) => call('envelopes/selection/move', post({ ids, folderId })),
   send: (id: string) => call<{ envelope: Envelope; links: SentLink[]; failed: string[] }>(`envelopes/${id}/send`, post()),
   remind: (id: string, recipientId: string) => call(`envelopes/${id}/remind`, post({ recipientId })),

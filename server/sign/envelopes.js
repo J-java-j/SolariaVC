@@ -11,7 +11,7 @@ import {
 import { DISCLOSURE, DISCLOSURE_SHA256, DISCLOSURE_VERSION, INTENT, INTENT_SHA256, INTENT_VERSION } from './disclosure.js';
 import { EVENT_LABELS } from './certificate.js';
 import {
-  codeEmail, completedEmail, declinedEmail, inviteEmail, loginEmail, myDocumentsEmail, nextSignerEmail, signRequestEmail, voidedEmail,
+  codeEmail, completedEmail, declinedEmail, inviteEmail, loginEmail, myDocumentsEmail, digestReminderEmail, nextSignerEmail, signRequestEmail, voidedEmail,
 } from './mail.js';
 import { assertEmbeddablePng, inspectPdf, sealDocument, timestampFile } from './pdf.js';
 import { ConflictError } from './store-local.js';
@@ -638,6 +638,19 @@ export function createSignService({ store, config, mail, log = console }) {
     if (result.complete) await finalize(env.id);
   }
 
+  // A link into someone's documents page, sent in a reminder. Unlike a requested
+  // link it can be opened more than once until it lapses, like a signing link, and
+  // a newer reminder replaces it.
+  async function myDocumentsLink(email) {
+    const token = randomSecret();
+    const person = sha256Hex(email);
+    const earlier = await store.getRecord('my_link_latest', person);
+    if (earlier) await store.deleteRecord('my_links', earlier.tokenHash);
+    await store.putRecord('my_links', sha256Hex(token), { email, expiresAt: new Date(Date.now() + 14 * 86_400_000).toISOString() });
+    await store.putRecord('my_link_latest', person, { tokenHash: sha256Hex(token) });
+    return token;
+  }
+
   return {
     // ---- sign in ----------------------------------------------------------
     // Answers identically for unknown addresses, so nobody can probe who has access.
@@ -676,7 +689,8 @@ export function createSignService({ store, config, mail, log = console }) {
     },
 
     async openMyDocuments(token) {
-      const login = typeof token === 'string' && token.length < 100 ? await store.takeRecord('my_logins', sha256Hex(token)) : null;
+      const valid = typeof token === 'string' && token.length < 100;
+      const login = valid ? (await store.takeRecord('my_logins', sha256Hex(token))) ?? (await store.getRecord('my_links', sha256Hex(token))) : null;
       if (!login || Date.now() > Date.parse(login.expiresAt)) {
         throw new HttpError(400, 'This link has expired, was already used, or was replaced by a newer one.');
       }
@@ -1030,38 +1044,60 @@ export function createSignService({ store, config, mail, log = console }) {
       if (!result?.ok) throw new HttpError(502, 'The reminder could not be sent. Try again shortly.');
     },
 
-    // Emails everyone whose turn it is on each document. Unlike voiding, a document
-    // that moved on since it was ticked is skipped rather than stopping the rest.
-    // Link signers are left out, since the sender chose to hand those links over
-    // personally, and so is the sender, who signs from the documents page.
+    // Emails everyone whose turn it is on the ticked documents, once per person: a
+    // person with one document gets its own link, and a person with several gets
+    // one email listing them, with a link straight into their documents page.
+    // Documents that moved on since they were ticked are skipped. Link signers are
+    // left out, since the sender hands those over personally, and so is the
+    // sender, who signs from the documents page.
     async remindEnvelopes(idsInput, user) {
-      const outcome = { reminded: 0, skipped: 0, failed: [] };
-      let first = true;
+      const outcome = { reminded: 0, documents: 0, skipped: 0, failed: [] };
+      const people = new Map();
       for (const id of selection(idsInput)) {
-        let notices = [];
-        try {
-          const { env } = await mutate(id, (fresh) => {
-            notices = [];
-            if (fresh.deletedAt || effectiveStatus(fresh) !== 'sent' || allSigned(fresh)) return { save: false };
-            for (const rec of signersOf(fresh)) {
-              if (rec.status === 'signed' || rec.status === 'waiting' || rec.delivery === 'link' || rec.email === user.email) continue;
-              notices.push({ recipientId: rec.id, token: issueToken(fresh, rec) });
-            }
-            return { save: notices.length > 0 };
-          });
-          if (!notices.length) {
-            outcome.skipped++;
-            continue;
-          }
-          if (!first && config.bulkPaceMs) await new Promise((done) => setTimeout(done, config.bulkPaceMs));
-          first = false;
-          for (const result of await deliver(id, env, notices, { reminder: true })) {
-            if (result.ok) outcome.reminded++;
-            else outcome.failed.push(result.rec.name);
-          }
-        } catch (e) {
-          if (!(e instanceof HttpError)) throw e;
+        const env = await store.getEnvelope(id).then((r) => r?.data);
+        const due = env && !env.deletedAt && effectiveStatus(env) === 'sent' && !allSigned(env)
+          ? signersOf(env).filter((r) => r.status !== 'signed' && r.status !== 'waiting' && r.delivery !== 'link' && r.email !== user.email)
+          : [];
+        if (!due.length) {
           outcome.skipped++;
+          continue;
+        }
+        for (const rec of due) {
+          const person = people.get(rec.email) ?? { name: rec.name, docs: [] };
+          person.docs.push({ id, recipientId: rec.id });
+          people.set(rec.email, person);
+        }
+      }
+      let first = true;
+      for (const [email, person] of people) {
+        if (!first && config.bulkPaceMs) await new Promise((done) => setTimeout(done, config.bulkPaceMs));
+        first = false;
+        try {
+          if (person.docs.length === 1) {
+            const [{ id, recipientId }] = person.docs;
+            let notice;
+            const { env } = await mutate(id, (fresh) => {
+              const rec = fresh.recipients.find((r) => r.id === recipientId);
+              if (!rec || rec.status === 'signed' || effectiveStatus(fresh) !== 'sent') throw new Error('no longer due');
+              notice = { recipientId, token: issueToken(fresh, rec) };
+            });
+            const [result] = await deliver(id, env, [notice], { reminder: true });
+            if (!result?.ok) throw new Error('reminder failed');
+          } else {
+            const envs = await Promise.all(person.docs.map(({ id }) => requireEnvelope(id)));
+            const url = `${config.baseUrl}/sign/my#${await myDocumentsLink(email)}`;
+            const messageId = await mail({ to: email, ...digestReminderEmail({ name: person.name, senders: [...new Map(envs.map((e) => [e.sender.email, e.sender])).values()], titles: envs.map((e) => e.title), url }) });
+            for (const { id, recipientId } of person.docs) {
+              await mutate(id, (fresh) => {
+                appendEvent(fresh, 'recipient.reminded', { actor: { kind: 'recipient', recipientId }, details: { to: email, together: person.docs.length, ...(messageId ? { messageId } : {}) } });
+              });
+            }
+          }
+          outcome.reminded++;
+          outcome.documents += person.docs.length;
+        } catch (e) {
+          log.error('[sign] reminder failed:', e.message);
+          outcome.failed.push(person.name);
         }
       }
       return outcome;

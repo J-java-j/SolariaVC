@@ -1,3 +1,4 @@
+import { waitingOn } from './SignQueue';
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, saveFile, signedFileName, type Envelope, type PageSize, type Recipient } from './api';
 import { openPdf, pageSizes, type PdfDocument } from './pdf';
@@ -96,7 +97,7 @@ function VoidSheet({ env, onClose, onDone }: { env: Envelope; onClose: () => voi
   );
 }
 
-export default function Detail({ env, onChange }: { env: Envelope; onChange: (env: Envelope) => void }) {
+export default function Detail({ env, user, onChange }: { env: Envelope; user: { email: string }; onChange: (env: Envelope) => void }) {
   const [preview, setPreview] = useState<{ doc: PdfDocument; sizes: PageSize[] } | null>(null);
   const [voiding, setVoiding] = useState(false);
   const { busy, error, run } = useBusy();
@@ -172,6 +173,12 @@ export default function Detail({ env, onChange }: { env: Envelope; onChange: (en
           )}
           {error && <Notice>{error}</Notice>}
 
+          {waitingOn([env], user.email).length > 0 && (
+            <div className="mine">
+              <strong>It's your turn to sign this.</strong>
+              <button type="button" className="primary" onClick={() => navigate(`/sign/queue?ids=${env.id}`)}>Sign now</button>
+            </div>
+          )}
           <div className="actions">
             {env.sealed && <button type="button" className="primary" disabled={busy} onClick={downloadSealed}>Download signed copy</button>}
             <button type="button" className="secondary" disabled={busy} onClick={downloadOriginal}>Download original</button>

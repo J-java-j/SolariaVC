@@ -221,7 +221,8 @@ function PickBox({ label, rows, picked, onChange }: { label: string; rows: Envel
 }
 
 // Inside a batch the title is the same on every row, so the person leads instead.
-function DocRow({ env, picked, showSender, onToggle, person }: {
+function DocRow({ env, picked, showSender, onToggle, person, yourTurn = false }: {
+  yourTurn?: boolean;
   env: EnvelopeSummary;
   picked: ReadonlySet<string>;
   showSender: boolean;
@@ -238,7 +239,7 @@ function DocRow({ env, picked, showSender, onToggle, person }: {
         <span className="row-title">{person ?? title}</span>
         <span className="row-people">{person ? env.recipients.find((r) => r.name === person)?.email : people(env)}</span>
         <SignerDots recipients={env.recipients} />
-        <span className="row-when">{when(env)}{showSender && ` by ${env.sender.name}`}</span>
+        <span className="row-when">{yourTurn ? <strong className="your-turn">Your turn to sign</strong> : <>{when(env)}{showSender && ` by ${env.sender.name}`}</>}</span>
       </Link>
     </li>
   );
@@ -286,8 +287,11 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
   const selected = shown.filter((env) => picked.has(env.id));
   const stillOut = selected.some((env) => env.status === 'sent');
   const voidable = selected.filter((env) => env.status === 'sent' && !env.sealing);
+  const mineSelected = waitingOn(selected, user.email);
   // Who a reminder would reach: emailed signers whose turn it is, other than you.
-  const due = voidable.flatMap((env) => env.recipients.filter((r) => r.role === 'signer' && r.delivery === 'email' && r.email !== user.email && r.status !== 'signed' && r.status !== 'waiting'));
+  const dueDocs = voidable.flatMap((env) => env.recipients.filter((r) => r.role === 'signer' && r.delivery === 'email' && r.email !== user.email && r.status !== 'signed' && r.status !== 'waiting'));
+  // Reminders go out once per person, however many of their documents are ticked.
+  const due = [...new Set(dueDocs.map((r) => r.email))];
   const [notice, setNotice] = useState('');
   // The documents the last delete moved, so it can be undone.
   const [undo, setUndo] = useState<string[] | null>(null);
@@ -496,6 +500,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
                     {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                     <option value={NO_FOLDER}>No folder</option>
                   </select>
+                  {mineSelected.length > 0 && <button type="button" className="primary" onClick={() => navigate(`/sign/queue?ids=${mineSelected.map((env) => env.id).join(',')}`)}>Sign {mineSelected.length > 1 ? mineSelected.length : 'it'}</button>}
                   {due.length > 0 && <button type="button" className="secondary" disabled={busy} onClick={() => setSheet('remind')}>Remind{due.length > 1 ? ` ${due.length}` : ''}</button>}
                   {voidable.length > 0 && <button type="button" className="quiet quiet-danger" disabled={busy} onClick={() => setSheet('void')}>Void{voidable.length > 1 ? ` ${voidable.length}` : ''}</button>}
                   <button type="button" className="quiet quiet-danger" disabled={busy || stillOut} onClick={() => setSheet('delete')}>Delete</button>
@@ -527,7 +532,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
               </h2>
               <ul>
                 {items.map((item) => (item.kind === 'one'
-                  ? <DocRow key={item.env.id} env={item.env} picked={picked} showSender={senders.size > 1} onToggle={() => toggle(item.env.id)} />
+                  ? <DocRow key={item.env.id} env={item.env} yourTurn={waitingOn([item.env], user.email).length > 0} picked={picked} showSender={senders.size > 1} onToggle={() => toggle(item.env.id)} />
                   : (
                     <li key={item.id} className="batch">
                       <div className="row-item">
@@ -545,7 +550,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
                       {opened.has(item.id) && (
                         <ul className="batch-list">
                           {byPerson(item.envs).map(([env, person]) => (
-                            <DocRow key={env.id} env={env} person={person} picked={picked} showSender={senders.size > 1} onToggle={() => toggle(env.id)} />
+                            <DocRow key={env.id} env={env} person={person} yourTurn={waitingOn([env], user.email).length > 0} picked={picked} showSender={senders.size > 1} onToggle={() => toggle(env.id)} />
                           ))}
                         </ul>
                       )}
@@ -623,13 +628,16 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
           onConfirm={async () => {
             const sent = await api.remindDocuments(voidable.map((env) => env.id));
             setUndo(null);
-            setNotice(sent.failed.length
-              ? `Reminded ${sent.reminded}. Email to ${sent.failed.join(', ')} did not go through.`
-              : `Reminded ${sent.reminded} ${sent.reminded === 1 ? 'person' : 'people'}.`);
+            const what = `Reminded ${sent.reminded} ${sent.reminded === 1 ? 'person' : 'people'} about ${sent.documents} ${sent.documents === 1 ? 'document' : 'documents'}`;
+            setNotice(sent.failed.length ? `${what}. Email to ${sent.failed.join(', ')} did not go through.` : `${what}.`);
             await finish();
           }}
         >
-          <p>Everyone whose turn it is gets a fresh email with their signing link. People who already signed or are still waiting for someone before them are left alone.</p>
+          <p>
+            Each person gets one email{dueDocs.length > due.length ? `, covering all ${dueDocs.length} documents between them` : ''}.
+            Someone with several documents gets a list of them and a link to their documents page, where they sign each one.
+            Someone with one gets a link straight to it. People who already signed, or are waiting for someone before them, are left alone.
+          </p>
           {voidable.some((env) => env.recipients.some((r) => r.role === 'signer' && r.status !== 'signed' && (r.delivery === 'link' || r.email === user.email))) && (
             <p className="muted">You aren't emailed, and neither are signers whose links you hand out yourself.</p>
           )}

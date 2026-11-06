@@ -161,8 +161,14 @@ Up to 50 people per batch. The draft stays, so it can be reused for the next gro
 
 A list send shows as one row that opens to show each person. Tick documents (or a
 whole group with the checkbox on its heading) to remind, void, move or delete them
-together. **Remind** emails each signer whose turn it is, skipping you and anyone
-you share a link with yourself.
+together. **Remind** emails each signer whose turn it is, once per person: someone
+with several documents gets one email listing them with a link (good for 14 days)
+straight into their `/sign/my` page, and someone with one gets a link to it. You,
+and anyone you share a link with yourself, are skipped.
+
+Documents waiting on your own signature say **Your turn to sign** in the list. Open
+one and choose **Sign now**, or tick several and choose **Sign**, to sign without
+the email.
 
 When documents are waiting for your own signature, the documents page offers
 **Sign all**. You see each distinct file, agree to electronic records, adopt your

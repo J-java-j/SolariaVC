@@ -102,6 +102,31 @@ export function myDocumentsEmail({ url }) {
   };
 }
 
+export function digestReminderEmail({ name, senders, titles, url }) {
+  const from = senders.length === 1 ? senders[0].name : ORG.name;
+  const count = `${titles.length} documents`;
+  return {
+    subject: `Reminder: ${count} waiting for your signature`,
+    replyTo: senders.length === 1 ? senders[0].email : undefined,
+    html: layout({
+      heading: `${esc(from)} is waiting on ${esc(count)} from you`,
+      paragraphs: [
+        `Hi ${esc(name.split(/\s+/)[0] || name)}, these still need your signature:`,
+        `<ul style="margin:0;padding-left:20px;">${titles.map((t) => `<li style="margin:0 0 4px;">${esc(t)}</li>`).join('')}</ul>`,
+        'Open your documents page to review and sign each one.',
+      ],
+      button: { url, label: 'Review and sign' },
+      note: "This link is personal to you, so please don't forward it. It works for 14 days. You can ask for a paper version at any time.",
+    }),
+    text: [
+      `${from} is waiting on ${count} from you:`,
+      titles.map((t) => `- ${t}`).join('\n'),
+      `Review and sign: ${url}`,
+      "This link is personal to you, so please don't forward it. It works for 14 days.",
+    ].join('\n\n'),
+  };
+}
+
 export function inviteEmail({ admin, inviter, url }) {
   const about = `${inviter} added you as an admin of Solaria Sign, ${ORG.name}'s document signing tool. You can send documents for signature and see everything the firm has sent.`;
   const howTo = `Sign in with ${admin.email}. We email you a link each time, so there is no password to set.`;

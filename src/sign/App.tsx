@@ -45,7 +45,7 @@ function EnvelopePage({ id, user }: { id: string; user: User }) {
   if (!env) return <Loading />;
   if (env.status === 'draft' && env.deletedAt) return <Shell user={user}><DeletedDraft env={env} onRestored={reload} /></Shell>;
   if (env.status === 'draft') return <Editor key={env.id} env={env} user={user} onSent={setEnv} />;
-  return <Shell user={user}><Detail key={env.id} env={env} onChange={setEnv} /></Shell>;
+  return <Shell user={user}><Detail key={env.id} env={env} user={user} onChange={setEnv} /></Shell>;
 }
 
 function SenderApp({ path }: { path: string }) {

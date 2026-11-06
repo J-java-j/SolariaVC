@@ -52,7 +52,10 @@ export default function SignQueue({ user }: { user: User }) {
   useEffect(() => {
     Promise.all([api.list(), api.disclosure()])
       .then(([list, t]) => {
-        setGroups(byFile(waitingOn(list.envelopes, user.email)));
+        // /sign/queue?ids=… signs just the documents picked; without it, everything waiting.
+        const only = new URLSearchParams(window.location.search).get('ids')?.split(',').filter(Boolean);
+        const waiting = waitingOn(list.envelopes, user.email);
+        setGroups(byFile(only?.length ? waiting.filter((env) => only.includes(env.id)) : waiting));
         setTerms(t);
       })
       .catch((e: Error) => setLoadError(e.message));
