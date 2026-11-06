@@ -639,3 +639,11 @@ img { display: block; max-width: 100%; }
 .queue-mark img { height: 44px; }
 .queue-intent { font-size: 15px; }
 .queue-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; font-size: 14px; }
+
+/* A signer's own documents */
+.my-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 6px; border-top: 1px solid var(--paper-line); }
+.my-main { display: grid; min-width: 0; flex: 1 1 260px; }
+.mine-done { border-left-color: var(--title-green); }
+
+.palette-find { width: 100%; margin-top: 10px; }
+.palette-items button[draggable='true'] { cursor: grab; }

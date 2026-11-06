@@ -25,6 +25,7 @@ function service() {
 }
 
 const SESSION_COOKIE = config.production ? '__Host-solaria_sign' : 'solaria_sign';
+const MY_COOKIE = config.production ? '__Host-solaria_my' : 'solaria_my';
 
 // In-memory and per instance, like the contact form's limiter: a stopgap against
 // floods. The limits that matter (code attempts, resends) live on the envelope.
@@ -257,6 +258,38 @@ async function sender(req, res, url, svc, parts) {
   throw new HttpError(404, 'Not found.');
 }
 
+// A signer's own list of documents, behind an emailed link and a short session.
+async function myDocuments(req, res, svc, parts) {
+  const { ip } = clientInfo(req);
+  const secure = config.production ? ' Secure;' : '';
+  if (req.method !== 'GET') assertSameOrigin(req);
+  const [first, second] = parts;
+  if (req.method === 'POST' && first === 'request') {
+    rateLimit(`my:${ip}`, 5, 600_000);
+    await svc.requestMyDocuments((await readJson(req)).email);
+    return sendJson(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && first === 'open') {
+    rateLimit(`my-open:${ip}`, 20, 600_000);
+    const { sessionId, maxAgeSeconds } = await svc.openMyDocuments((await readJson(req)).token);
+    return sendJson(res, 200, { ok: true }, {
+      'Set-Cookie': `${MY_COOKIE}=${sessionId}; Path=/; HttpOnly;${secure} SameSite=Strict; Max-Age=${maxAgeSeconds}`,
+    });
+  }
+  if (req.method === 'POST' && first === 'logout') {
+    await svc.endMyDocuments(cookies(req)[MY_COOKIE]);
+    return sendJson(res, 200, { ok: true }, { 'Set-Cookie': `${MY_COOKIE}=; Path=/; HttpOnly;${secure} SameSite=Strict; Max-Age=0` });
+  }
+  const email = await svc.myEmail(cookies(req)[MY_COOKIE]);
+  if (!email) throw new HttpError(401, 'Your link has expired. Ask for a new one.');
+  if (req.method === 'GET' && !first) return sendJson(res, 200, { email, documents: await svc.listMyDocuments(email) });
+  if (req.method === 'POST' && /^[0-9A-Z]{12}$/.test(first ?? '') && second === 'open') {
+    rateLimit(`my-doc:${ip}`, 120, 600_000);
+    return sendJson(res, 200, await svc.openMyDocument(email, first));
+  }
+  throw new HttpError(404, 'Not found.');
+}
+
 async function auth(req, res, svc, action) {
   if (req.method !== 'POST') throw new HttpError(405, 'Method not allowed.');
   assertSameOrigin(req);
@@ -303,6 +336,7 @@ export async function handleSignApi(req, res, url) {
         return sendJson(res, 200, { disclosure: DISCLOSURE, intent: INTENT });
       }
       case 'team': return await team(req, res, svc, parts[0]);
+      case 'my': return await myDocuments(req, res, svc, parts);
       case 'folders': return await folders(req, res, svc, parts[0]);
       case 'envelopes': return await sender(req, res, url, svc, parts);
       case 's': return await signer(req, res, svc, `${req.method} ${parts.join('/')}`);

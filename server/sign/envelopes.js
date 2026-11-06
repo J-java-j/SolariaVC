@@ -11,7 +11,7 @@ import {
 import { DISCLOSURE, DISCLOSURE_SHA256, DISCLOSURE_VERSION, INTENT, INTENT_SHA256, INTENT_VERSION } from './disclosure.js';
 import { EVENT_LABELS } from './certificate.js';
 import {
-  codeEmail, completedEmail, declinedEmail, inviteEmail, loginEmail, nextSignerEmail, signRequestEmail, voidedEmail,
+  codeEmail, completedEmail, declinedEmail, inviteEmail, loginEmail, myDocumentsEmail, nextSignerEmail, signRequestEmail, voidedEmail,
 } from './mail.js';
 import { assertEmbeddablePng, inspectPdf, sealDocument, timestampFile } from './pdf.js';
 import { ConflictError } from './store-local.js';
@@ -656,6 +656,72 @@ export function createSignService({ store, config, mail, log = console }) {
       });
       await store.putRecord('login_latest', person, { tokenHash });
       await mail({ to: email, ...loginEmail({ url: `${config.baseUrl}/sign/login#${token}` }) });
+    },
+
+    // ---- a signer's own documents --------------------------------------------
+    // Anyone sent a document can see all of theirs at /sign/my after proving the
+    // address by email. Answers the same whether or not the address has documents.
+    async requestMyDocuments(emailInput) {
+      const email = String(emailInput ?? '').trim().toLowerCase();
+      if (!EMAIL_RE.test(email) || email.length > 200) return;
+      const envs = await store.listEnvelopes(LIST_LIMIT);
+      if (!envs.some((env) => !env.deletedAt && env.status !== 'draft' && signersOf(env).some((r) => r.email === email))) return;
+      const token = randomSecret();
+      const person = sha256Hex(email);
+      const earlier = await store.getRecord('my_latest', person);
+      if (earlier) await store.deleteRecord('my_logins', earlier.tokenHash);
+      await store.putRecord('my_logins', sha256Hex(token), { email, expiresAt: new Date(Date.now() + TIMES.loginToken).toISOString() });
+      await store.putRecord('my_latest', person, { tokenHash: sha256Hex(token) });
+      await mail({ to: email, ...myDocumentsEmail({ url: `${config.baseUrl}/sign/my#${token}` }) });
+    },
+
+    async openMyDocuments(token) {
+      const login = typeof token === 'string' && token.length < 100 ? await store.takeRecord('my_logins', sha256Hex(token)) : null;
+      if (!login || Date.now() > Date.parse(login.expiresAt)) {
+        throw new HttpError(400, 'This link has expired, was already used, or was replaced by a newer one.');
+      }
+      const sessionId = randomSecret();
+      await store.putRecord('my_sessions', sha256Hex(sessionId), { email: login.email, expiresAt: new Date(Date.now() + TIMES.verified).toISOString() });
+      return { sessionId, maxAgeSeconds: TIMES.verified / 1000 };
+    },
+
+    async myEmail(sessionId) {
+      if (!sessionId || sessionId.length > 100) return null;
+      const session = await store.getRecord('my_sessions', sha256Hex(sessionId));
+      return session && Date.now() < Date.parse(session.expiresAt) ? session.email : null;
+    },
+
+    async endMyDocuments(sessionId) {
+      if (sessionId && sessionId.length <= 100) await store.deleteRecord('my_sessions', sha256Hex(sessionId));
+    },
+
+    async listMyDocuments(email) {
+      const envs = await store.listEnvelopes(LIST_LIMIT);
+      const order = { sign: 0, waiting: 1, signed: 2, sealing: 2, completed: 3 };
+      return envs
+        .filter((env) => !env.deletedAt && env.status !== 'draft')
+        .flatMap((env) => signersOf(env).filter((r) => r.email === email).map((rec) => ({
+          id: env.id,
+          title: env.title,
+          from: env.sender.name,
+          sentAt: env.sentAt,
+          expiresAt: env.expiresAt,
+          completedAt: env.completedAt ?? null,
+          state: signerState(env, rec, false),
+        })))
+        .sort((a, b) => (order[a.state] ?? 4) - (order[b.state] ?? 4) || String(b.sentAt).localeCompare(String(a.sentAt)));
+    },
+
+    // A fresh personal link for one of the signer's own documents. Older links keep
+    // working, as the last few stay valid.
+    async openMyDocument(email, id) {
+      let token = null;
+      await mutate(id, (fresh) => {
+        const rec = signersOf(fresh).find((r) => r.email === email);
+        if (!rec || fresh.deletedAt || fresh.status === 'draft') throw new HttpError(404, 'Document not found.');
+        token = issueToken(fresh, rec);
+      });
+      return { url: signerUrl(token) };
     },
 
     async completeLogin(token) {

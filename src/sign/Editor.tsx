@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { api, type BulkResult, type Draft, type Envelope, type Field, type FieldType, type PageSize, type Recipient, type SentLink } from './api';
 import { BULK_LIMIT, parseList, type Person } from './bulk';
+import { detectFields } from './detect';
 import type { User } from './App';
 import { openPdf, type PdfDocument } from './pdf';
 import { PdfPages } from './PdfPages';
@@ -18,6 +19,7 @@ const PALETTE: { type: FieldType; label: string; size: [number, number] }[] = [
   { type: 'text', label: 'Text', size: [170, 16] },
   { type: 'checkbox', label: 'Checkbox', size: [16, 16] },
 ];
+const DRAG_TYPE = 'application/x-solaria-field';
 const LABELS = Object.fromEntries(PALETTE.map((p) => [p.type, p.label])) as Record<FieldType, string>;
 
 // Each person's fields keep one colour, so the page shows at a glance who does what.
@@ -486,22 +488,19 @@ export default function Editor({ env, user, onSent }: Props) {
     return { ...prior, recipients: [...order, ...copies] };
   });
 
-  const placeField = (page: number, size: PageSize, e: PointerEvent<HTMLDivElement>) => {
-    if (!armed || !active) {
-      setSelected(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const [width, height] = PALETTE.find((p) => p.type === armed)!.size;
+  // Drops a new field centred where the page was clicked, or where one was dragged to.
+  const placeAt = (type: FieldType, page: number, size: PageSize, rect: DOMRect, clientX: number, clientY: number, keepArmed = false) => {
+    if (!active) return;
+    const [width, height] = PALETTE.find((p) => p.type === type)!.size;
     const w = Math.min(width / size.width, 1);
     const h = Math.min(height / size.height, 1);
     const field: Field = {
       id: `f${hex()}`,
       recipientId: active.id,
-      type: armed,
+      type,
       page,
-      x: clamp((e.clientX - rect.left) / rect.width - w / 2, 0, 1 - w),
-      y: clamp((e.clientY - rect.top) / rect.height - h / 2, 0, 1 - h),
+      x: clamp((clientX - rect.left) / rect.width - w / 2, 0, 1 - w),
+      y: clamp((clientY - rect.top) / rect.height - h / 2, 0, 1 - h),
       w,
       h,
       required: true,
@@ -509,7 +508,49 @@ export default function Editor({ env, user, onSent }: Props) {
     };
     update((prior) => ({ ...prior, fields: [...prior.fields, field] }));
     setSelected(field.id);
-    if (!e.shiftKey) setArmed(null);
+    if (!keepArmed) setArmed(null);
+  };
+
+  const placeField = (page: number, size: PageSize, e: PointerEvent<HTMLDivElement>) => {
+    if (!armed || !active) {
+      setSelected(null);
+      return;
+    }
+    placeAt(armed, page, size, e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY, e.shiftKey);
+  };
+
+  const [finding, setFinding] = useState('');
+  const findFields = async () => {
+    if (!doc || !active) return;
+    setFinding('Looking for places to sign');
+    try {
+      const found = await detectFields(doc);
+      const clash = (f: { page: number; x: number; y: number; w: number; h: number }) => draft.fields.some(
+        (o) => o.page === f.page && f.x < o.x + o.w && o.x < f.x + f.w && f.y < o.y + o.h && o.y < f.y + f.h,
+      );
+      const fresh = found.filter((f) => !clash(f)).map((f): Field => ({
+        id: `f${hex()}`,
+        recipientId: active.id,
+        type: f.type,
+        page: f.page,
+        x: f.x,
+        y: f.y,
+        w: f.w,
+        h: f.h,
+        required: f.type !== 'text',
+        label: f.label,
+      }));
+      if (!fresh.length) {
+        setFinding(found.length ? 'Every place found already has a field.' : 'No signature lines found. Drag fields onto the page instead.');
+        return;
+      }
+      update((prior) => ({ ...prior, fields: [...prior.fields, ...fresh] }));
+      const count = (type: FieldType) => fresh.filter((f) => f.type === type).length;
+      const parts = PALETTE.filter((p) => count(p.type)).map((p) => `${count(p.type)} ${p.label.toLowerCase()}`);
+      setFinding(`Added ${parts.join(', ')} for ${active.name || 'this signer'}. Check each one; click a field to move it, remove it, or give it to someone else.`);
+    } catch {
+      setFinding('This document could not be read for fields. Drag fields onto the page instead.');
+    }
   };
 
   const changeField = (id: string, patch: Partial<Field>) => update((prior) => ({
@@ -550,7 +591,21 @@ export default function Editor({ env, user, onSent }: Props) {
   });
 
   const overlay = (page: number, size: PageSize) => (
-    <div className={armed ? 'marks marks-armed' : 'marks'} onPointerDown={(e) => placeField(page, size, e)}>
+    <div
+      className={armed ? 'marks marks-armed' : 'marks'}
+      onPointerDown={(e) => placeField(page, size, e)}
+      onDragOver={(e) => {
+        if (!active || !e.dataTransfer.types.includes(DRAG_TYPE)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+      onDrop={(e) => {
+        const type = e.dataTransfer.getData(DRAG_TYPE) as FieldType;
+        if (!type || !LABELS[type]) return;
+        e.preventDefault();
+        placeAt(type, page, size, e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY);
+      }}
+    >
       {draft.fields.filter((f) => f.page === page).map((f) => (
         <FieldBox
           key={f.id}
@@ -642,14 +697,26 @@ export default function Editor({ env, user, onSent }: Props) {
               key={item.type}
               type="button"
               disabled={!active}
+              draggable={Boolean(active)}
+              title="Click, then click the page. Or drag it onto the page."
               aria-pressed={armed === item.type}
               onClick={() => setArmed(armed === item.type ? null : item.type)}
+              onDragStart={(e) => {
+                e.dataTransfer.setData(DRAG_TYPE, item.type);
+                e.dataTransfer.effectAllowed = 'copy';
+                setArmed(null);
+              }}
             >
               {item.label}
             </button>
           ))}
         </div>
-        {armed && <p className="palette-hint" role="status">Click the page to place it. Hold Shift to place several, or press Esc to stop.</p>}
+        <button type="button" className="secondary palette-find" disabled={!active || !doc} onClick={findFields}>Find fields automatically</button>
+        {armed
+          ? <p className="palette-hint" role="status">Click the page to place it. Hold Shift to place several, or press Esc to stop.</p>
+          : finding
+            ? <p className="palette-hint" role="status">{finding}</p>
+            : active && <p className="palette-hint">Drag a field onto the page, or click it and then click the page.</p>}
       </div>
 
       <main className="editor-doc" onPointerDown={(e) => {

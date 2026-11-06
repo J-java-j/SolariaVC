@@ -172,6 +172,16 @@ signed entries in its audit trail, marked as signed from the documents page. A
 document with text or checkbox fields only you can fill in has to be signed from
 its email.
 
+Anyone sent a document can see all of theirs at `/sign/my`: they enter their
+address, get a one-time link (sent only if that address has documents), and see
+what is waiting for them, what they have signed, and what is complete, with a
+button to sign or download each. Every signing email links there.
+
+In the editor, **Find fields automatically** reads the PDF for signature lines
+(`Signature: ____`, `Date: ____`, `Print Name: ____`, `Initials:` and the like)
+and places matching fields for the selected signer to check. Fields can also be
+dragged from the palette onto the page.
+
 Documents can be sorted into folders, and the list can be searched by title,
 name or email. Deleting anything, drafts included, moves it to the Deleted
 folder (always shown beside the folders), with Undo right after; it can be

@@ -4,6 +4,7 @@ import Dashboard from './Dashboard';
 import SignQueue from './SignQueue';
 import Detail from './Detail';
 import Editor from './Editor';
+import MyDocuments from './MyDocuments';
 import { Login, LoginLanding } from './Login';
 import { Link, usePath } from './router';
 import Signer from './Signer';
@@ -67,5 +68,6 @@ export default function App() {
   if (path === '/s') return <Signer />;
   if (path === '/sign/verify') return <Verify />;
   if (path === '/sign/login') return <LoginLanding />;
+  if (path === '/sign/my') return <MyDocuments />;
   return <SenderApp path={path} />;
 }

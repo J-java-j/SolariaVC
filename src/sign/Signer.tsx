@@ -424,6 +424,7 @@ function Completed({ session, signer, strike }: { session: SignerSession; signer
             {session.sha256 && <dd className="hash">{session.sha256}</dd>}
           </dl>
           <Link to="/sign/verify" className="link">Check a signed copy</Link>
+          <a className="link" href="/sign/my">See all your documents</a>
         </div>
       </div>
     </div>
@@ -550,7 +551,7 @@ export default function Signer() {
   const closed = CLOSED[session.state];
   if (closed) {
     const [title, body] = closed(session);
-    return <PageMessage title={title}><p>{body}</p></PageMessage>;
+    return <PageMessage title={title}><p>{body}</p><a className="link" href="/sign/my">See all your documents</a></PageMessage>;
   }
 
   const stage = session.needsConsent && !consented

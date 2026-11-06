@@ -982,3 +982,34 @@ test('a sender cannot batch-sign a document with fields only they can fill in', 
   const body = { rendered: [env.document.sha256], consent: true, disclosureVersion: '2026-10-31', intent: true, signature: mark('Johnson Jiang'), timeZone: 'UTC' };
   await assert.rejects(svc.signMine(SENDER, env.id, body, INFO), httpError(409));
 });
+
+test('a signer sees all their documents at /sign/my and can open each one', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const one = await draft(svc);
+  const two = await draft(svc, { sequential: true, recipients: [{ id: 'b', name: 'Karl Partner', email: 'karl@example.com' }, { id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
+  const notMine = await draft(svc, { recipients: [{ id: 'b', name: 'Karl Partner', email: 'karl@example.com' }] });
+  for (const env of [one, two, notMine]) await sent(svc, env);
+
+  mail.length = 0;
+  await svc.requestMyDocuments('stranger@example.com');
+  assert.equal(mail.length, 0, 'an address with nothing gets nothing, and the answer looks the same');
+  await svc.requestMyDocuments(' ADA@example.com ');
+  const link = /\/sign\/my#(\S+)/.exec(mail[0].text)?.[1];
+  assert.ok(link, 'the email carries a one-time link');
+  const { sessionId } = await svc.openMyDocuments(link);
+  await assert.rejects(svc.openMyDocuments(link), httpError(400), 'it works once');
+  const email = await svc.myEmail(sessionId);
+  assert.equal(email, 'ada@example.com');
+
+  const list = await svc.listMyDocuments(email);
+  assert.deepEqual(list.map((d) => [d.id, d.state]).sort(), [[one.id, 'sign'], [two.id, 'waiting']].sort());
+  assert.equal(list[0].state, 'sign', 'what needs signing comes first');
+  await assert.rejects(svc.openMyDocument(email, notMine.id), httpError(404), 'only their own documents');
+
+  const { url } = await svc.openMyDocument(email, one.id);
+  const token = /\/s#(\S+)/.exec(url)[1];
+  await signAs(svc, token, { name: 'Ada' });
+  assert.equal((await svc.listMyDocuments(email)).find((d) => d.id === one.id).state, 'signed');
+  await svc.endMyDocuments(sessionId);
+  assert.equal(await svc.myEmail(sessionId), null);
+});

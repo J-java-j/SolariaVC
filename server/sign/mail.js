@@ -44,13 +44,14 @@ export function signRequestEmail({ env, rec, url, reminder }) {
         ...(env.message ? [esc(env.message).replace(/\n/g, '<br>')] : []),
       ],
       button: { url, label: 'Review and sign' },
-      note: `This link is personal to you, so please don't forward it.${esc(codeNote)} It works until ${esc(new Date(env.expiresAt).toUTCString().slice(5, 16))}. You can ask for a paper version at any time.`,
+      note: `This link is personal to you, so please don't forward it.${esc(codeNote)} It works until ${esc(new Date(env.expiresAt).toUTCString().slice(5, 16))}. You can ask for a paper version at any time. To see everything you've been sent in one place, go to ${esc(`${new URL(url).origin}/sign/my`)}.`,
     }),
     text: [
       `${senderName} sent you a document to sign: ${env.title}`,
       env.message || null,
       `Review and sign: ${url}`,
       `This link is personal to you, so please don't forward it.${codeNote}`,
+      `Everything you've been sent, in one place: ${new URL(url).origin}/sign/my`,
     ].filter(Boolean).join('\n\n'),
   };
 }
@@ -85,6 +86,19 @@ export function loginEmail({ url, requestedAt = new Date() }) {
       note: 'If you did not ask for this, you can ignore it.',
     }),
     text: `Sign in to Solaria Sign: ${url}\n\nThis link works once, expires in 15 minutes, and stops working if you ask for a newer one.`,
+  };
+}
+
+export function myDocumentsEmail({ url }) {
+  return {
+    subject: 'Your documents to sign',
+    html: layout({
+      heading: 'Everything you have been asked to sign',
+      paragraphs: [`Use this link to see every document ${esc(ORG.name)} has sent you, and sign the ones waiting for you. It works once and expires in 15 minutes.`],
+      button: { url, label: 'See my documents' },
+      note: 'If you did not ask for this, you can ignore it.',
+    }),
+    text: `See every document ${ORG.name} has sent you: ${url}\n\nThis link works once and expires in 15 minutes.`,
   };
 }
 
