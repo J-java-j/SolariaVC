@@ -174,16 +174,21 @@ When documents are waiting for your own signature, the documents page offers
 **Sign all**. You see each distinct file, agree to electronic records, adopt your
 signature once, and sign every copy of that file in one go; a different file is
 shown before it can be signed. Each copy still gets its own viewed, agreed and
-signed entries in its audit trail, marked as signed from the documents page. Text
-blanks such as Title or Email are asked once and filled on every copy (Email starts
-as your address). A document with a checkbox only you can tick has to be signed
+signed entries in its audit trail, marked as signed from the documents page. Each text
+blank (Title, Email) gets its own numbered box matching a numbered marker on the
+document, and its answer is filled on every copy (Email starts as your address).
+Signatures start typed from your name, so adopting one is a single click; drawing
+is still there. A document with a checkbox only you can tick has to be signed
 from its email.
 
 `/sign` is one door for everyone. A team member who enters their address gets a
 sign-in link to the full documents page. Anyone else gets a one-time link (sent
 only if that address has documents) to a page of just their own: what is waiting
 for them, what they have signed, and what is complete, with a button to sign or
-download each. The page says the same either way, so it never reveals who is on
+download each. Someone with more than one waiting can choose **Sign all**: each
+file is shown, they agree once, adopt a signature once, and every one of their
+documents is signed in a row. It only ever signs their own place, and a document
+that asks for an emailed code is still signed on its own. The page says the same either way, so it never reveals who is on
 the team. Every signing email opens this page rather than the one document: it
 names the new document, lists anything else still waiting for that person's
 signature, and its button signs them straight in. The button stays valid until the

@@ -744,9 +744,36 @@ export function createSignService({ store, config, mail, log = console }) {
           sentAt: env.sentAt,
           expiresAt: env.expiresAt,
           completedAt: env.completedAt ?? null,
+          sha256: env.document.sha256,
+          others: signersOf(env).filter((r) => r.id !== rec.id).map((r) => r.name).join(', '),
+          code: Boolean(rec.requireCode),
+          name: rec.name,
           state: signerState(env, rec, false),
         })))
         .sort((a, b) => (order[a.state] ?? 4) - (order[b.state] ?? 4) || String(b.sentAt).localeCompare(String(a.sentAt)));
+    },
+
+    // What a signer needs to sign one of their own documents from their page: the
+    // file's size and hash, and only their own place and fields on it.
+    async myDocument(email, id) {
+      const env = await requireEnvelope(id);
+      const rec = signersOf(env).find((r) => r.email === email);
+      if (!rec || env.deletedAt || env.status === 'draft') throw new HttpError(404, 'Document not found.');
+      return {
+        id: env.id,
+        title: env.title,
+        document: { sha256: env.document.sha256, sizes: env.document.sizes },
+        recipients: [{ id: rec.id, name: rec.name, email: rec.email, role: 'signer' }],
+        fields: env.fields.filter((f) => f.recipientId === rec.id).map(({ value, ...f }) => f),
+      };
+    },
+
+    async myFile(email, id) {
+      const env = await requireEnvelope(id);
+      if (!signersOf(env).some((r) => r.email === email) || env.deletedAt || env.status === 'draft') throw new HttpError(404, 'Document not found.');
+      const bytes = await store.getBlob(env.document.key);
+      if (!bytes) throw new HttpError(404, 'File not found.');
+      return { bytes, fileName: env.document.fileName };
     },
 
     // A fresh personal link for one of the signer's own documents. Older links keep
@@ -1331,7 +1358,7 @@ export function createSignService({ store, config, mail, log = console }) {
     // the documents page, many in a row. Only ever their own place on a document,
     // and only a document whose file this browser displayed: the client lists the
     // file hashes it rendered, so copies of one file can follow the one shown.
-    async signMine(user, id, body, info) {
+    async signMine(user, id, body, info, { signer = false } = {}) {
       if (body?.intent !== true) throw new HttpError(400, 'Confirm that you intend to sign.');
       if (body?.consent !== true || body?.disclosureVersion !== DISCLOSURE_VERSION) {
         throw new HttpError(409, 'Agree to electronic records first.');
@@ -1342,19 +1369,21 @@ export function createSignService({ store, config, mail, log = console }) {
       if (!Array.isArray(body.rendered) || !body.rendered.includes(env.document.sha256)) {
         throw new HttpError(409, `Open "${env.title}" before signing it.`);
       }
+      if (signer && rec.requireCode) {
+        throw new HttpError(409, `"${env.title}" asks for an emailed code. Open it on its own to sign.`);
+      }
       if (env.fields.some((f) => f.recipientId === rec.id && f.required && f.type === 'checkbox')) {
         throw new HttpError(409, `"${env.title}" has boxes only you can tick. Open it from your email to sign.`);
       }
-      // Text answers come once for all the copies, keyed by the field's label
-      // ("Title", "Email"), so each copy's own field ids are filled from them.
+      // Text answers come once for all the copies of a file: a list in the order
+      // of the signer's blanks (copies share it), or a map keyed by the blank's label.
       const answers = body.answers && typeof body.answers === 'object' ? body.answers : {};
       const values = {};
-      for (const f of env.fields) {
-        if (f.recipientId !== rec.id || f.type !== 'text') continue;
-        const answer = answers[String(f.label ?? '').trim().toLowerCase()];
+      env.fields.filter((f) => f.recipientId === rec.id && f.type === 'text').forEach((f, i) => {
+        const answer = Array.isArray(answers) ? answers[i] : answers[String(f.label ?? '').trim().toLowerCase()];
         if (typeof answer === 'string') values[f.id] = answer;
-      }
-      const via = { via: 'documents page' };
+      });
+      const via = { via: signer ? 'signer documents page' : 'documents page' };
       await signFor(env, rec, { ...body, values }, info, {
         signedDetails: via,
         before(e, r) {

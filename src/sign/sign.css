@@ -627,6 +627,11 @@ img { display: block; max-width: 100%; }
 .queue-doc { display: grid; gap: 6px; }
 .queue-window { max-height: 60dvh; padding: 12px; }
 .queue-spot { position: absolute; display: grid; place-items: center; overflow: hidden; border: 1.5px dashed var(--sun-deep); border-radius: 3px; background: rgb(245 184 65 / 0.16); }
+.queue-spot .queue-num { position: absolute; top: 1px; left: 1px; }
+.queue-spot-on { border-style: solid; border-width: 2px; background: rgb(245 184 65 / 0.38); }
+.queue-num { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--sun-deep); color: #17201e; font-size: 11px; font-weight: 700; font-style: normal; line-height: 1; }
+.queue-answers > p { grid-column: 1 / -1; margin: 0; }
+.queue-answer > span { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .queue-spot img { max-width: 100%; max-height: 100%; }
 .queue-spot em { color: #8a5a00; font-size: 11px; font-style: normal; font-weight: 600; }
 .queue-steps { display: grid; gap: 14px; padding-top: 18px; border-top: 1px solid var(--paper-line); }

@@ -283,6 +283,12 @@ async function myDocuments(req, res, svc, parts) {
   const email = await svc.myEmail(cookies(req)[MY_COOKIE]);
   if (!email) throw new HttpError(401, 'Your link has expired. Ask for a new one.');
   if (req.method === 'GET' && !first) return sendJson(res, 200, { email, documents: await svc.listMyDocuments(email) });
+  if (req.method === 'GET' && /^[0-9A-Z]{12}$/.test(first ?? '') && !second) return sendJson(res, 200, await svc.myDocument(email, first));
+  if (req.method === 'GET' && /^[0-9A-Z]{12}$/.test(first ?? '') && second === 'original') return sendFile(res, await svc.myFile(email, first));
+  if (req.method === 'POST' && /^[0-9A-Z]{12}$/.test(first ?? '') && second === 'sign') {
+    rateLimit(`my-sign:${ip}`, 120, 600_000);
+    return sendJson(res, 200, await svc.signMine({ email }, first, await readJson(req, LIMITS.signatureBytes * 3 + 256 * 1024), clientInfo(req), { signer: true }));
+  }
   if (req.method === 'POST' && /^[0-9A-Z]{12}$/.test(first ?? '') && second === 'open') {
     rateLimit(`my-doc:${ip}`, 120, 600_000);
     return sendJson(res, 200, await svc.openMyDocument(email, first));

@@ -1021,6 +1021,19 @@ test('a sender batch-signs with text answers given once, but not a box only they
   const stored = (await store.getEnvelope(env.id)).data;
   assert.equal(stored.fields.find((f) => f.type === 'text').value, 'Managing Member');
 
+  // Two blanks with the same label each get their own answer, in order.
+  const twice = await draft(svc, {
+    recipients: [{ id: 'j', name: 'Johnson Jiang', email: SENDER.email }],
+    fields: [
+      { recipientId: 'j', type: 'signature', page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.05 },
+      { recipientId: 'j', type: 'text', page: 1, x: 0.1, y: 0.6, w: 0.3, h: 0.03, required: true, label: 'Title' },
+      { recipientId: 'j', type: 'text', page: 1, x: 0.1, y: 0.7, w: 0.3, h: 0.03, required: false, label: 'Title' },
+    ],
+  });
+  await sent(svc, twice);
+  await svc.signMine(SENDER, twice.id, { ...body, rendered: [twice.document.sha256], answers: ['Managing Member', 'Treasurer'] }, INFO);
+  assert.deepEqual((await store.getEnvelope(twice.id)).data.fields.filter((f) => f.type === 'text').map((f) => f.value), ['Managing Member', 'Treasurer']);
+
   const boxed = await draft(svc, {
     recipients: [{ id: 'j', name: 'Johnson Jiang', email: SENDER.email }],
     fields: [
@@ -1030,6 +1043,34 @@ test('a sender batch-signs with text answers given once, but not a box only they
   });
   await sent(svc, boxed);
   await assert.rejects(svc.signMine(SENDER, boxed.id, { ...body, rendered: [boxed.document.sha256] }, INFO), httpError(409));
+});
+
+test('a signer signs all their own documents from their page, and nothing else', async (t) => {
+  const { svc, store } = harness(t);
+  const docs = [];
+  for (let i = 0; i < 3; i++) docs.push(await draft(svc));
+  const coded = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com', requireCode: true }] });
+  for (const env of [...docs, coded]) await sent(svc, env);
+  const ada = { email: 'ada@example.com' };
+
+  const opened = await svc.myDocument(ada.email, docs[0].id);
+  assert.deepEqual(opened.recipients.map((r) => r.email), ['ada@example.com'], 'only their own place');
+  assert.ok(opened.fields.length && opened.fields.every((f) => f.recipientId === opened.recipients[0].id));
+  await assert.rejects(svc.myDocument('stranger@example.com', docs[0].id), httpError(404));
+  await assert.rejects(svc.myFile('stranger@example.com', docs[0].id), httpError(404));
+  assert.ok((await svc.myFile(ada.email, docs[0].id)).bytes.length > 0);
+
+  const body = { rendered: [docs[0].document.sha256], consent: true, disclosureVersion: '2026-10-31', intent: true, signature: mark('Ada Investor'), timeZone: 'UTC' };
+  for (const env of docs) await svc.signMine(ada, env.id, body, INFO, { signer: true });
+  await assert.rejects(svc.signMine(ada, coded.id, { ...body, rendered: [coded.document.sha256] }, INFO, { signer: true }), httpError(409), 'a code-protected document is signed on its own');
+
+  for (const env of docs) {
+    const stored = (await store.getEnvelope(env.id)).data;
+    const signed = stored.recipients.filter((r) => r.status === 'signed').map((r) => r.email);
+    assert.deepEqual(signed, ['ada@example.com'], 'Karl still signs his own');
+    assert.equal(stored.events.find((e) => e.type === 'recipient.signed').details.via, 'signer documents page');
+  }
+  assert.ok((await svc.listMyDocuments(ada.email)).every((d) => d.state !== 'sign' || d.id === coded.id));
 });
 
 test('a signer sees all their documents at /sign and can open each one', async (t) => {

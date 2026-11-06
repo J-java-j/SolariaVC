@@ -148,7 +148,8 @@ export function initialsOf(name: string) {
 
 export function SignaturePad({ kind, name, intent, onAdopt, onCancel }: Props) {
   const signature = kind === 'signature';
-  const [method, setMethod] = useState<Mark['method']>('draw');
+  // Typed by default: one click adopts it, with no drawing on a trackpad.
+  const [method, setMethod] = useState<Mark['method']>('type');
   const [text, setText] = useState(signature ? name : initialsOf(name));
   const [drawn, setDrawn] = useState<HTMLCanvasElement | null>(null);
   const [error, setError] = useState('');
@@ -174,8 +175,8 @@ export function SignaturePad({ kind, name, intent, onAdopt, onCancel }: Props) {
         </label>
       )}
       <div className="tabs" role="group" aria-label="How to sign">
-        <button type="button" aria-pressed={method === 'draw'} onClick={() => setMethod('draw')}>Draw</button>
         <button type="button" aria-pressed={method === 'type'} onClick={() => setMethod('type')}>Type</button>
+        <button type="button" aria-pressed={method === 'draw'} onClick={() => setMethod('draw')}>Draw</button>
       </div>
       {method === 'draw'
         ? <DrawPad onChange={setDrawn} />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, type Disclosure, type Envelope, type EnvelopeSummary, type Mark } from './api';
+import { api, type Disclosure, type Envelope, type EnvelopeSummary, type Field, type Mark } from './api';
 import type { User } from './App';
 import { openPdf, type PdfDocument } from './pdf';
 import { PdfPages } from './PdfPages';
@@ -21,11 +21,25 @@ export function waitingOn(envs: EnvelopeSummary[], email: string) {
   ));
 }
 
+// One document to sign: its file's hash and the other people on it.
+export type QueueItem = { id: string; title: string; sha256: string; others: string };
+type Opened = { recipients: Pick<Envelope['recipients'][number], 'id' | 'email' | 'role'>[]; fields: Field[]; document: { sizes: Envelope['document']['sizes'] } };
+
+// Where the documents come from: the team's documents page, or a signer's own page.
+export type QueueSource = {
+  list: () => Promise<QueueItem[]>;
+  get: (id: string) => Promise<Opened>;
+  original: (id: string) => Promise<ArrayBuffer>;
+  sign: (id: string, body: Parameters<typeof api.signMine>[1]) => Promise<unknown>;
+  done: () => void;
+  doneLabel: string;
+};
+
 // Copies of one file are signed together after it is shown once; a different file
 // is always shown before it can be signed.
-function byFile(envs: EnvelopeSummary[]) {
-  const groups = new Map<string, EnvelopeSummary[]>();
-  for (const env of envs) groups.set(env.sha256, [...(groups.get(env.sha256) ?? []), env]);
+function byFile(items: QueueItem[]) {
+  const groups = new Map<string, QueueItem[]>();
+  for (const item of items) groups.set(item.sha256, [...(groups.get(item.sha256) ?? []), item]);
   return [...groups.values()];
 }
 
@@ -34,12 +48,34 @@ const otherPeople = (env: EnvelopeSummary, email: string) => env.recipients
   .map((r) => r.name)
   .join(', ');
 
+const teamSource = (email: string): QueueSource => ({
+  list: async () => {
+    const list = await api.list();
+    // /sign/queue?ids=… signs just the documents picked; without it, everything waiting.
+    const only = new URLSearchParams(window.location.search).get('ids')?.split(',').filter(Boolean);
+    const waiting = waitingOn(list.envelopes, email);
+    return (only?.length ? waiting.filter((env) => only.includes(env.id)) : waiting)
+      .map((env) => ({ id: env.id, title: env.title, sha256: env.sha256, others: otherPeople(env, email) }));
+  },
+  get: (id) => api.get(id),
+  original: (id) => api.original(id),
+  sign: (id, body) => api.signMine(id, body),
+  done: () => navigate('/sign'),
+  doneLabel: 'Back to documents',
+});
+
 export default function SignQueue({ user }: { user: User }) {
-  const [groups, setGroups] = useState<EnvelopeSummary[][] | null>(null);
+  const source = useMemo(() => teamSource(user.email), [user.email]);
+  return <Queue email={user.email} name={user.name} source={source} />;
+}
+
+export function Queue({ email, name, source }: { email: string; name: string; source: QueueSource }) {
+  const user = { email, name };
+  const [groups, setGroups] = useState<QueueItem[][] | null>(null);
   const [terms, setTerms] = useState<Terms | null>(null);
   const [loadError, setLoadError] = useState('');
   const [index, setIndex] = useState(0);
-  const [sample, setSample] = useState<Envelope | null>(null);
+  const [sample, setSample] = useState<Opened | null>(null);
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [rendered, setRendered] = useState<ReadonlySet<string>>(new Set());
   const [agreed, setAgreed] = useState(false);
@@ -50,19 +86,16 @@ export default function SignQueue({ user }: { user: User }) {
   const stop = useRef(false);
 
   useEffect(() => {
-    Promise.all([api.list(), api.disclosure()])
-      .then(([list, t]) => {
-        // /sign/queue?ids=… signs just the documents picked; without it, everything waiting.
-        const only = new URLSearchParams(window.location.search).get('ids')?.split(',').filter(Boolean);
-        const waiting = waitingOn(list.envelopes, user.email);
-        setGroups(byFile(only?.length ? waiting.filter((env) => only.includes(env.id)) : waiting));
+    Promise.all([source.list(), api.disclosure()])
+      .then(([items, t]) => {
+        setGroups(byFile(items));
         setTerms(t);
       })
       .catch((e: Error) => setLoadError(e.message));
     return () => {
       stop.current = true;
     };
-  }, [user.email]);
+  }, [source]);
 
   const group = groups?.[index];
 
@@ -73,8 +106,8 @@ export default function SignQueue({ user }: { user: User }) {
     let cancelled = false;
     setDoc(null);
     setSample(null);
-    api.get(group[0].id).then(async (env) => {
-      const pdf = await openPdf(await api.original(env.id));
+    source.get(group[0].id).then(async (env) => {
+      const pdf = await openPdf(await source.original(group[0].id));
       opened = pdf;
       if (cancelled) pdf.destroy();
       else {
@@ -86,25 +119,23 @@ export default function SignQueue({ user }: { user: User }) {
       cancelled = true;
       opened?.destroy();
     };
-  }, [group]);
+  }, [group, source]);
 
   const me = sample?.recipients.find((r) => r.email === user.email && r.role === 'signer');
   const mine = useMemo(() => (sample && me ? sample.fields.filter((f) => f.recipientId === me.id) : []), [sample, me]);
   const needsInitials = mine.some((f) => f.type === 'initials');
-  // Each blank to fill ("Title", "Email") is asked once and used on every copy.
-  const questions = useMemo(() => {
-    const seen = new Map<string, { key: string; label: string; required: boolean }>();
-    for (const f of mine) {
-      if (f.type !== 'text') continue;
-      const key = f.label.trim().toLowerCase();
-      const prior = seen.get(key);
-      seen.set(key, { key, label: f.label.trim() || 'Text', required: Boolean(prior?.required || f.required) });
-    }
-    return [...seen.values()];
-  }, [mine]);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const answerOf = (key: string) => answers[key] ?? (/e-?mail/.test(key) ? user.email : '');
-  const answered = questions.every((q) => !q.required || answerOf(q.key).trim());
+  // One box per blank on the page, numbered to match a marker on the document.
+  // Copies of one file have the same blanks in the same order, so each answer
+  // goes into the same place on every copy.
+  const questions = useMemo(() => mine
+    .filter((f) => f.type === 'text')
+    .map((f, index) => ({ index, field: f, label: f.label.trim() || 'Text', required: f.required })), [mine]);
+  const [answers, setAnswers] = useState<string[]>([]);
+  const [focused, setFocused] = useState<number | null>(null);
+  useEffect(() => setAnswers([]), [group]);
+  const answerOf = (index: number) => answers[index] ?? (/e-?mail/i.test(questions[index]?.label ?? '') ? user.email : '');
+  const numberOf = (id: string) => questions.findIndex((q) => q.field.id === id);
+  const answered = questions.every((q) => !q.required || answerOf(q.index).trim());
   const shown = group ? rendered.has(group[0].sha256) : false;
   const done = group ? group.filter((env) => outcomes[env.id] === 'ok').length : 0;
   const finished = group ? group.every((env) => outcomes[env.id]) : false;
@@ -121,14 +152,14 @@ export default function SignQueue({ user }: { user: User }) {
       intent: true as const,
       signature: marks.signature!,
       ...(marks.initials ? { initials: marks.initials } : {}),
-      answers: Object.fromEntries(questions.map((q) => [q.key, answerOf(q.key).trim()])),
+      answers: questions.map((q) => answerOf(q.index).trim()),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
     const worker = async () => {
       for (let env = queue.shift(); env && !stop.current; env = queue.shift()) {
         const id = env.id;
         try {
-          await api.signMine(id, body);
+          await source.sign(id, body);
           setOutcomes((prior) => ({ ...prior, [id]: 'ok' }));
         } catch (e) {
           setOutcomes((prior) => ({ ...prior, [id]: (e as Error).message }));
@@ -143,7 +174,7 @@ export default function SignQueue({ user }: { user: User }) {
     return (
       <div className="queue">
         <Notice>{loadError}</Notice>
-        <button type="button" className="secondary" onClick={() => navigate('/sign')}>Back to documents</button>
+        <button type="button" className="secondary" onClick={source.done}>{source.doneLabel}</button>
       </div>
     );
   }
@@ -153,7 +184,7 @@ export default function SignQueue({ user }: { user: User }) {
       <div className="queue">
         <h1>Nothing to sign</h1>
         <p className="muted">No document is waiting for your signature right now.</p>
-        <button type="button" className="primary" onClick={() => navigate('/sign')}>Back to documents</button>
+        <button type="button" className="primary" onClick={source.done}>{source.doneLabel}</button>
       </div>
     );
   }
@@ -170,8 +201,10 @@ export default function SignQueue({ user }: { user: User }) {
       <h1>{group[0].title || 'Untitled document'}</h1>
       <p className="muted">
         {group.length === 1
-          ? `With ${otherPeople(group[0], user.email) || 'no one else'}.`
-          : `${group.length} copies of this file, one each for ${group.map((env) => otherPeople(env, user.email)).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).slice(0, 6).join('; ')}${group.length > 6 ? ` and ${group.length - 6} more` : ''}. They are the same document, and you sign each one.`}
+          ? `With ${group[0].others || 'no one else'}.`
+          : !group.some((item) => item.others)
+            ? `${group.length} copies of this file. They are the same document, and you sign each one.`
+            : `${group.length} copies of this file, one each for ${group.map((item) => item.others).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).slice(0, 6).join('; ')}${group.length > 6 ? ` and ${group.length - 6} more` : ''}. They are the same document, and you sign each one.`}
       </p>
 
       <section className="queue-doc">
@@ -185,12 +218,13 @@ export default function SignQueue({ user }: { user: User }) {
               overlay={(page) => mine.filter((f) => f.page === page).map((f) => (
                 <span
                   key={f.id}
-                  className="queue-spot"
+                  data-answer={f.id}
+                  className={`queue-spot${f.type === 'text' && numberOf(f.id) === focused ? ' queue-spot-on' : ''}`}
                   style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%` }}
                 >
                   {(f.type === 'signature' || f.type === 'initials') && marks[f.type]
                     ? <img src={marks[f.type]!.dataUrl} alt="" />
-                    : <em>{f.type === 'text' && answerOf(f.label.trim().toLowerCase()) ? answerOf(f.label.trim().toLowerCase()) : f.type === 'date' ? 'Date' : f.type === 'name' ? 'Name' : f.type === 'initials' ? 'Initials' : f.type === 'signature' ? 'Sign' : f.label || 'Field'}</em>}
+                    : <>{f.type === 'text' && <b className="queue-num">{numberOf(f.id) + 1}</b>}<em>{f.type === 'text' && answerOf(numberOf(f.id)) ? answerOf(numberOf(f.id)) : f.type === 'date' ? 'Date' : f.type === 'name' ? 'Name' : f.type === 'initials' ? 'Initials' : f.type === 'signature' ? 'Sign' : f.label || 'Field'}</em></>}
                 </span>
               ))}
             />
@@ -216,14 +250,27 @@ export default function SignQueue({ user }: { user: User }) {
 
         {questions.length > 0 && (
           <div className="queue-answers">
+            <p className="muted">Fill in {questions.length === 1 ? 'the blank' : `the ${questions.length} blanks`} marked on the document{group.length > 1 ? '. Each answer goes on every copy' : ''}.</p>
             {questions.map((q) => (
-              <label key={q.key} className="field">
-                {q.label}{q.required ? '' : ' (optional)'}
+              <label key={q.field.id} className="field queue-answer">
+                <span><b className="queue-num">{q.index + 1}</b> {q.label}<span className="muted"> · page {q.field.page}{q.required ? '' : ' · optional'}</span></span>
                 <input
-                  value={answerOf(q.key)}
+                  value={answerOf(q.index)}
                   maxLength={500}
                   disabled={running}
-                  onChange={(e) => setAnswers((prior) => ({ ...prior, [q.key]: e.target.value }))}
+                  onFocus={() => {
+                    setFocused(q.index);
+                    document.querySelector(`[data-answer="${q.field.id}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                  }}
+                  onBlur={() => setFocused(null)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setAnswers((prior) => {
+                      const next = questions.map((other) => prior[other.index] ?? answerOf(other.index));
+                      next[q.index] = value;
+                      return next;
+                    });
+                  }}
                 />
               </label>
             ))}
@@ -263,8 +310,8 @@ export default function SignQueue({ user }: { user: User }) {
           {finished && !last && (
             <button type="button" className="primary" onClick={() => setIndex(index + 1)}>Next document</button>
           )}
-          {finished && last && <button type="button" className="primary" onClick={() => navigate('/sign')}>Done</button>}
-          {!finished && <button type="button" className="quiet" disabled={running} onClick={() => navigate('/sign')}>Not now</button>}
+          {finished && last && <button type="button" className="primary" onClick={source.done}>Done</button>}
+          {!finished && <button type="button" className="quiet" disabled={running} onClick={source.done}>Not now</button>}
           {!finished && !last && !running && <button type="button" className="quiet" onClick={() => setIndex(index + 1)}>Skip this one</button>}
         </div>
       </section>

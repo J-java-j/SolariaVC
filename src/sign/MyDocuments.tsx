@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from './api';
 import { Login } from './Login';
+import { Queue, type QueueSource } from './SignQueue';
 import { formatDate, Loading, Notice, PageMessage, useBusy, Wordmark } from './ui';
 
 // The page anyone we've sent a document to can use to find all of theirs.
@@ -11,6 +12,10 @@ type Doc = {
   sentAt?: string;
   expiresAt?: string;
   completedAt: string | null;
+  sha256: string;
+  others: string;
+  code: boolean;
+  name: string;
   state: 'sign' | 'waiting' | 'signed' | 'sealing' | 'completed' | 'declined' | 'voided' | 'expired' | 'unavailable';
 };
 
@@ -36,6 +41,7 @@ export default function MyDocuments() {
   const [token] = useState(() => window.location.hash.slice(1));
   const [data, setData] = useState<{ email: string; documents: Doc[] } | null | undefined>(undefined);
   const [opening, setOpening] = useState('');
+  const [signingAll, setSigningAll] = useState(false);
   const { busy, error, run } = useBusy();
 
   const load = useCallback(() => call<{ email: string; documents: Doc[] }>('').then(setData).catch((e: ApiError) => {
@@ -73,6 +79,25 @@ export default function MyDocuments() {
   }
   if (data === undefined) return <Loading />;
   if (data === null) return <Login />;
+  const bar = (
+    <header className="bar">
+      <Wordmark />
+      <span className="bar-end">
+        <span className="bar-user">{data.email}</span>
+        <button type="button" className="quiet on-desk" onClick={() => post('/logout').finally(() => window.location.assign('/sign'))}>Sign out</button>
+      </span>
+    </header>
+  );
+  // Documents that ask for an emailed code are signed one at a time.
+  const batchable = data.documents.filter((d) => d.state === 'sign' && !d.code);
+  if (signingAll) {
+    return (
+      <div className="shell">
+        {bar}
+        <SignAll email={data.email} docs={batchable} onDone={() => { load().finally(() => setSigningAll(false)); }} />
+      </div>
+    );
+  }
 
   const open = (doc: Doc) => run(async () => {
     setOpening(doc.id);
@@ -83,20 +108,23 @@ export default function MyDocuments() {
 
   return (
     <div className="shell">
-      <header className="bar">
-        <Wordmark />
-        <span className="bar-end">
-          <span className="bar-user">{data.email}</span>
-          <button type="button" className="quiet on-desk" onClick={() => post('/logout').finally(() => window.location.assign('/sign'))}>Sign out</button>
-        </span>
-      </header>
+      {bar}
       <main className="ledger-page">
         <div className="ledger">
           <header className="ledger-head">
             <h1>Your documents</h1>
           </header>
           {waiting.length > 0
-            ? <div className="mine"><strong>{waiting.length === 1 ? '1 document needs' : `${waiting.length} documents need`} your signature.</strong></div>
+            ? (
+              <div className="mine">
+                <span>
+                  <strong>{waiting.length === 1 ? '1 document needs' : `${waiting.length} documents need`} your signature.</strong>
+                  {batchable.length > 1 && ' Read each one, then sign them all at once.'}
+                  {batchable.length < waiting.length && ` ${waiting.length - batchable.length === 1 ? 'One asks' : `${waiting.length - batchable.length} ask`} for an emailed code, so sign ${waiting.length - batchable.length === 1 ? 'it' : 'them'} on ${waiting.length - batchable.length === 1 ? 'its' : 'their'} own.`}
+                </span>
+                {batchable.length > 1 && <button type="button" className="primary" onClick={() => setSigningAll(true)}>Sign all {batchable.length}</button>}
+              </div>
+            )
             : data.documents.length > 0 && <div className="mine mine-done"><strong>You're all caught up.</strong> Nothing is waiting for your signature.</div>}
           {error && <Notice>{error}</Notice>}
           {!data.documents.length && <p className="ledger-empty">There are no documents for {data.email}.</p>}
@@ -134,4 +162,26 @@ export default function MyDocuments() {
       </main>
     </div>
   );
+}
+
+// Signing everything waiting from this page: only this person's own place, on
+// their own documents, each file shown before it is signed.
+function SignAll({ email, docs: given, onDone }: { email: string; docs: Doc[]; onDone: () => void }) {
+  // Fixed when the page opens, so the list does not shift while signing.
+  const [docs] = useState(given);
+  const done = useRef(onDone);
+  done.current = onDone;
+  const source = useMemo<QueueSource>(() => ({
+    list: async () => docs.map((d) => ({ id: d.id, title: d.title, sha256: d.sha256, others: d.others })),
+    get: (id) => call(`/${id}`),
+    original: async (id) => {
+      const res = await fetch(`/api/sign/my/${id}/original`, { credentials: 'same-origin' });
+      if (!res.ok) throw new ApiError('This document could not be opened.', res.status);
+      return res.arrayBuffer();
+    },
+    sign: (id, body) => post(`/${id}/sign`, body),
+    done: () => done.current(),
+    doneLabel: 'Back to your documents',
+  }), [docs]);
+  return <Queue email={email} name={docs[0]?.name ?? ''} source={source} />;
 }
