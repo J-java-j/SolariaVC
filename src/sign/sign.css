@@ -635,6 +635,7 @@ img { display: block; max-width: 100%; }
 .queue-terms summary { cursor: pointer; color: var(--title-green); font-size: 14px; font-weight: 500; }
 .queue-terms .legal { display: grid; gap: 10px; max-height: 260px; margin-top: 10px; overflow: auto; font-size: 15px; }
 .queue-marks { display: flex; flex-wrap: wrap; gap: 12px; }
+.queue-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .queue-mark { display: inline-flex; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1.5px solid var(--ink); background: var(--paper-tint); }
 .queue-mark img { height: 44px; }
 .queue-intent { font-size: 15px; }

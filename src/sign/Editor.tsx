@@ -537,7 +537,8 @@ export default function Editor({ env, user, onSent }: Props) {
         y: f.y,
         w: f.w,
         h: f.h,
-        required: f.type !== 'text',
+        // A labelled blank ("Title:", "Email:") is asked for; an unlabelled one is optional.
+        required: f.type !== 'text' || Boolean(f.label),
         label: f.label,
       }));
       if (!fresh.length) {
@@ -552,6 +553,14 @@ export default function Editor({ env, user, onSent }: Props) {
       setFinding('This document could not be read for fields. Drag fields onto the page instead.');
     }
   };
+
+  // A freshly uploaded document gets its fields found straight away, for the first signer.
+  const autoFound = useRef(false);
+  useEffect(() => {
+    if (autoFound.current || !doc || !active || draft.fields.length || env.fields.length) return;
+    autoFound.current = true;
+    findFields();
+  }, [doc, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const changeField = (id: string, patch: Partial<Field>) => update((prior) => ({
     ...prior,

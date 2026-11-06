@@ -656,7 +656,9 @@ export function createSignService({ store, config, mail, log = console }) {
     // Answers identically for unknown addresses, so nobody can probe who has access.
     async requestLogin(emailInput) {
       const email = String(emailInput ?? '').trim().toLowerCase();
-      if (!(await findSender(email))) return;
+      // One sign-in page for everyone: the team gets a sign-in link, anyone else we
+      // have sent documents to gets a link to theirs. The answer is the same either way.
+      if (!(await findSender(email))) return this.requestMyDocuments(email);
       const token = randomSecret();
       const tokenHash = sha256Hex(token);
       // One live link per person, so asking again retires the one already in their inbox.
@@ -1319,11 +1321,20 @@ export function createSignService({ store, config, mail, log = console }) {
       if (!Array.isArray(body.rendered) || !body.rendered.includes(env.document.sha256)) {
         throw new HttpError(409, `Open "${env.title}" before signing it.`);
       }
-      if (env.fields.some((f) => f.recipientId === rec.id && f.required && (f.type === 'text' || f.type === 'checkbox'))) {
-        throw new HttpError(409, `"${env.title}" has fields only you can fill in. Open it from your email to sign.`);
+      if (env.fields.some((f) => f.recipientId === rec.id && f.required && f.type === 'checkbox')) {
+        throw new HttpError(409, `"${env.title}" has boxes only you can tick. Open it from your email to sign.`);
+      }
+      // Text answers come once for all the copies, keyed by the field's label
+      // ("Title", "Email"), so each copy's own field ids are filled from them.
+      const answers = body.answers && typeof body.answers === 'object' ? body.answers : {};
+      const values = {};
+      for (const f of env.fields) {
+        if (f.recipientId !== rec.id || f.type !== 'text') continue;
+        const answer = answers[String(f.label ?? '').trim().toLowerCase()];
+        if (typeof answer === 'string') values[f.id] = answer;
       }
       const via = { via: 'documents page' };
-      await signFor(env, rec, body, info, {
+      await signFor(env, rec, { ...body, values }, info, {
         signedDetails: via,
         before(e, r) {
           if (!r.viewedAt) {

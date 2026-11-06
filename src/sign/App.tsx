@@ -5,7 +5,7 @@ import SignQueue from './SignQueue';
 import Detail from './Detail';
 import Editor from './Editor';
 import MyDocuments from './MyDocuments';
-import { Login, LoginLanding } from './Login';
+import { LoginLanding } from './Login';
 import { Link, usePath } from './router';
 import Signer from './Signer';
 import Team from './Team';
@@ -55,7 +55,8 @@ function SenderApp({ path }: { path: string }) {
   }, []);
 
   if (user === undefined) return <Loading />;
-  if (!user) return <Login />;
+  // Not on the team: the page shows the documents sent to them, or the sign-in form.
+  if (!user) return <MyDocuments />;
   const envelope = /^\/sign\/e\/([0-9A-Z]{12})$/.exec(path);
   if (envelope) return <EnvelopePage key={envelope[1]} id={envelope[1]} user={user} />;
   if (path === '/sign/queue') return <Shell user={user}><SignQueue user={user} /></Shell>;

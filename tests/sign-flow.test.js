@@ -984,8 +984,8 @@ test('a sender signs their own place on many copies from the documents page', as
   assert.equal((await svc.getEnvelope(results[1].id)).status, 'sent', 'Bo still has to sign his own copy');
 });
 
-test('a sender cannot batch-sign a document with fields only they can fill in', async (t) => {
-  const { svc } = harness(t);
+test('a sender batch-signs with text answers given once, but not a box only they can tick', async (t) => {
+  const { svc, store } = harness(t);
   const env = await draft(svc, {
     recipients: [{ id: 'j', name: 'Johnson Jiang', email: SENDER.email }],
     fields: [
@@ -995,7 +995,20 @@ test('a sender cannot batch-sign a document with fields only they can fill in', 
   });
   await sent(svc, env);
   const body = { rendered: [env.document.sha256], consent: true, disclosureVersion: '2026-10-31', intent: true, signature: mark('Johnson Jiang'), timeZone: 'UTC' };
-  await assert.rejects(svc.signMine(SENDER, env.id, body, INFO), httpError(409));
+  await assert.rejects(svc.signMine(SENDER, env.id, body, INFO), httpError(400), 'a required blank must be answered');
+  await svc.signMine(SENDER, env.id, { ...body, answers: { title: 'Managing Member' } }, INFO);
+  const stored = (await store.getEnvelope(env.id)).data;
+  assert.equal(stored.fields.find((f) => f.type === 'text').value, 'Managing Member');
+
+  const boxed = await draft(svc, {
+    recipients: [{ id: 'j', name: 'Johnson Jiang', email: SENDER.email }],
+    fields: [
+      { recipientId: 'j', type: 'signature', page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.05 },
+      { recipientId: 'j', type: 'checkbox', page: 1, x: 0.1, y: 0.7, w: 0.03, h: 0.03, required: true, label: '' },
+    ],
+  });
+  await sent(svc, boxed);
+  await assert.rejects(svc.signMine(SENDER, boxed.id, { ...body, rendered: [boxed.document.sha256] }, INFO), httpError(409));
 });
 
 test('a signer sees all their documents at /sign/my and can open each one', async (t) => {
@@ -1005,6 +1018,9 @@ test('a signer sees all their documents at /sign/my and can open each one', asyn
   const notMine = await draft(svc, { recipients: [{ id: 'b', name: 'Karl Partner', email: 'karl@example.com' }] });
   for (const env of [one, two, notMine]) await sent(svc, env);
 
+  mail.length = 0;
+  await svc.requestLogin('ada@example.com');
+  assert.match(mail[0]?.text ?? '', /\/sign\/my#\S+/, 'the one sign-in page sends someone off the team a link to their documents');
   mail.length = 0;
   await svc.requestMyDocuments('stranger@example.com');
   assert.equal(mail.length, 0, 'an address with nothing gets nothing, and the answer looks the same');

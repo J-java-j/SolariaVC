@@ -163,7 +163,7 @@ A list send shows as one row that opens to show each person. Tick documents (or 
 whole group with the checkbox on its heading) to remind, void, move or delete them
 together. **Remind** emails each signer whose turn it is, once per person: someone
 with several documents gets one email listing them with a link (good for 14 days)
-straight into their `/sign/my` page, and someone with one gets a link to it. You,
+straight into their documents at `/sign`, and someone with one gets a link to it. You,
 and anyone you share a link with yourself, are skipped.
 
 Documents waiting on your own signature say **Your turn to sign** in the list. Open
@@ -174,18 +174,24 @@ When documents are waiting for your own signature, the documents page offers
 **Sign all**. You see each distinct file, agree to electronic records, adopt your
 signature once, and sign every copy of that file in one go; a different file is
 shown before it can be signed. Each copy still gets its own viewed, agreed and
-signed entries in its audit trail, marked as signed from the documents page. A
-document with text or checkbox fields only you can fill in has to be signed from
-its email.
+signed entries in its audit trail, marked as signed from the documents page. Text
+blanks such as Title or Email are asked once and filled on every copy (Email starts
+as your address). A document with a checkbox only you can tick has to be signed
+from its email.
 
-Anyone sent a document can see all of theirs at `/sign/my`: they enter their
-address, get a one-time link (sent only if that address has documents), and see
-what is waiting for them, what they have signed, and what is complete, with a
-button to sign or download each. Every signing email links there.
+`/sign` is one door for everyone. A team member who enters their address gets a
+sign-in link to the full documents page. Anyone else gets a one-time link (sent
+only if that address has documents) to a page of just their own: what is waiting
+for them, what they have signed, and what is complete, with a button to sign or
+download each. The page says the same either way, so it never reveals who is on
+the team. Every signing email links there; older `/sign/my` links still work.
 
-In the editor, **Find fields automatically** reads the PDF for signature lines
-(`Signature: ____`, `Date: ____`, `Print Name: ____`, `Initials:` and the like)
-and places matching fields for the selected signer to check. Fields can also be
+When a PDF is uploaded, the editor reads it for places to fill in and adds fields
+for the first signer to check: signature lines (`Signature: ____`, `By:`), dates,
+printed names, initials, and any other label with room after it (`Title:`,
+`Position:`, `Email:`) as a required text field named after the label. Email
+blanks start filled with the signer's address. **Find fields automatically** runs
+it again, for the selected signer, on a document that already has fields. Fields can also be
 dragged from the palette onto the page.
 
 Documents can be sorted into folders, and the list can be searched by title,

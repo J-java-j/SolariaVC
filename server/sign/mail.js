@@ -44,14 +44,14 @@ export function signRequestEmail({ env, rec, url, reminder }) {
         ...(env.message ? [esc(env.message).replace(/\n/g, '<br>')] : []),
       ],
       button: { url, label: 'Review and sign' },
-      note: `This link is personal to you, so please don't forward it.${esc(codeNote)} It works until ${esc(new Date(env.expiresAt).toUTCString().slice(5, 16))}. You can ask for a paper version at any time. To see everything you've been sent in one place, go to ${esc(`${new URL(url).origin}/sign/my`)}.`,
+      note: `This link is personal to you, so please don't forward it.${esc(codeNote)} It works until ${esc(new Date(env.expiresAt).toUTCString().slice(5, 16))}. You can ask for a paper version at any time. To see everything you've been sent in one place, go to ${esc(`${new URL(url).origin}/sign`)}.`,
     }),
     text: [
       `${senderName} sent you a document to sign: ${env.title}`,
       env.message || null,
       `Review and sign: ${url}`,
       `This link is personal to you, so please don't forward it.${codeNote}`,
-      `Everything you've been sent, in one place: ${new URL(url).origin}/sign/my`,
+      `Everything you've been sent, in one place: ${new URL(url).origin}/sign`,
     ].filter(Boolean).join('\n\n'),
   };
 }

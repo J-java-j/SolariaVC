@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from './api';
+import { Login } from './Login';
 import { formatDate, Loading, Notice, PageMessage, useBusy, Wordmark } from './ui';
 
 // The page anyone we've sent a document to can use to find all of theirs.
@@ -31,40 +32,6 @@ const GROUPS: [string, (d: Doc) => boolean][] = [
 
 const CLOSED_LABEL: Partial<Record<Doc['state'], string>> = { declined: 'Declined', voided: 'Cancelled by the sender', expired: 'Signing closed', unavailable: 'Not available' };
 
-function Ask() {
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
-  const { busy, error, run } = useBusy();
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    run(async () => {
-      await post('/request', { email });
-      setSent(true);
-    });
-  };
-  if (sent) {
-    return (
-      <PageMessage title="Check your email">
-        <p>If {email.trim()} has documents from us, a link to see them is on its way. It works once and expires in 15 minutes.</p>
-        <button type="button" className="quiet" onClick={() => setSent(false)}>Use a different address</button>
-      </PageMessage>
-    );
-  }
-  return (
-    <PageMessage title="Your documents">
-      <p>Enter the email address our documents were sent to. We'll email you a link to see all of them in one place and sign the ones waiting for you.</p>
-      <form onSubmit={submit} className="stack">
-        <label className="field">
-          Email
-          <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        {error && <Notice>{error}</Notice>}
-        <button className="primary" disabled={busy}>{busy ? 'Sending' : 'Email me a link'}</button>
-      </form>
-    </PageMessage>
-  );
-}
-
 export default function MyDocuments() {
   const [token] = useState(() => window.location.hash.slice(1));
   const [data, setData] = useState<{ email: string; documents: Doc[] } | null | undefined>(undefined);
@@ -95,17 +62,17 @@ export default function MyDocuments() {
       <PageMessage title="Your documents">
         {error ? <Notice>{error}</Notice> : <p>Continue to see your documents on this device.</p>}
         {error
-          ? <a className="primary" href="/sign/my">Get a new link</a>
+          ? <a className="primary" href="/sign">Get a new link</a>
           : <button type="button" className="primary" disabled={busy} onClick={() => run(async () => {
             await post('/open', { token });
-            window.history.replaceState(null, '', '/sign/my');
+            window.history.replaceState(null, '', '/sign');
             await load();
           })}>{busy ? 'Opening' : 'Continue'}</button>}
       </PageMessage>
     );
   }
   if (data === undefined) return <Loading />;
-  if (data === null) return <Ask />;
+  if (data === null) return <Login />;
 
   const open = (doc: Doc) => run(async () => {
     setOpening(doc.id);
@@ -120,7 +87,7 @@ export default function MyDocuments() {
         <Wordmark />
         <span className="bar-end">
           <span className="bar-user">{data.email}</span>
-          <button type="button" className="quiet on-desk" onClick={() => post('/logout').finally(() => window.location.assign('/sign/my'))}>Sign out</button>
+          <button type="button" className="quiet on-desk" onClick={() => post('/logout').finally(() => window.location.assign('/sign'))}>Sign out</button>
         </span>
       </header>
       <main className="ledger-page">

@@ -91,10 +91,24 @@ export default function SignQueue({ user }: { user: User }) {
   const me = sample?.recipients.find((r) => r.email === user.email && r.role === 'signer');
   const mine = useMemo(() => (sample && me ? sample.fields.filter((f) => f.recipientId === me.id) : []), [sample, me]);
   const needsInitials = mine.some((f) => f.type === 'initials');
+  // Each blank to fill ("Title", "Email") is asked once and used on every copy.
+  const questions = useMemo(() => {
+    const seen = new Map<string, { key: string; label: string; required: boolean }>();
+    for (const f of mine) {
+      if (f.type !== 'text') continue;
+      const key = f.label.trim().toLowerCase();
+      const prior = seen.get(key);
+      seen.set(key, { key, label: f.label.trim() || 'Text', required: Boolean(prior?.required || f.required) });
+    }
+    return [...seen.values()];
+  }, [mine]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const answerOf = (key: string) => answers[key] ?? (/e-?mail/.test(key) ? user.email : '');
+  const answered = questions.every((q) => !q.required || answerOf(q.key).trim());
   const shown = group ? rendered.has(group[0].sha256) : false;
   const done = group ? group.filter((env) => outcomes[env.id] === 'ok').length : 0;
   const finished = group ? group.every((env) => outcomes[env.id]) : false;
-  const ready = shown && agreed && Boolean(marks.signature) && (!needsInitials || Boolean(marks.initials)) && !running && !finished;
+  const ready = shown && agreed && answered && Boolean(marks.signature) && (!needsInitials || Boolean(marks.initials)) && !running && !finished;
 
   const signAll = async () => {
     if (!group || !terms) return;
@@ -107,6 +121,7 @@ export default function SignQueue({ user }: { user: User }) {
       intent: true as const,
       signature: marks.signature!,
       ...(marks.initials ? { initials: marks.initials } : {}),
+      answers: Object.fromEntries(questions.map((q) => [q.key, answerOf(q.key).trim()])),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
     const worker = async () => {
@@ -175,7 +190,7 @@ export default function SignQueue({ user }: { user: User }) {
                 >
                   {(f.type === 'signature' || f.type === 'initials') && marks[f.type]
                     ? <img src={marks[f.type]!.dataUrl} alt="" />
-                    : <em>{f.type === 'date' ? 'Date' : f.type === 'name' ? 'Name' : f.type === 'initials' ? 'Initials' : f.type === 'signature' ? 'Sign' : f.label || 'Field'}</em>}
+                    : <em>{f.type === 'text' && answerOf(f.label.trim().toLowerCase()) ? answerOf(f.label.trim().toLowerCase()) : f.type === 'date' ? 'Date' : f.type === 'name' ? 'Name' : f.type === 'initials' ? 'Initials' : f.type === 'signature' ? 'Sign' : f.label || 'Field'}</em>}
                 </span>
               ))}
             />
@@ -198,6 +213,22 @@ export default function SignQueue({ user }: { user: User }) {
             ))}
           </div>
         </details>
+
+        {questions.length > 0 && (
+          <div className="queue-answers">
+            {questions.map((q) => (
+              <label key={q.key} className="field">
+                {q.label}{q.required ? '' : ' (optional)'}
+                <input
+                  value={answerOf(q.key)}
+                  maxLength={500}
+                  disabled={running}
+                  onChange={(e) => setAnswers((prior) => ({ ...prior, [q.key]: e.target.value }))}
+                />
+              </label>
+            ))}
+          </div>
+        )}
 
         <div className="queue-marks">
           {marks.signature

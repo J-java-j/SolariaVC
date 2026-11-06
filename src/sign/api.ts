@@ -193,7 +193,7 @@ export const api = {
   eraseDocuments: (ids: string[]) => call('envelopes/selection/erase', post({ ids })),
   voidDocuments: (ids: string[], reason: string) => call('envelopes/selection/void', post({ ids, reason })),
   disclosure: () => call<{ disclosure: Disclosure; intent: { version: string; adopt: string; finish: string } }>('disclosure'),
-  signMine: (id: string, body: { rendered: string[]; consent: true; disclosureVersion: string; intent: true; signature: Mark; initials?: Mark; timeZone: string }) =>
+  signMine: (id: string, body: { rendered: string[]; consent: true; disclosureVersion: string; intent: true; signature: Mark; initials?: Mark; answers?: Record<string, string>; timeZone: string }) =>
     call<{ ok: true }>(`envelopes/${id}/sign-mine`, post(body)),
   remindDocuments: (ids: string[]) => call<{ reminded: number; documents: number; skipped: number; failed: string[] }>('envelopes/selection/remind', post({ ids })),
   moveDocuments: (ids: string[], folderId: string | null) => call('envelopes/selection/move', post({ ids, folderId })),

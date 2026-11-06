@@ -50,8 +50,7 @@ const tools: Tool[] = [
     signIn: 'Team email, then a one-time link',
     icon: icons.sign,
     links: [
-      { label: 'Documents', note: 'Send, track and organise', href: '/sign', address: 'solariavc.com/sign' },
-      { label: 'Signers’ page', note: 'Where anyone we send to finds all their documents', href: '/sign/my', address: 'solariavc.com/sign/my' },
+      { label: 'Documents', note: 'Send, track and organise. Anyone we send to signs in here too, and sees only their own', href: '/sign', address: 'solariavc.com/sign' },
       { label: 'Check a signed document', note: 'Anyone can confirm a PDF we sealed is genuine', href: '/sign/verify', address: 'solariavc.com/sign/verify' },
       { label: 'Team', note: 'Owner only: add or remove admins', href: '/sign/team', address: 'solariavc.com/sign/team' },
     ],

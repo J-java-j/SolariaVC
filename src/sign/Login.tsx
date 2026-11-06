@@ -18,19 +18,21 @@ export function Login() {
   if (sent) {
     return (
       <PageMessage title="Check your email">
-        <p>If {email} can send documents, a sign-in link is on its way. It works once and expires soon.</p>
+        <p>If {email.trim()} has documents with us, a link is on its way. It works once and expires in 15 minutes.</p>
+        <button type="button" className="quiet" onClick={() => setSent(false)}>Use a different address</button>
       </PageMessage>
     );
   }
   return (
-    <PageMessage title="Sign in to send documents">
+    <PageMessage title="Solaria Sign">
+      <p>Enter your email address. We'll send you a link to every document waiting for your signature. Solaria team members get their full documents page.</p>
       <form onSubmit={submit} className="stack">
         <label className="field">
-          Work email
+          Email
           <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
         {error && <Notice>{error}</Notice>}
-        <button className="primary" disabled={busy}>{busy ? 'Sending' : 'Email me a sign-in link'}</button>
+        <button className="primary" disabled={busy}>{busy ? 'Sending' : 'Email me a link'}</button>
       </form>
     </PageMessage>
   );
