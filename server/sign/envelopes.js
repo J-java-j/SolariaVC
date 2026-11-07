@@ -768,9 +768,18 @@ export function createSignService({ store, config, mail, log = console }) {
       };
     },
 
-    async myFile(email, id) {
+    // The original to read before signing, or the sealed copy once everyone has
+    // signed. Only for someone who signs this document.
+    async myFile(email, id, kind = 'original') {
       const env = await requireEnvelope(id);
       if (!signersOf(env).some((r) => r.email === email) || env.deletedAt || env.status === 'draft') throw new HttpError(404, 'Document not found.');
+      if (kind === 'sealed') {
+        if (!env.sealed?.key) throw new HttpError(404, 'The signed copy is not ready yet.');
+        const bytes = await store.getBlob(env.sealed.key);
+        if (!bytes) throw new HttpError(404, 'File not found.');
+        const base = env.title.replace(/[^\p{L}\p{N} ._-]+/gu, '').trim().slice(0, 80) || 'Document';
+        return { bytes, fileName: `${base} - signed.pdf` };
+      }
       const bytes = await store.getBlob(env.document.key);
       if (!bytes) throw new HttpError(404, 'File not found.');
       return { bytes, fileName: env.document.fileName };

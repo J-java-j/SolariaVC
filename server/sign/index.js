@@ -285,6 +285,7 @@ async function myDocuments(req, res, svc, parts) {
   if (req.method === 'GET' && !first) return sendJson(res, 200, { email, documents: await svc.listMyDocuments(email) });
   if (req.method === 'GET' && /^[0-9A-Z]{12}$/.test(first ?? '') && !second) return sendJson(res, 200, await svc.myDocument(email, first));
   if (req.method === 'GET' && /^[0-9A-Z]{12}$/.test(first ?? '') && second === 'original') return sendFile(res, await svc.myFile(email, first));
+  if (req.method === 'GET' && /^[0-9A-Z]{12}$/.test(first ?? '') && second === 'sealed') return sendFile(res, await svc.myFile(email, first, 'sealed'));
   if (req.method === 'POST' && /^[0-9A-Z]{12}$/.test(first ?? '') && second === 'sign') {
     rateLimit(`my-sign:${ip}`, 120, 600_000);
     return sendJson(res, 200, await svc.signMine({ email }, first, await readJson(req, LIMITS.signatureBytes * 3 + 256 * 1024), clientInfo(req), { signer: true }));

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ApiError } from './api';
+import { ApiError, saveFile } from './api';
 import { Login } from './Login';
 import { Queue, type QueueSource } from './SignQueue';
 import { formatDate, Loading, Notice, PageMessage, useBusy, Wordmark } from './ui';
@@ -105,6 +105,17 @@ export default function MyDocuments() {
     window.location.assign(url);
   });
   const waiting = data.documents.filter((d) => d.state === 'sign');
+  const downloadSigned = (doc: Doc) => run(async () => {
+    setOpening(doc.id);
+    try {
+      const res = await fetch(`/api/sign/my/${doc.id}/sealed`, { credentials: 'same-origin' });
+      if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error ?? 'The signed copy could not be downloaded.', res.status);
+      const name = (doc.title || 'Document').replace(/[^\p{L}\p{N} ._-]+/gu, '').trim().slice(0, 80) || 'Document';
+      saveFile(await res.arrayBuffer(), `${name} - signed.pdf`);
+    } finally {
+      setOpening('');
+    }
+  });
 
   return (
     <div className="shell">
@@ -149,8 +160,14 @@ export default function MyDocuments() {
                       {doc.state === 'sign' && (
                         <button type="button" className="primary" disabled={busy} onClick={() => open(doc)}>{opening === doc.id ? 'Opening' : 'Review and sign'}</button>
                       )}
-                      {(doc.state === 'completed' || doc.state === 'signed' || doc.state === 'sealing') && (
-                        <button type="button" className="secondary" disabled={busy} onClick={() => open(doc)}>{opening === doc.id ? 'Opening' : doc.state === 'completed' ? 'Get signed copy' : 'View'}</button>
+                      {doc.state === 'completed' && (
+                        <span className="my-actions">
+                          <button type="button" className="primary" disabled={busy} onClick={() => downloadSigned(doc)}>{opening === doc.id ? 'Downloading' : 'Download signed PDF'}</button>
+                          <button type="button" className="quiet" disabled={busy} onClick={() => open(doc)}>View</button>
+                        </span>
+                      )}
+                      {(doc.state === 'signed' || doc.state === 'sealing') && (
+                        <button type="button" className="secondary" disabled={busy} onClick={() => open(doc)}>{opening === doc.id ? 'Opening' : 'View'}</button>
                       )}
                     </li>
                   ))}

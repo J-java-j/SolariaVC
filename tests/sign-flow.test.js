@@ -1073,6 +1073,20 @@ test('a signer signs all their own documents from their page, and nothing else',
   assert.ok((await svc.listMyDocuments(ada.email)).every((d) => d.state !== 'sign' || d.id === coded.id));
 });
 
+test('a signer downloads the signed PDF from their page once everyone has signed', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  await assert.rejects(svc.myFile('ada@example.com', env.id, 'sealed'), httpError(404), 'not before it is complete');
+  for (const to of ['ada@example.com', 'karl@example.com']) await signAs(svc, await linkIn(svc, mail.find((m) => m.to === to && m.envelopeId === env.id)));
+  const done = await svc.getEnvelope(env.id);
+  assert.equal(done.status, 'completed');
+  const file = await svc.myFile('ada@example.com', env.id, 'sealed');
+  assert.match(file.fileName, / - signed\.pdf$/);
+  assert.equal(file.bytes.subarray(0, 5).toString(), '%PDF-');
+  await assert.rejects(svc.myFile('stranger@example.com', env.id, 'sealed'), httpError(404), 'only the people who signed it');
+});
+
 test('a signer sees all their documents at /sign and can open each one', async (t) => {
   const { svc, sent: mail } = harness(t);
   const one = await draft(svc);
