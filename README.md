@@ -184,7 +184,8 @@ from its email.
 sign-in link to the full documents page. Anyone else gets a one-time link (sent
 only if that address has documents) to a page of just their own: what is waiting
 for them, what they have signed, and what is complete, with a button to sign or
-download each. Someone with more than one waiting can choose **Sign all**: each
+download each (once everyone has signed, **Download signed PDF** saves the sealed
+copy straight from the list). Someone with more than one waiting can choose **Sign all**: each
 file is shown, they agree once, adopt a signature once, and every one of their
 documents is signed in a row. It only ever signs their own place, and a document
 that asks for an emailed code is still signed on its own. The page says the same either way, so it never reveals who is on
