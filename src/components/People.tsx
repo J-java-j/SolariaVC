@@ -32,7 +32,7 @@ const PORTRAIT_FIT_BY_IMAGE: Record<string, PortraitFit> = {
   '/team/greesh.png': { x: 54, y: 6, scale: 1.24, brightness: 1 },
   '/team/placeholder.png': { x: 54, y: 6, scale: 1.24, brightness: 1 },
   '/team/placeholder-3.png': { x: 60, y: 6, scale: 1.24, brightness: 1 },
-  '/team/elliott-yaroslavsky.png': { x: 16, y: 50, scale: 1, brightness: 1, shiftX: 8 },
+  '/team/elliott-yaroslavsky.png': { x: 16, y: 50, scale: 1, brightness: 1 },
 };
 
 function portraitFitFor(imageUrl?: string): PortraitFit {
