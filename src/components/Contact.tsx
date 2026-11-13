@@ -1,20 +1,20 @@
 import { useState, type FormEvent } from 'react';
 import { useReveal } from '../hooks/useReveal';
 import { SectionIntro } from './primitives';
+import Button from './ui/Button';
 import { submitContact, validateContact, type ContactKind } from '../lib/contactApi';
 import { sectionSurface } from '../lib/sectionTheme';
 
 type Kind = ContactKind;
-const kinds: [Kind, string][] = [
+const kindOptions: [Kind, string][] = [
   ['founder', 'A founder'],
   ['investor', 'An investor'],
   ['other', 'Someone else'],
 ];
 
-const fieldClass =
-  'mt-2 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-3.5 py-3 text-[18px] text-[var(--fg)] placeholder:text-[var(--fg-muted)] outline-none transition-colors focus:border-[color-mix(in_oklab,var(--accent-deep)_35%,var(--border-strong))] disabled:cursor-not-allowed disabled:opacity-50';
+const fieldClass = 'field';
 
-const labelClass = 'block text-[16px] font-medium text-[var(--fg)]';
+const labelClass = 'field-label';
 
 export default function Contact() {
   const [ref, inView] = useReveal(0.08);
@@ -22,35 +22,49 @@ export default function Contact() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<{
-    kind: Kind;
+    kinds: Kind[];
     name: string;
     email: string;
     msg: string;
     website: string;
   }>({
-    kind: 'founder',
+    kinds: ['founder'],
     name: '',
     email: '',
     msg: '',
     website: '',
   });
 
+  const toggleKind = (id: Kind, checked: boolean) =>
+    setForm((f) => ({
+      ...f,
+      kinds: checked ? [...f.kinds, id] : f.kinds.filter((k) => k !== id),
+    }));
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
 
+    // The API takes one kind (it sets the email subject), so extra selections ride in the message.
+    const selected = kindOptions.filter(([id]) => form.kinds.includes(id));
     const payload = {
       name: form.name,
       email: form.email,
       message: form.msg,
-      kind: form.kind,
+      kind: selected[0]?.[0] ?? 'other',
       website: form.website,
     };
 
-    const validationError = validateContact(payload);
+    const validationError = selected.length
+      ? validateContact(payload)
+      : 'Please choose at least one option under “You are.”';
     if (validationError) {
       setError(validationError);
       return;
+    }
+
+    if (selected.length > 1) {
+      payload.message = `You are: ${selected.map(([, label]) => label).join(', ')}\n\n${form.msg.trim()}`;
     }
 
     setSubmitting(true);
@@ -68,31 +82,28 @@ export default function Contact() {
     <section
       id="contact"
       data-theme="light"
-      className={`relative scroll-mt-24 overflow-hidden ${sectionSurface.light}`}
+      className={`relative scroll-mt-20 overflow-hidden ${sectionSurface.light}`}
     >
-      <div
-        ref={ref}
-        className={`container-x section-py relative transition-all duration-700 ease-out ${
-          inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-        }`}
-      >
-        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
+      <div ref={ref} className={`container-x section-py relative reveal ${inView ? 'is-in' : ''}`}>
+        <div className="grid gap-10 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
-            <SectionIntro
-              eyebrow="Contact"
-              title="Tell us what you're building."
-              description="We read every message and reply within two business days."
-            />
+            <div className="lg:sticky lg:top-28">
+              <SectionIntro
+                eyebrow="Contact"
+                title="Tell us what you're building."
+                description="We read every message and reply within two business days."
+              />
+            </div>
           </div>
 
           <div className="lg:col-span-7">
             {sent ? (
-              <div className="border-t border-[var(--border)] pt-10">
-                <p className="text-[24px] font-medium text-[var(--fg)]">Thank you.</p>
+              <div className="border-t border-[var(--border-strong)] pt-8 sm:pt-10" role="status">
+                <p className="font-serif text-[2rem] font-semibold tracking-[-0.02em] text-[var(--heading-ink)]">Thank you.</p>
                 <p className="mt-3 text-body text-[var(--fg)]">We&apos;ll be in touch soon.</p>
               </div>
             ) : (
-              <form onSubmit={onSubmit} className="relative max-w-xl space-y-7" noValidate>
+              <form onSubmit={onSubmit} className="contact-form relative" noValidate>
                 <input
                   type="text"
                   name="website"
@@ -104,22 +115,18 @@ export default function Contact() {
                   className="absolute left-0 top-0 h-px w-px overflow-hidden opacity-0 pointer-events-none"
                 />
 
-                <fieldset className="border-0 p-0">
+                <fieldset className="contact-form__wide border-0 p-0">
                   <legend className={labelClass}>You are</legend>
-                  <div className="mt-3 space-y-2.5">
-                    {kinds.map(([id, label]) => (
-                      <label
-                        key={id}
-                        className="flex cursor-pointer items-center gap-3 text-[17px] text-[var(--fg)] opacity-90 has-[:checked]:opacity-100"
-                      >
+                  <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-9">
+                    {kindOptions.map(([id, label]) => (
+                      <label key={id} className="choice">
                         <input
-                          type="radio"
+                          type="checkbox"
                           name="kind"
                           value={id}
-                          checked={form.kind === id}
+                          checked={form.kinds.includes(id)}
                           disabled={submitting}
-                          onChange={() => setForm((f) => ({ ...f, kind: id }))}
-                          className="h-4 w-4 shrink-0 accent-[var(--accent-deep)]"
+                          onChange={(e) => toggleKind(id, e.target.checked)}
                         />
                         {label}
                       </label>
@@ -155,7 +162,7 @@ export default function Contact() {
                   />
                 </div>
 
-                <div>
+                <div className="contact-form__wide">
                   <label htmlFor="contact-message" className={labelClass}>
                     Message
                   </label>
@@ -165,25 +172,28 @@ export default function Contact() {
                     value={form.msg}
                     disabled={submitting}
                     onChange={(e) => setForm((f) => ({ ...f, msg: e.target.value }))}
-                    placeholder="What you're building, in a sentence."
-                    className={`${fieldClass} resize-y min-h-[6rem]`}
+                    placeholder="Tell us a little about yourself and why you're reaching out."
+                    className={fieldClass}
                   />
                 </div>
 
                 {error && (
-                  <p className="text-[16px] text-[var(--fg)]" role="alert">
+                  <p className="form-error contact-form__wide" role="alert">
                     {error}
                   </p>
                 )}
 
-                <div className="pt-1">
-                  <button
+                <div className="contact-form__wide">
+                  <Button
                     type="submit"
                     disabled={submitting}
-                    className="btn-pitch-nav rounded-md border px-6 py-3 text-[17px] font-medium transition-[background-color,border-color,color,opacity] duration-200 ease-out hover:!opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    variant="primary"
+                    size="lg"
+                    icon={submitting ? undefined : 'arrow'}
+                    className="w-full sm:w-auto"
                   >
                     {submitting ? 'Sending…' : 'Send message'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}

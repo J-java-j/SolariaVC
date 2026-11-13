@@ -10,8 +10,8 @@ export type PortfolioCompany = {
 };
 
 /**
- * While true, the Portfolio showcase sits dimmed under a "Coming Soon" stamp.
- * Set false once real portfolio companies are listed below — removes the overlay and restores scroll depth.
+ * While true, the Portfolio showcase shows a "Coming Soon" status pill and holds a single static frame.
+ * Set false once real portfolio companies are listed below — removes the pill and restores scroll depth.
  */
 export const PORTFOLIO_COMING_SOON = true;
 

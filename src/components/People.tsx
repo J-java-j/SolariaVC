@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useReveal } from '../hooks/useReveal';
 import { SectionIntro } from './primitives';
 import { sectionSurface } from '../lib/sectionTheme';
@@ -88,6 +89,12 @@ const deskGroups: DeskGroup[] = [
   },
 ];
 
+/** Frame sizes the crops were tuned at. Tiles only shrink when a phone column is narrower. */
+const PORTRAIT_FRAME = {
+  lg: { width: 176, aspect: '176 / 240' },
+  sm: { width: 144, aspect: '144 / 192' },
+} as const;
+
 function PortraitTile({
   size = 'lg',
   imageUrl,
@@ -97,12 +104,14 @@ function PortraitTile({
   imageUrl?: string;
   name: string;
 }) {
-  const dims = size === 'lg' ? 'h-60 w-44' : 'h-48 w-36';
+  const frame = PORTRAIT_FRAME[size];
   const fit = portraitFitFor(imageUrl);
+  const shiftPct = ((fit.shiftX ?? 0) / frame.width) * 100;
 
   return (
     <div
-      className={`${dims} relative mb-5 overflow-hidden`}
+      className="relative max-w-full overflow-hidden rounded-[0.375rem] bg-[#ece3d9]"
+      style={{ width: frame.width, aspectRatio: frame.aspect }}
       aria-hidden={!imageUrl}
     >
       {imageUrl ? (
@@ -110,10 +119,12 @@ function PortraitTile({
           <img
             src={imageUrl}
             alt={`Portrait of ${name}`}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full max-w-none object-cover"
             style={{
               objectPosition: `${fit.x ?? 50}% ${fit.y}%`,
-              transform: `scale(${fit.scale}) translateX(${fit.shiftX ?? 0}px)`,
+              transform: `scale(${fit.scale}) translateX(${shiftPct}%)`,
               transformOrigin: `${fit.x ?? 50}% top`,
               filter: portraitImageFilter(fit.brightness ?? PORTRAIT_BRIGHTNESS_DEFAULT),
             }}
@@ -137,52 +148,62 @@ export default function People() {
   const [ref, inView] = useReveal(0.08);
 
   return (
-    <section id="people" data-theme="dark" className={`relative scroll-mt-24 ${sectionSurface.dark}`}>
-      <div
-        ref={ref}
-        className={`container-x section-py transition-all duration-700 ease-out ${
-          inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-        }`}
-      >
+    <section id="people" data-theme="dark" className={`relative scroll-mt-20 ${sectionSurface.dark}`}>
+      <div ref={ref} className={`container-x section-py reveal ${inView ? 'is-in' : ''}`}>
         <SectionIntro
           eyebrow="Team"
           title="Partners on every call."
           description="A small, hands-on team — founders and operators who work directly with companies in the portfolio."
         />
 
-        <div className="section-grid grid gap-14 sm:grid-cols-2 sm:gap-16">
+        <div className="team-grid mt-12 sm:mt-14">
           {partners.map((p) => (
             <div key={p.name}>
-              <PortraitTile size="lg" imageUrl={p.imageUrl} name={p.name} />
-              <div className="text-[21px] font-medium leading-snug text-[var(--fg)]">{p.name}</div>
-              {p.role ? <div className="mt-2 text-[16px] text-[var(--fg-muted)]">{p.role}</div> : null}
+              <PortraitTile size="sm" imageUrl={p.imageUrl} name={p.name} />
+              <div className="mt-4 text-[1.125rem] font-semibold leading-snug tracking-[-0.01em] text-[var(--fg)] sm:text-[1.3125rem]">
+                {p.name}
+              </div>
+              {p.role ? (
+                <div className="mt-1 text-[0.9375rem] leading-snug text-[var(--fg-muted)] sm:whitespace-nowrap sm:text-[1rem]">
+                  {p.role.split(' / ').map((part, i, parts) => (
+                    <Fragment key={part}>
+                      {i > 0 ? ' ' : null}
+                      <span className="whitespace-nowrap">
+                        {part}
+                        {i < parts.length - 1 ? ' /' : null}
+                      </span>
+                    </Fragment>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
 
-        <div className="mt-16 border-t border-[var(--border)] pt-12 lg:mt-20">
-          {deskGroups.map((group, groupIndex) => (
-            <div key={group.label} className={groupIndex > 0 ? 'mt-12' : ''}>
-              <p className="text-[14px] font-medium uppercase tracking-[0.05em] text-[var(--fg-faint)]">
-                {group.label}
-              </p>
-              <div className="mt-8 grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-16 space-y-14 lg:mt-20 lg:space-y-16">
+          {deskGroups.map((group) => (
+            <div key={group.label}>
+              <p className="group-label">{group.label}</p>
+              <div className="team-grid mt-7">
                 {group.members.map((member, i) => (
                   <div key={member.imageUrl ?? `${member.name}-${i}`}>
                     <PortraitTile size="sm" imageUrl={member.imageUrl} name={member.name} />
-                    <div className="text-[17px] font-medium text-[var(--fg)]">{member.name}</div>
-                    {member.role ? (
-                      <div className="mt-1.5 text-[15px] text-[var(--fg-muted)]">{member.role}</div>
-                    ) : null}
+                    <div className="mt-4">
+                      <div className="text-[1.0625rem] font-semibold leading-snug text-[var(--fg)]">
+                        {member.name}
+                      </div>
+                      {member.role ? (
+                        <div className="mt-1 text-[0.9375rem] leading-snug text-[var(--fg-muted)]">
+                          {member.role}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           ))}
         </div>
-      </div>
-      <div className="container-x">
-        <div className="rule" />
       </div>
     </section>
   );

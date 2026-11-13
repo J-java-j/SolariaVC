@@ -10,13 +10,13 @@ export function Eyebrow({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      {num && (
-        <span className="font-mono text-[14px] tabular-nums text-[var(--fg-muted)]">{num}</span>
-      )}
-      <span className="text-[16px] font-medium uppercase tracking-[0.05em] text-[var(--fg-muted)]">
-        {children}
-      </span>
+    <div className={`eyebrow ${className}`.trim()}>
+      <svg viewBox="0 0 14 14" className="eyebrow__mark" aria-hidden>
+        <ellipse cx="7" cy="7" rx="6.25" ry="3.75" fill="none" stroke="currentColor" strokeWidth="1.1" />
+        <circle cx="7" cy="7" r="1.75" fill="currentColor" />
+      </svg>
+      {num && <span className="font-mono tabular-nums">{num}</span>}
+      <span>{children}</span>
     </div>
   );
 }
@@ -26,18 +26,22 @@ export function SectionIntro({
   title,
   description,
   headingId,
+  layout = 'stack',
 }: {
   eyebrow: string;
   title: string;
   description?: string;
   headingId?: string;
+  layout?: 'stack' | 'split';
 }) {
   return (
-    <div className="section-intro">
-      <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 id={headingId} className="display-h section-intro__title text-display-md">
-        {title}
-      </h2>
+    <div className={`section-intro${layout === 'split' ? ' section-intro--split' : ''}`}>
+      <div className="section-intro__head">
+        <Eyebrow>{eyebrow}</Eyebrow>
+        <h2 id={headingId} className="display-h section-intro__title text-display-md">
+          {title.replace(/ —/g, '\u00a0—')}
+        </h2>
+      </div>
       {description && <p className="section-intro__lede">{description}</p>}
     </div>
   );

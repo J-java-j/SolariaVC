@@ -44,15 +44,10 @@ export default function Research() {
       id="research"
       data-theme="dark"
       aria-labelledby="research-heading"
-      className={`relative scroll-mt-24 ${sectionSurface.dark}`}
+      className={`relative scroll-mt-20 ${sectionSurface.dark} section-surface--soft`}
     >
-      <div
-        ref={ref}
-        className={`container-x section-py transition-all duration-700 ease-out ${
-          inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-        }`}
-      >
-        <div className="grid gap-14 lg:grid-cols-12 lg:gap-16">
+      <div ref={ref} className={`container-x section-py--compact reveal ${inView ? 'is-in' : ''}`}>
+        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
           <div className="lg:col-span-5">
             <SectionIntro
               eyebrow="Research"
@@ -60,58 +55,56 @@ export default function Research() {
               title="Research that backs the portfolio."
               description="Alongside managing live capital, members produce the analysis behind every decision — valuation work, quantitative models, backtests, and sector research that sharpen how we invest and what we teach on campus."
             />
-            <p className="mt-5 text-[1.125rem] font-medium leading-snug text-[var(--accent-soft)]">
+            <p className="mt-7 text-[1.0625rem] font-medium leading-snug text-[var(--accent-ink)]">
               Published work from the desk — with more on the way
             </p>
-            <ul className="mt-6 flex flex-wrap gap-2">
+            <ul className="mt-4 flex flex-wrap gap-2">
               {researchFocus.map((item) => (
-                <li
-                  key={item}
-                  className="rounded-full border border-[var(--border-strong)] px-3 py-1 text-[13px] text-[var(--fg-muted)]"
-                >
+                <li key={item} className="focus-chip">
                   {item}
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="lg:col-span-7 lg:pt-1">
+          <div className="lg:col-span-7">
             <ul className="space-y-5">
               {publications.map((paper) => (
                 <li key={paper.title}>
-                  <article className="border border-[var(--border-strong)] bg-[var(--bg-soft)] p-7 sm:p-8">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--fg-faint)]">
-                      <span className="font-medium uppercase tracking-[0.05em] text-[var(--fg-muted)]">
+                  <article className="paper">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-[var(--border)] pb-4 text-[14px] text-[var(--fg-muted)]">
+                      <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--accent-ink)]">
                         {paper.type}
                       </span>
-                      <span aria-hidden>·</span>
-                      <span>
+                      <span aria-hidden className="text-[var(--fg-faint)]">·</span>
+                      <span className="tabular-nums">
                         {paper.author} · {paper.date}
                       </span>
                     </div>
 
-                    <h3 className="mt-4 text-[1.375rem] font-medium leading-snug text-[var(--fg)]">
+                    <h3 className="mt-6 font-serif text-[1.875rem] font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--fg)] sm:text-[2.25rem]">
                       {paper.title}
                     </h3>
-                    <p className="mt-2 text-[15px] font-medium text-[var(--accent-soft)]">
+                    <p className="mt-3 text-[1rem] font-medium leading-snug text-[var(--accent-ink)]">
                       {paper.subtitle}
                     </p>
-                    <p className="mt-4 text-[16px] leading-relaxed text-[var(--fg-muted)]">
+                    <p className="mt-4 max-w-[38rem] text-[1.0625rem] leading-relaxed text-[var(--fg-muted)]">
                       {paper.summary}
                     </p>
 
                     {paper.pdfUrl ? (
-                      <div className="mt-6 flex flex-wrap gap-3">
+                      <div className="mt-7 flex flex-wrap gap-3">
                         <Button
                           href={paper.viewerUrl ?? paper.pdfUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           variant="primary"
                           size="md"
+                          icon="external"
                         >
                           Read paper
                         </Button>
-                        <Button href={paper.pdfUrl} download variant="secondary" size="md">
+                        <Button href={paper.pdfUrl} download variant="secondary" size="md" icon="download">
                           Download PDF
                         </Button>
                       </div>
@@ -121,15 +114,12 @@ export default function Research() {
               ))}
             </ul>
 
-            <p className="mt-6 text-[15px] leading-relaxed text-[var(--fg-faint)]">
+            <p className="mt-5 max-w-[40rem] text-[0.9375rem] leading-relaxed text-[var(--fg-muted)]">
               Additional valuation reports, models, and campus-facing educational tools are in
               development and will be posted here as they are completed.
             </p>
           </div>
         </div>
-      </div>
-      <div className="container-x">
-        <div className="rule rule-section-divider" />
       </div>
     </section>
   );

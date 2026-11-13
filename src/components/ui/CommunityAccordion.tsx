@@ -14,39 +14,41 @@ function AccordionItem({
   const panelId = useId();
 
   return (
-    <div className="community-accordion__item">
+    <div className={`accordion__item${isOpen ? ' is-open' : ''}`}>
       <button
         type="button"
         id={triggerId}
-        className="community-accordion__trigger"
+        className="accordion__trigger"
         aria-expanded={isOpen}
         aria-controls={panelId}
         onClick={onToggle}
       >
-        <span className="community-accordion__title">{item.title}</span>
-        <span className="community-accordion__icon" aria-hidden>
-          {isOpen ? '−' : '+'}
-        </span>
+        <span className="accordion__title">{item.title}</span>
+        <span className="accordion__icon" aria-hidden />
       </button>
-
-      <div className="community-accordion__rule" aria-hidden />
 
       <div
         id={panelId}
-        className={`community-accordion__panel ${isOpen ? 'is-open' : ''}`}
+        className={`accordion__panel ${isOpen ? 'is-open' : ''}`}
         role="region"
         aria-labelledby={triggerId}
         aria-hidden={!isOpen}
       >
-        <div className="community-accordion__panel-inner">
-          <p className="community-accordion__body">{item.description}</p>
+        <div className="accordion__panel-inner">
+          <p className="accordion__body">{item.description}</p>
         </div>
       </div>
     </div>
   );
 }
 
-export default function CommunityAccordion({ items }: { items: CommunityProgram[] }) {
+export default function CommunityAccordion({
+  items,
+  variant = 'list',
+}: {
+  items: CommunityProgram[];
+  variant?: 'list' | 'cards';
+}) {
   const [openIndices, setOpenIndices] = useState<Set<number>>(() => new Set());
 
   const toggle = (index: number) => {
@@ -59,7 +61,7 @@ export default function CommunityAccordion({ items }: { items: CommunityProgram[
   };
 
   return (
-    <div className="community-accordion">
+    <div className={`accordion ${variant === 'cards' ? 'accordion--cards' : 'accordion--list'}`}>
       {items.map((item, index) => (
         <AccordionItem
           key={item.title}

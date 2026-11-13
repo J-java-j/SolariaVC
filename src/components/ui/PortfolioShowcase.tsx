@@ -10,6 +10,17 @@ function metaLabels(company: PortfolioCompany): string[] {
   return [company.status, ...company.tags, company.stage];
 }
 
+function ComingSoonStatus({ className = '' }: { className?: string }) {
+  return (
+    <div className={`portfolio-showcase__status ${className}`.trim()}>
+      <span className="status-pill">
+        <span className="status-pill__dot" aria-hidden />
+        Coming Soon!
+      </span>
+    </div>
+  );
+}
+
 function PortfolioMeta({ company }: { company: PortfolioCompany }) {
   const labels = metaLabels(company);
   return (
@@ -117,6 +128,7 @@ export default function PortfolioShowcase({ companies, intro }: PortfolioShowcas
     >
       <div className="portfolio-showcase__pin" aria-live="polite">
         <div className="portfolio-showcase__intro">{intro}</div>
+        {PORTFOLIO_COMING_SOON ? <ComingSoonStatus /> : null}
         <div className="portfolio-showcase__grid">
           <div className="portfolio-showcase__media">
             <div className="portfolio-showcase__image-frame">
@@ -154,14 +166,6 @@ export default function PortfolioShowcase({ companies, intro }: PortfolioShowcas
             ))}
           </div>
         </div>
-
-        {PORTFOLIO_COMING_SOON ? (
-          <div className="portfolio-showcase__coming-soon" aria-hidden>
-            <span className="portfolio-showcase__coming-soon-bar portfolio-showcase__coming-soon-bar--a" />
-            <span className="portfolio-showcase__coming-soon-bar portfolio-showcase__coming-soon-bar--b" />
-            <span className="portfolio-showcase__coming-soon-label">Coming Soon!</span>
-          </div>
-        ) : null}
       </div>
 
       <div className="portfolio-showcase__track" aria-hidden>
@@ -179,13 +183,7 @@ export default function PortfolioShowcase({ companies, intro }: PortfolioShowcas
 
       <div className="portfolio-showcase__mobile-intro">{intro}</div>
 
-      {PORTFOLIO_COMING_SOON ? (
-        <div className="portfolio-showcase__coming-soon portfolio-showcase__coming-soon--mobile" aria-hidden>
-          <span className="portfolio-showcase__coming-soon-bar portfolio-showcase__coming-soon-bar--a" />
-          <span className="portfolio-showcase__coming-soon-bar portfolio-showcase__coming-soon-bar--b" />
-          <span className="portfolio-showcase__coming-soon-label">Coming Soon!</span>
-        </div>
-      ) : null}
+      {PORTFOLIO_COMING_SOON ? <ComingSoonStatus className="portfolio-showcase__status--mobile" /> : null}
 
       <div className="portfolio-showcase__mobile">
         {companies.map((company, i) => (

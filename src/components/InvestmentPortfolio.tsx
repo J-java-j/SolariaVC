@@ -14,82 +14,74 @@ export default function InvestmentPortfolio() {
       id="investment-portfolio"
       data-theme="dark"
       aria-labelledby="investment-portfolio-heading"
-      className={`relative scroll-mt-24 ${sectionSurface.dark}`}
+      className={`relative scroll-mt-20 ${sectionSurface.dark}`}
     >
-      <div
-        ref={ref}
-        className={`container-x section-py transition-all duration-700 ease-out ${
-          inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-        }`}
-      >
+      <div ref={ref} className={`container-x section-py reveal ${inView ? 'is-in' : ''}`}>
         <SectionIntro
+          layout="split"
           eyebrow="Investment Portfolio"
           headingId="investment-portfolio-heading"
           title="Public equities, student-managed."
           description="The student investment desk's public-market book — positions managed by members and posted here as they're set. Until live trading history is available, performance is shown via a backtest of the Solaria MAG7 Family model from our research."
         />
 
-        <div className="investment-portfolio__panels">
-          <div className="investment-portfolio__panel">
-            <h3 className="investment-portfolio__panel-title">Current portfolio</h3>
-            <ul className="investment-portfolio__holdings">
+        <div className="desk">
+          <div className="desk__panel">
+            <h3 className="desk__label">Current portfolio</h3>
+            <ul className="desk__holdings">
               {holdings.map((holding) => (
-                <li key={holding.ticker} className="investment-portfolio__holding">
-                  <span className="investment-portfolio__ticker">{holding.ticker}</span>
-                  <span className="investment-portfolio__name">{holding.name}</span>
+                <li key={holding.ticker} className="desk__holding">
+                  <span className="desk__ticker">{holding.ticker}</span>
+                  <span className="desk__name">{holding.name}</span>
                 </li>
               ))}
             </ul>
-            <p className="investment-portfolio__holdings-note">{portfolio.holdingsNote}</p>
+            <p className="desk__note">{portfolio.holdingsNote}</p>
           </div>
 
-          <div className="investment-portfolio__panel">
-            <h3 className="investment-portfolio__panel-title">Historical performance</h3>
-            <div className="investment-portfolio__chart-panel">
+          <div className="desk__panel">
+            <h3 className="desk__label">Historical performance</h3>
+            <div className="desk__chart">
               <img
                 src={portfolio.chartSrc}
                 alt={portfolio.chartAlt}
-                className="investment-portfolio__chart-image"
+                width={1024}
+                height={651}
+                className="desk__chart-image"
                 loading="lazy"
                 decoding="async"
               />
             </div>
 
-            <div className="investment-portfolio__stats">
-              <div className="investment-portfolio__stat">
-                <span className="investment-portfolio__stat-value">
-                  {portfolio.cagrPct.toFixed(2)}%
-                </span>
-                <span className="investment-portfolio__stat-label">Backtest CAGR</span>
+            <div className="desk__stats">
+              <div className="desk__stat">
+                <span className="desk__stat-value">{portfolio.cagrPct.toFixed(2)}%</span>
+                <span className="desk__stat-label">Backtest CAGR</span>
               </div>
-              <div className="investment-portfolio__stat">
-                <span className="investment-portfolio__stat-value">{portfolio.sharpe.toFixed(2)}</span>
-                <span className="investment-portfolio__stat-label">Sharpe</span>
+              <div className="desk__stat">
+                <span className="desk__stat-value">{portfolio.sharpe.toFixed(2)}</span>
+                <span className="desk__stat-label">Sharpe</span>
               </div>
-              <div className="investment-portfolio__stat">
-                <span className="investment-portfolio__stat-value">{portfolio.windowLabel}</span>
-                <span className="investment-portfolio__stat-label">Window</span>
+              <div className="desk__stat">
+                <span className="desk__stat-value">{portfolio.windowLabel}</span>
+                <span className="desk__stat-label">Window</span>
               </div>
             </div>
 
-            <p className="investment-portfolio__model">{portfolio.modelLabel}</p>
-            <p className="investment-portfolio__disclaimer">
+            <p className="desk__model">{portfolio.modelLabel}</p>
+            <p className="desk__disclaimer">
               Hypothetical backtest, net of modeled fees. Not live fund performance.
             </p>
             <a
               href={portfolio.paperUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="investment-portfolio__paper-link ulink-rev"
+              className="text-link desk__paper-link"
             >
               Read the research paper →
             </a>
           </div>
         </div>
-      </div>
-
-      <div className="container-x">
-        <div className="rule rule-section-divider" />
       </div>
     </section>
   );

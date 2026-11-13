@@ -11,74 +11,67 @@ const items: [string, string][] = [
   ['Team', '#people'],
 ];
 
-/** Matches useNavTheme — nav stays large until hero has mostly scrolled away. */
-const HERO_EXIT_RATIO = 0.18;
-
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
-  const [atHero, setAtHero] = useState(true);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const update = () => {
-      const hero = document.getElementById('top');
-      if (hero) {
-        const revealLine = window.innerHeight * (1 - HERO_EXIT_RATIO);
-        setAtHero(hero.getBoundingClientRect().bottom > revealLine);
-      } else {
-        setAtHero(window.scrollY < 120);
-      }
-      setScrolled(window.scrollY > 24);
-    };
-
+    const update = () => setScrolled(window.scrollY > 24);
     update();
     window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
     return () => window.removeEventListener('scroll', update);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const desktop = window.matchMedia('(min-width: 1024px)');
+    const onResize = () => {
+      if (desktop.matches) setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    desktop.addEventListener('change', onResize);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      desktop.removeEventListener('change', onResize);
+    };
+  }, [open]);
+
   return (
     <header
-      className={`layered-header theme-dark fixed inset-x-0 top-0 z-50 ${atHero ? 'nav-at-hero' : ''} ${scrolled ? 'is-scrolled' : ''}`}
+      className={`site-header theme-dark ${scrolled ? 'is-scrolled' : ''} ${open ? 'is-open' : ''}`}
     >
-      <div className="container-x nav-bar flex items-center justify-between">
-        <a href="#top" className="flex items-center gap-3.5">
-          <Mark size={atHero ? 44 : 36} />
-          <span className="nav-brand font-semibold leading-none tracking-tight text-[var(--fg)]">
-            Solaria Capital
-          </span>
+      <div className="container-x site-header__bar flex items-center justify-between gap-6">
+        <a href="#top" className="site-header__brand">
+          <Mark size={36} />
+          <span>Solaria Capital</span>
         </a>
 
-        <nav className="nav-links hidden items-center md:flex">
+        <nav aria-label="Primary" className="hidden items-center gap-6 lg:flex xl:gap-8">
           {items.map(([l, h]) => (
-            <a
-              key={h}
-              href={h}
-              className="nav-link transition-colors duration-250 ease-out"
-            >
+            <a key={h} href={h} className="nav-link">
               {l}
             </a>
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
-          <Button
-            href="#contact"
-            variant="secondary"
-            size="md"
-            className="btn-pitch-nav hidden sm:inline-flex hover:!opacity-100"
-          >
+        <div className="flex items-center gap-2">
+          <Button href="#contact" variant="primary" size="sm" className="hidden sm:inline-flex">
             Pitch us
           </Button>
           <button
+            type="button"
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
-            className="-mr-2 p-2 text-[var(--ink)] md:hidden"
+            aria-controls="site-menu"
+            className="site-header__toggle lg:hidden"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
               <path
-                d={open ? 'M6 6l12 12M18 6L6 18' : 'M4 8h16M4 16h16'}
+                d={open ? 'M6 6l12 12M18 6L6 18' : 'M4 9h16M4 15h16'}
                 strokeLinecap="round"
               />
             </svg>
@@ -87,25 +80,25 @@ export default function Nav() {
       </div>
 
       {open && (
-        <div className="border-t border-[var(--ink-line)] bg-[color-mix(in_oklab,var(--bg-elevated)_55%,var(--bg))] px-6 py-7 md:hidden">
-          <nav className="flex flex-col gap-5">
+        <div id="site-menu" className="site-header__panel lg:hidden">
+          <nav aria-label="Primary" className="container-x flex flex-col">
             {items.map(([l, h]) => (
               <a
                 key={h}
                 href={h}
                 onClick={() => setOpen(false)}
-                className="nav-link text-[18px] text-[var(--ink)] transition-colors duration-250 ease-out"
+                className="site-header__panel-link"
               >
                 {l}
               </a>
             ))}
           </nav>
-          <div className="mt-6">
+          <div className="container-x mt-6">
             <Button
               href="#contact"
-              variant="secondary"
+              variant="primary"
               size="lg"
-              className="btn-pitch-nav w-full hover:!opacity-100"
+              className="w-full"
               onClick={() => setOpen(false)}
             >
               Pitch us

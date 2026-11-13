@@ -12,15 +12,10 @@ export default function Portfolio() {
       id="portfolio"
       data-theme="dark"
       aria-labelledby="portfolio-heading"
-      className={`relative scroll-mt-24 ${sectionSurface.dark}`}
+      className={`relative scroll-mt-20 ${sectionSurface.dark}`}
     >
       <span id="ventures" className="sr-only" aria-hidden />
-      <div
-        ref={ref}
-        className={`container-x section-py transition-all duration-700 ease-out ${
-          inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
-        }`}
-      >
+      <div ref={ref} className={`container-x section-py reveal ${inView ? 'is-in' : ''}`}>
         <PortfolioShowcase
           companies={portfolioCompanies}
           intro={
@@ -37,19 +32,16 @@ export default function Portfolio() {
           }
         />
 
-        <div className="mt-14 grid gap-5 border-t border-[var(--border)] pt-12 lg:mt-20 lg:grid-cols-12 lg:gap-16 lg:pt-14">
+        <div className="mt-16 grid gap-5 border-t border-[var(--border-strong)] pt-10 lg:mt-24 lg:grid-cols-12 lg:gap-16 lg:pt-12">
           <h3 className="display-h text-display-sm lg:col-span-5">
             From the lab, through Innovation and Commercialization.
           </h3>
-          <p className="max-w-[36rem] text-[1.1875rem] leading-[1.65] text-[var(--fg-muted)] lg:col-span-7 lg:pt-1.5">
+          <p className="max-w-[36rem] text-[1.125rem] leading-[1.65] text-[var(--fg-muted)] lg:col-span-6 lg:col-start-7 lg:pt-1">
             We work with UC San Diego professors on early-stage research and the patents that grow
             out of it. It puts us close to frontier technology before it becomes a company — and
             helps us find the founders worth backing next.
           </p>
         </div>
-      </div>
-      <div className="container-x">
-        <div className="rule" />
       </div>
     </section>
   );

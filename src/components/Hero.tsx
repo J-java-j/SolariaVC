@@ -1,24 +1,25 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import SolariaOrbit from './SolariaOrbit';
-import { easeOut } from '../lib/motion';
+import { Eyebrow } from './primitives';
 import { sectionSurface } from '../lib/sectionTheme';
+
+const ease = [0.22, 1, 0.36, 1] as const;
 
 const enter = (delay = 0, reduced = false) =>
   reduced
     ? {}
     : {
-        initial: { opacity: 0, y: 14 },
+        initial: { opacity: 0, y: 12 },
         animate: { opacity: 1, y: 0 },
-        transition: { ...easeOut, delay },
+        transition: { duration: 0.5, ease, delay },
       };
 
 function HeroAtmosphere() {
   return (
     <div className="hero-atmosphere" aria-hidden>
       <div className="hero-atmosphere__grid" />
-      <SolariaOrbit className="hero-atmosphere__orbit" />
       <div className="hero-atmosphere__light" />
-      <div className="hero-atmosphere__vignette" />
+      <SolariaOrbit className="hero-atmosphere__orbit" />
       <div className="hero-atmosphere__horizon" />
     </div>
   );
@@ -32,15 +33,17 @@ export default function Hero() {
       id="top"
       data-theme="dark"
       data-hero="vc-2026"
-      className={`hero-scene relative overflow-hidden border-b border-[var(--border)] ${sectionSurface.dark}`}
+      className={`hero-scene relative overflow-hidden ${sectionSurface.dark}`}
     >
       <HeroAtmosphere />
 
-      <div className="hero-content container-x w-full pb-16 pt-[7.25rem] sm:pb-24 sm:pt-[9.5rem] lg:pb-28 lg:pt-[11rem]">
-        <motion.div className="max-w-[980px]" {...enter(0, reduced)}>
-          <p className="eyebrow-meta">Student venture capital · UC San Diego</p>
+      <div className="hero-content container-x w-full pb-14 sm:pb-20 lg:pb-12">
+        <div className="max-w-[60rem]">
+          <motion.div {...enter(0, reduced)}>
+            <Eyebrow>Student venture capital · UC San Diego</Eyebrow>
+          </motion.div>
 
-          <h1 className="hero-headline">
+          <motion.h1 className="hero-headline" {...enter(0.06, reduced)}>
             <span className="hero-headline__line hero-headline__primary">
               <span className="hero-headline__word">Back</span>{' '}
               <span className="hero-headline__word">It</span>,
@@ -50,17 +53,13 @@ export default function Hero() {
               <span className="hero-headline__word">It</span>{' '}
               <span className="hero-headline__word">Rises.</span>
             </span>
-          </h1>
+          </motion.h1>
 
-          <p className="hero-lede">
+          <motion.p className="hero-lede" {...enter(0.14, reduced)}>
             Solaria Capital is a student-led venture platform — sourcing startups, writing first
             checks, and building a community around ambitious founders and frontier technology.
-          </p>
-        </motion.div>
-      </div>
-
-      <div className="hero-content container-x pb-0">
-        <div className="rule" />
+          </motion.p>
+        </div>
       </div>
     </section>
   );
