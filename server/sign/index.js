@@ -19,7 +19,10 @@ function service() {
     const store = config.store === 'gcp'
       ? (await import('./store-gcp.js')).createGcpStore(config)
       : createLocalStore(config.dataDir);
-    return createSignService({ store, config, mail: createMailer(config) });
+    const svc = createSignService({ store, config, mail: createMailer(config) });
+    // Corrections to documents already sent; never holds up a request.
+    import('./migrations.js').then(({ runMigrations }) => runMigrations(svc, store)).catch((e) => console.error('[sign] migration failed:', e.message));
+    return svc;
   })();
   return servicePromise;
 }

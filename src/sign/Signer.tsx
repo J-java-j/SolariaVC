@@ -1,3 +1,4 @@
+import { fitText } from './fit';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { ApiError, saveFile, signedFileName, signerApi, type Field, type Mark, type OtherField, type PageSize, type SignerSession } from './api';
 import { openPdf, type PdfDocument } from './pdf';
@@ -24,6 +25,20 @@ const box = (f: Pick<Field, 'x' | 'y' | 'w' | 'h'>): CSSProperties => ({
 const fieldText = (f: Pick<Field, 'h'>, size: PageSize, cssWidth: number) => ({
   fontSize: Math.min(f.h * size.height * 0.72, 14) * (cssWidth / size.width),
 });
+
+// An answer drawn the way the sealed PDF will draw it: wrapped or shrunk to fit,
+// never cut off.
+function Answer({ f, text, size, cssWidth }: { f: Pick<Field, 'w' | 'h'>; text: string; size: PageSize; cssWidth: number }) {
+  const scale = cssWidth / size.width;
+  const boxW = f.w * size.width;
+  const padding = Math.min(2, boxW * 0.05);
+  const fit = fitText(text, boxW - 2 * padding, f.h * size.height * 0.9, 14);
+  return (
+    <span className="answer" style={{ fontSize: fit.size * scale, lineHeight: fit.leading, padding: `0 ${padding * scale}px` }}>
+      {fit.lines.map((line, i) => <span key={i}>{line}</span>)}
+    </span>
+  );
+}
 
 const longDate = () => new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(new Date());
 
@@ -151,7 +166,7 @@ function OtherMark({ field, size, cssWidth }: { field: OtherField; size: PageSiz
     <div className="placed" style={box(field)}>
       {field.image && <img src={field.image} alt="" />}
       {field.type === 'checkbox' && field.value === true && <span className="tick" aria-label="Checked" />}
-      {typeof field.value === 'string' && <span style={fieldText(field, size, cssWidth)}>{field.value}</span>}
+      {typeof field.value === 'string' && <Answer f={field} text={field.value} size={size} cssWidth={cssWidth} />}
     </div>
   );
 }
@@ -184,7 +199,9 @@ function DocumentRoom({ session, signer, doc, failed, onDone, onAction }: {
     .filter((f) => f.type in FLAG)
     .sort((a, b) => a.page - b.page || a.y - b.y || a.x - b.x), [fields]);
 
-  const done = (f: Field) => (f.type === 'text' ? Boolean(values[f.id]) : f.type === 'checkbox' ? values[f.id] === true : placed.has(f.id));
+  const done = (f: Field) => (f.type === 'text' ? Boolean(values[f.id])
+    : f.type === 'checkbox' ? (f.group ? fields.some((o) => o.type === 'checkbox' && o.group === f.group && values[o.id] === true) : values[f.id] === true)
+      : placed.has(f.id));
   const required = steps.filter((f) => f.required);
   const left = required.filter((f) => !done(f));
   const current = steps.find((f) => f.required && !done(f)) ?? null;
@@ -206,7 +223,13 @@ function DocumentRoom({ session, signer, doc, failed, onDone, onAction }: {
 
   const act = (f: Field) => {
     if (f.type === 'checkbox') {
-      setValues((prior) => ({ ...prior, [f.id]: prior[f.id] !== true }));
+      // In a "choose one" group, ticking a box unticks the others.
+      setValues((prior) => {
+        const on = prior[f.id] !== true;
+        const next = { ...prior, [f.id]: on };
+        if (on && f.group) for (const o of fields) if (o.id !== f.id && o.type === 'checkbox' && o.group === f.group) next[o.id] = false;
+        return next;
+      });
     } else if (f.type === 'text') {
       setDraft(String(values[f.id] ?? ''));
       setTyping(f);
@@ -259,16 +282,18 @@ function DocumentRoom({ session, signer, doc, failed, onDone, onAction }: {
             key={f.id}
             type="button"
             data-field={f.id}
-            className={`spot spot-${f.type}${filled ? ' spot-done' : ''}${f.required ? '' : ' spot-optional'}`}
+            className={`spot spot-${f.type}${filled && (f.type !== 'checkbox' || values[f.id] === true || f.group) ? ' spot-done' : ''}${f.required ? '' : ' spot-optional'}`}
             style={box(f)}
-            aria-label={`${f.label || FLAG[f.type]}, page ${page}${filled ? ', done' : ''}${f.required ? '' : ', optional'}`}
+            role={f.group ? 'radio' : undefined}
+            aria-checked={f.group ? values[f.id] === true : undefined}
+            aria-label={`${f.label || (f.group ? 'Choose one' : FLAG[f.type])}, page ${page}${f.type === 'checkbox' ? (values[f.id] === true ? ', ticked' : '') : filled ? ', done' : ''}${f.required ? '' : ', optional'}`}
             onClick={() => act(f)}
           >
             {filled && mark && placed.has(f.id) && <img className="ink" src={mark.dataUrl} alt="" />}
-            {f.type === 'text' && filled && <span style={fieldText(f, size, cssWidth)}>{String(values[f.id])}</span>}
+            {f.type === 'text' && filled && <Answer f={f} text={String(values[f.id])} size={size} cssWidth={cssWidth} />}
             {f.type === 'text' && !filled && f.label && <span className="spot-hint" style={fieldText(f, size, cssWidth)}>{f.label}</span>}
-            {f.type === 'checkbox' && filled && <span className="tick" />}
-            {isCurrent && <span className={beside ? 'flag' : 'flag flag-above'}>{FLAG[f.type]}</span>}
+            {f.type === 'checkbox' && values[f.id] === true && <span className="tick" />}
+            {isCurrent && <span className={beside ? 'flag' : 'flag flag-above'}>{f.group ? 'Choose one' : FLAG[f.type]}</span>}
           </button>
         );
       })}
@@ -336,7 +361,27 @@ function DocumentRoom({ session, signer, doc, failed, onDone, onAction }: {
           <form onSubmit={saveText} className="stack">
             <label className="field">
               Your answer
-              <input autoFocus maxLength={500} value={draft} required={typing.required} onChange={(e) => setDraft(e.target.value)} />
+              <textarea
+                autoFocus
+                className="answer-input"
+                rows={2}
+                maxLength={500}
+                value={draft}
+                required={typing.required}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  // Grows as you write, so the whole answer stays in view.
+                  e.target.style.height = 'auto';
+                  e.target.style.height = `${e.target.scrollHeight + 2}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }}
+              />
+              <span className="muted answer-count">{draft.length}/500{typing.w * (session.sizes?.[typing.page - 1]?.width ?? 612) / Math.max(draft.length, 1) < 4.5 && draft.length > 30 ? ' · long answers print smaller to fit the space' : ''}</span>
             </label>
             <div className="actions">
               <button className="primary">Save</button>

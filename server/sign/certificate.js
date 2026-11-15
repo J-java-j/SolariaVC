@@ -38,6 +38,7 @@ export const EVENT_LABELS = {
   'copy.failed': 'Completed copy email failed',
   'document.sealed': 'Sealed',
   'document.timestamped': 'Independent timestamp added',
+  'fields.choice_group': 'Checkboxes set to choose one',
 };
 
 export const formatTime = (iso) => (iso ? iso.replace('T', ' ').replace(/(\.\d+)?Z$/, ' UTC') : '');

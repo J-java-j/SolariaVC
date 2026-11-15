@@ -4,7 +4,7 @@
 import type { FieldType } from './api';
 import type { PdfDocument } from './pdf';
 
-export type FoundField = { type: FieldType; page: number; x: number; y: number; w: number; h: number; label: string };
+export type FoundField = { type: FieldType; page: number; x: number; y: number; w: number; h: number; label: string; group?: string };
 
 type Text = { str: string; x: number; y: number; w: number; size: number };
 
@@ -58,6 +58,8 @@ export async function detectFields(doc: PdfDocument): Promise<FoundField[]> {
   const found: FoundField[] = [];
   // Once a page asks to "initial each line", blanks that start a line are initials.
   let initialing = false;
+  // Each "check one" cluster of boxes gets the next group letter.
+  let groups = 0;
   for (let number = 1; number <= doc.numPages; number++) {
     const page = await doc.getPage(number);
     const view = page.getViewport({ scale: 1 });
@@ -116,6 +118,30 @@ export async function detectFields(doc: PdfDocument): Promise<FoundField[]> {
           if (room >= Math.min(MIN_WIDTH[type], 60)) add(type, end, t.y, Math.min(room, MIN_WIDTH[type] + 60), label);
         }
       }
+    }
+    // Printed boxes (☐) become checkboxes. Boxes under "check one" (or "select
+    // one", "choose one") form a choose-one group.
+    const boxes = texts.filter((t) => /^\s*[☐□❏❐]/.test(t.str));
+    let group = '';
+    let groupFrom = -Infinity;
+    for (const t of boxes.sort((a, b) => a.y - b.y)) {
+      const asks = texts.find((o) => /\b(check|tick|select|choose|mark)(s|es)?\s+(only\s+)?one\b/i.test(o.str) && t.y - o.y > 0 && t.y - o.y < 60);
+      if (asks && (!group || asks.y > groupFrom)) {
+        group = groups < 8 ? 'ABCDEFGH'[groups++] : '';
+        groupFrom = asks.y;
+      } else if (!asks) group = '';
+      const side = Math.max(9, Math.min(t.size * 1.05, 16));
+      const field: FoundField = {
+        type: 'checkbox',
+        page: number,
+        x: Math.max(0, t.x - 1) / view.width,
+        y: Math.max(0, t.y - side * 0.85) / view.height,
+        w: side / view.width,
+        h: side / view.height,
+        label: '',
+        ...(asks && group ? { group } : {}),
+      };
+      if (!found.some((other) => overlaps(other, field))) found.push(field);
     }
     page.cleanup();
   }

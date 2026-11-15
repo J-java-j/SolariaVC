@@ -11,6 +11,8 @@ export type Field = {
   h: number;
   required: boolean;
   label: string;
+  // Checkboxes with the same group letter are "choose one".
+  group?: string;
   value?: string | boolean;
 };
 

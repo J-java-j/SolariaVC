@@ -109,6 +109,8 @@ function validFields(input, recipients, pages) {
       x, y, w, h,
       required: ALWAYS_REQUIRED.has(f.type) || f.required !== false,
       label: cleanText(f.label, 60, 'Field label'),
+      // Checkboxes sharing a group are "choose one": at most one can be ticked.
+      ...(f.type === 'checkbox' && typeof f.group === 'string' && /^[A-H]$/.test(f.group) ? { group: f.group } : {}),
     }];
   });
 }
@@ -315,9 +317,22 @@ export function createSignService({ store, config, mail, log = console }) {
         if (f.required && !text) throw new HttpError(400, `${f.label || 'A required field'} still needs filling in.`);
         clean[f.id] = text;
       } else if (f.type === 'checkbox') {
-        if (f.required && value !== true) throw new HttpError(400, 'A required box still needs ticking.');
+        if (f.required && !f.group && value !== true) throw new HttpError(400, 'A required box still needs ticking.');
         clean[f.id] = value === true;
       }
+    }
+    // A "choose one" group takes at most one tick, and exactly one if it is required.
+    const groups = new Map();
+    for (const f of fields) {
+      if (f.type !== 'checkbox' || !f.group) continue;
+      const g = groups.get(f.group) ?? { ticked: 0, required: false };
+      if (clean[f.id]) g.ticked += 1;
+      g.required ||= f.required;
+      groups.set(f.group, g);
+    }
+    for (const g of groups.values()) {
+      if (g.ticked > 1) throw new HttpError(400, 'Tick only one box where the document asks you to choose one.');
+      if (g.required && g.ticked === 0) throw new HttpError(400, 'Choose one of the boxes that ask you to pick one.');
     }
     return clean;
   }
@@ -1265,7 +1280,7 @@ export function createSignService({ store, config, mail, log = console }) {
         intent: INTENT,
         fields: env.fields
           .filter((f) => f.recipientId === rec.id)
-          .map(({ id, type, page, x, y, w, h, required, label }) => ({ id, type, page, x, y, w, h, required, label })),
+          .map(({ id, type, page, x, y, w, h, required, label, group }) => ({ id, type, page, x, y, w, h, required, label, ...(group ? { group } : {}) })),
         others: await othersFilled(env, rec),
       };
     },
@@ -1411,6 +1426,32 @@ export function createSignService({ store, config, mail, log = console }) {
         },
       });
       return { ok: true };
+    },
+
+    // Turns checkboxes on a document already sent into a "choose one" group, for
+    // a document that asks the signer to pick one but was sent with every box
+    // required. Only while that signer has not signed, and recorded in the trail.
+    async makeChoiceGroup(id, fieldIds, { reason }) {
+      let changed = false;
+      await mutate(id, (env) => {
+        if (env.status !== 'sent' || env.deletedAt) throw new HttpError(409, 'Only a document out for signature can be changed.');
+        const boxes = fieldIds.map((fid) => env.fields.find((f) => f.id === fid));
+        if (boxes.length < 2 || boxes.some((f) => !f || f.type !== 'checkbox') || new Set(boxes.map((f) => f.recipientId)).size !== 1) {
+          throw new HttpError(400, 'Choose two or more checkboxes for one signer.');
+        }
+        const rec = env.recipients.find((r) => r.id === boxes[0].recipientId);
+        if (rec.status === 'signed') throw new HttpError(409, `${rec.name} has already signed.`);
+        if (boxes.every((f) => f.group && f.group === boxes[0].group)) return;
+        const used = new Set(env.fields.filter((f) => f.recipientId === rec.id && f.group).map((f) => f.group));
+        const group = 'ABCDEFGH'.split('').find((g) => !used.has(g));
+        for (const f of boxes) {
+          f.group = group;
+          f.value = undefined;
+        }
+        appendEvent(env, 'fields.choice_group', { details: { fieldIds, group, signer: rec.email, reason } });
+        changed = true;
+      });
+      return { changed };
     },
 
     async finishFromSigner(token, verifiedSecret) {

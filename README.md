@@ -196,6 +196,15 @@ document's deadline (at least 14 days), and the last ten such links per person a
 work, so an older email still opens. The old `/sign/my` address redirects to `/sign`,
 so links already sent still open.
 
+Checkboxes can be **choose one**: give two or more of a signer's boxes the same
+group letter in the editor and the signer can tick only one (ticking another
+unticks the first); if the group is required, exactly one must be ticked. Printed
+boxes (☐) under a line such as "check one" are found and grouped automatically.
+
+Text answers are never cut off: the signer types in a box that grows as they
+write, and the answer is wrapped onto more lines when its space allows, or set
+smaller when it does not, the same way on screen and in the sealed PDF.
+
 When a PDF is uploaded, the editor reads it for places to fill in and adds fields
 for the first signer to check: signature lines (`Signature: ____`, `By:`), dates,
 printed names, initials, and any other label with room after it (`Title:`,

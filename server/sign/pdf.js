@@ -9,6 +9,7 @@ import { LIMITS } from './config.js';
 import { formatEnvelopeId, sha256Hex } from './crypto.js';
 import { addCertificate } from './certificate.js';
 import { createTypeset } from './fonts.js';
+import { fitText } from './fit.js';
 import { mapRect, pointInRect, readPageGeometry } from './geometry.js';
 import {
   addTimestampPlaceholder, checkEmbeddedTimestamp, embedToken, prepareDigest, requestTimestamp,
@@ -104,13 +105,15 @@ function drawTextInRect(page, ts, text, rect, g) {
   const boxW = rect.w * g.width;
   const boxH = rect.h * g.height;
   const padding = Math.min(2, boxW * 0.05);
-  let size = Math.min(boxH * 0.72, MAX_TEXT_SIZE);
-  const width = ts.width(text, size);
-  if (width > boxW - 2 * padding) size = Math.max(3, size * ((boxW - 2 * padding) / width));
-  const ascent = ts.regular.heightAtSize(size, { descender: false });
-  const descent = ts.regular.heightAtSize(size) - ascent;
-  const [x, y] = pointInRect(g, rect, padding, (boxH - (ascent + descent)) / 2 + ascent);
-  ts.draw(page, text, { x, y, size, color: INK, rotate: g.rotate });
+  const fit = fitText(text, boxW - 2 * padding, boxH * 0.9, MAX_TEXT_SIZE, (line, size) => ts.width(line, size));
+  const lineHeight = fit.size * fit.leading;
+  const ascent = ts.regular.heightAtSize(fit.size, { descender: false });
+  const top = (boxH - lineHeight * fit.lines.length) / 2;
+  fit.lines.forEach((line, i) => {
+    if (!line) return;
+    const [x, y] = pointInRect(g, rect, padding, top + i * lineHeight + (lineHeight - fit.size) / 2 + ascent);
+    ts.draw(page, line, { x, y, size: fit.size, color: INK, rotate: g.rotate });
+  });
 }
 
 function drawCheck(page, rect, g) {

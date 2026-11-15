@@ -105,6 +105,7 @@ function FieldBox({ field, tint, owner, selected, people, onSelect, onChange, on
         onFocus={onSelect}
       >
         {!small && <span className="mark-label">{field.label || LABELS[field.type]}</span>}
+        {small && field.group && <span className="mark-group" aria-hidden="true">{field.group}</span>}
       </div>
       {selected && (
         <>
@@ -128,7 +129,16 @@ function FieldBox({ field, tint, owner, selected, people, onSelect, onChange, on
             {(field.type === 'text' || field.type === 'checkbox') && (
               <label className="check">
                 <input type="checkbox" checked={field.required} onChange={(e) => onChange({ required: e.target.checked })} />
-                Required
+                {field.group ? 'Must choose one' : 'Required'}
+              </label>
+            )}
+            {field.type === 'checkbox' && (
+              <label title="Boxes with the same group letter are choose-one: ticking one unticks the others.">
+                Choose one
+                <select value={field.group ?? ''} onChange={(e) => onChange({ group: e.target.value || undefined })}>
+                  <option value="">No, on its own</option>
+                  {'ABCDEFGH'.split('').map((g) => <option key={g} value={g}>Group {g}</option>)}
+                </select>
               </label>
             )}
             <button type="button" className="quiet" onClick={onRemove}>Remove</button>
@@ -540,6 +550,7 @@ export default function Editor({ env, user, onSent }: Props) {
         // A labelled blank ("Title:", "Email:") is asked for; an unlabelled one is optional.
         required: f.type !== 'text' || Boolean(f.label),
         label: f.label,
+        ...(f.group ? { group: f.group } : {}),
       }));
       if (!fresh.length) {
         setFinding(found.length ? 'Every place found already has a field.' : 'No signature lines found. Drag fields onto the page instead.');
