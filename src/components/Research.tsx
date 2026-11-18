@@ -2,6 +2,7 @@ import { useReveal } from '../hooks/useReveal';
 import { SectionIntro } from './primitives';
 import Button from './ui/Button';
 import { sectionSurface } from '../lib/sectionTheme';
+import { INVESTMENT_PORTFOLIO } from '../lib/investmentPortfolioData';
 
 type Publication = {
   title: string;
@@ -10,8 +11,6 @@ type Publication = {
   date: string;
   type: string;
   summary: string;
-  /** HTML page that embeds the PDF so it opens in-browser instead of downloading. */
-  viewerUrl?: string;
   pdfUrl?: string;
 };
 
@@ -24,8 +23,7 @@ const publications: Publication[] = [
     type: 'Quantitative model',
     summary:
       'A backtested framework that introduces MAG 7 market dynamics and tests three diversification approaches — from risk-controlled Core to momentum-driven Max.',
-    viewerUrl: '/research/solaria-family-model-m5v3.html',
-    pdfUrl: '/research/solaria-family-model-m5v3.pdf',
+    pdfUrl: INVESTMENT_PORTFOLIO.paperPdfUrl,
   },
 ];
 
@@ -95,7 +93,7 @@ export default function Research() {
                     {paper.pdfUrl ? (
                       <div className="mt-7 flex flex-wrap gap-3">
                         <Button
-                          href={paper.viewerUrl ?? paper.pdfUrl}
+                          href={paper.pdfUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           variant="primary"

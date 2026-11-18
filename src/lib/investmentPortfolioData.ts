@@ -14,8 +14,6 @@ export const INVESTMENT_PORTFOLIO_HOLDINGS = [
  * Select is shown — the paper's strongest risk/return blend vs. MAGS ETF.
  */
 export const INVESTMENT_PORTFOLIO = {
-  /** Opens an HTML viewer tab that embeds the PDF (avoids forced download). */
-  paperUrl: '/research/solaria-family-model-m5v3.html',
   paperPdfUrl: '/research/solaria-family-model-m5v3.pdf',
   chartSrc: '/investment-portfolio/growth-of-one.png',
   chartAlt:

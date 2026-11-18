@@ -73,7 +73,7 @@ export default function InvestmentPortfolio() {
               Hypothetical backtest, net of modeled fees. Not live fund performance.
             </p>
             <a
-              href={portfolio.paperUrl}
+              href={portfolio.paperPdfUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="text-link desk__paper-link"
