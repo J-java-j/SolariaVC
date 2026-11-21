@@ -663,4 +663,15 @@ img { display: block; max-width: 100%; }
 .spot .answer > span, .placed .answer > span { display: block; padding: 0 !important; white-space: nowrap; overflow: hidden; }
 .answer-input { width: 100%; min-height: 64px; max-height: 50vh; resize: vertical; font: inherit; line-height: 1.4; }
 .answer-count { display: block; margin-top: 4px; font-size: 12.5px; }
-.mark-group { position: absolute; top: -9px; right: -9px; display: grid; place-items: center; width: 15px; height: 15px; border: 1.5px solid currentColor; border-radius: 50%; background: #fff; font-size: 9.5px; font-weight: 700; line-height: 1; pointer-events: none; }
+/* A "choose one" set: an outline round the boxes that go together. */
+.mark-set { position: absolute; z-index: 0; border: 1.5px dashed currentColor; border-radius: 4px; pointer-events: none; opacity: 0.75; }
+.mark-set span { position: absolute; bottom: 100%; left: -1.5px; padding: 1px 5px 0; border-radius: 3px 3px 0 0; background: currentColor; font-size: 9.5px; font-weight: 600; line-height: 1.35; white-space: nowrap; }
+.mark-set b { color: #fff; font-weight: 600; }
+.mark-set-on { border-style: solid; opacity: 1; background: color-mix(in srgb, currentColor 7%, transparent); }
+.mark-pick .mark-grip { cursor: pointer; border-style: dashed; animation: pick-pulse 1.4s ease-in-out infinite; }
+.mark-in-set .mark-grip { border-style: solid; background: color-mix(in srgb, currentColor 45%, #fff); animation: none; }
+@keyframes pick-pulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 22%, transparent); } }
+.link-bar { position: sticky; top: 0; z-index: 6; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; max-width: 880px; margin: 0 auto 14px; padding: 10px 14px; border-left: 3px solid var(--sun-deep); border-radius: var(--radius); background: var(--paper); box-shadow: var(--lift); color: var(--ink); font-size: 15px; }
+.link-bar span { flex: 1 1 280px; }
+.mark-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; flex-basis: 100%; margin: 0; }
+.mark-link .secondary { min-height: 30px; padding: 3px 12px; font-size: 13px; }

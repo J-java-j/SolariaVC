@@ -206,10 +206,12 @@ document's deadline (at least 14 days), and the last ten such links per person a
 work, so an older email still opens. The old `/sign/my` address redirects to `/sign`,
 so links already sent still open.
 
-Checkboxes can be **choose one**: give two or more of a signer's boxes the same
-group letter in the editor and the signer can tick only one (ticking another
-unticks the first); if the group is required, exactly one must be ticked. Printed
-boxes (☐) under a line such as "check one" are found and grouped automatically.
+Checkboxes can be **choose one**, for a question with a single answer. In the
+editor, select one of the boxes, choose **Make it choose one**, click the other
+boxes that belong with it, then **Done**. The set is outlined on the page, and the
+signer can tick only one of its boxes (ticking another unticks the first); with
+**Must choose one** ticked, exactly one has to be. Printed boxes (☐) under a line
+such as "check one" are found and set up this way automatically.
 
 Text answers are never cut off: the signer types in a box that grows as they
 write, and the answer is wrapped onto more lines when its space allows, or set

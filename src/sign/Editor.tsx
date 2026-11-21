@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { api, type BulkResult, type Draft, type Envelope, type Field, type FieldType, type PageSize, type Recipient, type SentLink } from './api';
 import { BULK_LIMIT, parseList, type Person } from './bulk';
 import { detectFields } from './detect';
@@ -38,16 +38,31 @@ type FieldBoxProps = {
   owner: string;
   selected: boolean;
   people: Recipient[];
+  // A "choose one" set is checkboxes of which the signer can tick only one.
+  // setSize is how many boxes are in this one's set. While a set is being put
+  // together, its first box is the 'anchor' and every box that could join is a 'pick'.
+  setSize: number;
+  linking: 'anchor' | 'pick' | null;
+  inSet: boolean;
   onSelect: () => void;
   onChange: (patch: Partial<Field>) => void;
   onRemove: () => void;
+  onRequired: (required: boolean) => void;
+  onLink: () => void;
+  onUnlink: () => void;
+  onPick: () => void;
 };
 
-function FieldBox({ field, tint, owner, selected, people, onSelect, onChange, onRemove }: FieldBoxProps) {
+function FieldBox({ field, tint, owner, selected, people, setSize, linking, inSet, onSelect, onChange, onRemove, onRequired, onLink, onUnlink, onPick }: FieldBoxProps) {
   const drag = useRef<{ mode: 'move' | 'size'; x: number; y: number; start: Field; page: DOMRect } | null>(null);
 
   const begin = (mode: 'move' | 'size') => (e: PointerEvent<HTMLElement>) => {
     e.stopPropagation();
+    // While a set is being put together, a click adds this box to it or takes it out.
+    if (linking === 'pick') {
+      onPick();
+      return;
+    }
     onSelect();
     const page = e.currentTarget.closest('.page')!.getBoundingClientRect();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -73,7 +88,12 @@ function FieldBox({ field, tint, owner, selected, people, onSelect, onChange, on
   const nudge = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = e.shiftKey ? 0.02 : 0.004;
     const moves: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
-    if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (linking === 'pick') {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onPick();
+      }
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       onRemove();
     } else if (moves[e.key]) {
@@ -91,23 +111,26 @@ function FieldBox({ field, tint, owner, selected, people, onSelect, onChange, on
   };
   const small = field.type === 'checkbox';
   return (
-    <div className={selected ? 'mark-box mark-selected' : 'mark-box'} style={style}>
+    <div className={`mark-box${selected ? ' mark-selected' : ''}${linking === 'pick' ? ' mark-pick' : ''}${linking && inSet ? ' mark-in-set' : ''}`} style={style}>
       <div
         className="mark-grip"
         role="button"
         tabIndex={0}
-        aria-label={`${LABELS[field.type]} field for ${owner || 'unnamed signer'}, page ${field.page}. Arrow keys move it, Delete removes it.`}
+        aria-pressed={linking === 'pick' ? inSet : undefined}
+        aria-label={linking === 'pick'
+          ? `Checkbox for ${owner || 'unnamed signer'}, page ${field.page}. ${inSet ? 'In the set. Press Enter to take it out.' : 'Press Enter to add it to the set.'}`
+          : `${LABELS[field.type]} field for ${owner || 'unnamed signer'}, page ${field.page}. Arrow keys move it, Delete removes it.`}
         onPointerDown={begin('move')}
         onPointerMove={move}
         onPointerUp={end}
         onPointerCancel={end}
         onKeyDown={nudge}
-        onFocus={onSelect}
+        onFocus={linking === 'pick' ? undefined : onSelect}
       >
         {!small && <span className="mark-label">{field.label || LABELS[field.type]}</span>}
-        {small && field.group && <span className="mark-group" aria-hidden="true">{field.group}</span>}
       </div>
-      {selected && (
+      {/* While a set is being put together the tools step aside: they would cover the boxes to click. */}
+      {selected && linking !== 'anchor' && (
         <>
           <span className="mark-size" aria-hidden="true" onPointerDown={begin('size')} onPointerMove={move} onPointerUp={end} onPointerCancel={end} />
           <div
@@ -128,18 +151,19 @@ function FieldBox({ field, tint, owner, selected, people, onSelect, onChange, on
             )}
             {(field.type === 'text' || field.type === 'checkbox') && (
               <label className="check">
-                <input type="checkbox" checked={field.required} onChange={(e) => onChange({ required: e.target.checked })} />
-                {field.group ? 'Must choose one' : 'Required'}
+                <input type="checkbox" checked={field.required} onChange={(e) => onRequired(e.target.checked)} />
+                {setSize > 1 ? 'Must choose one' : 'Required'}
               </label>
             )}
-            {field.type === 'checkbox' && (
-              <label title="Boxes with the same group letter are choose-one: ticking one unticks the others.">
-                Choose one
-                <select value={field.group ?? ''} onChange={(e) => onChange({ group: e.target.value || undefined })}>
-                  <option value="">No, on its own</option>
-                  {'ABCDEFGH'.split('').map((g) => <option key={g} value={g}>Group {g}</option>)}
-                </select>
-              </label>
+            {field.type === 'checkbox' && !linking && setSize > 1 && (
+              <p className="mark-link">
+                Choose one: only one of these {setSize} boxes can be ticked.
+                <button type="button" className="quiet" onClick={onLink}>Change boxes</button>
+                <button type="button" className="quiet" onClick={onUnlink}>Take this one out</button>
+              </p>
+            )}
+            {field.type === 'checkbox' && !linking && setSize <= 1 && (
+              <button type="button" className="quiet" title="For a question with one answer, such as Yes or No: the signer can tick only one of the boxes you link." onClick={onLink}>Make it choose one…</button>
             )}
             <button type="button" className="quiet" onClick={onRemove}>Remove</button>
           </div>
@@ -206,6 +230,28 @@ function PersonRow({ person, tint, active, sequential, position, count, onPick, 
       )}
       {signer && person.delivery === 'link' && <p className="muted">You share the link. They confirm their email with a code before opening it.</p>}
     </li>
+  );
+}
+
+// Shown above the page while a "choose one" set is put together. It scrolls the
+// page by its own height as it comes and goes, so the boxes stay under the pointer.
+function LinkBar({ onDone }: { onDone: () => void }) {
+  const bar = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = bar.current;
+    const scroller = el?.parentElement;
+    if (!el || !scroller) return;
+    const height = el.offsetHeight + Number.parseFloat(getComputedStyle(el).marginBottom || '0');
+    scroller.scrollTop += height;
+    return () => {
+      scroller.scrollTop -= height;
+    };
+  }, []);
+  return (
+    <div ref={bar} className="link-bar" role="status">
+      <span><strong>Choose one.</strong> Click each box that belongs with the highlighted one. The signer will be able to tick only one of them.</span>
+      <button type="button" className="primary" onClick={onDone}>Done</button>
+    </div>
   );
 }
 
@@ -418,6 +464,15 @@ function SentSheet({ links, failed, quota, onDone }: { links: SentLink[]; failed
   );
 }
 
+// The boxes in the same "choose one" set as this one, itself included. Sets
+// belong to one signer, and are stored as a shared group letter.
+const setOf = (field: Field, fields: Field[]) => (field.type === 'checkbox' && field.group
+  ? fields.filter((o) => o.type === 'checkbox' && o.recipientId === field.recipientId && o.group === field.group)
+  : []);
+
+// A set of one is no choice, so it goes back to being an ordinary box.
+const withoutLoneSets = (fields: Field[]) => fields.map((f) => (f.group && setOf(f, fields).length < 2 ? { ...f, group: undefined } : f));
+
 type Props = { env: Envelope; user: User; onSent: (env: Envelope) => void };
 
 export default function Editor({ env, user, onSent }: Props) {
@@ -434,6 +489,8 @@ export default function Editor({ env, user, onSent }: Props) {
   const [activeId, setActiveId] = useState('');
   const [armed, setArmed] = useState<FieldType | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  // The box whose "choose one" set is being put together, if any.
+  const [linking, setLinking] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'failed'>('saved');
   const [sheet, setSheet] = useState<'send' | 'delete' | null>(null);
   const [result, setResult] = useState<{ envelope: Envelope; links: SentLink[]; failed: string[]; quota?: boolean } | null>(null);
@@ -485,9 +542,66 @@ export default function Editor({ env, user, onSent }: Props) {
     };
   }, [env.id]);
 
+  const update = (patch: Partial<Draft> | ((prior: Draft) => Draft)) => {
+    edited.current = true;
+    setDraft((prior) => (typeof patch === 'function' ? patch(prior) : { ...prior, ...patch }));
+  };
+
+  // ---- "choose one" sets ----------------------------------------------------
+  const startLinking = (id: string) => {
+    const field = draft.fields.find((f) => f.id === id);
+    if (!field) return;
+    if (!field.group) {
+      const used = new Set(draft.fields.filter((f) => f.recipientId === field.recipientId && f.group).map((f) => f.group));
+      const group = 'ABCDEFGH'.split('').find((g) => !used.has(g));
+      if (!group) {
+        setFinding('A signer can have eight choose-one sets at most.');
+        return;
+      }
+      update((prior) => ({ ...prior, fields: prior.fields.map((f) => (f.id === id ? { ...f, group } : f)) }));
+    }
+    setArmed(null);
+    setSelected(id);
+    setLinking(id);
+  };
+
+  const finishLinking = () => {
+    if (!linking) return;
+    setLinking(null);
+    update((prior) => ({ ...prior, fields: withoutLoneSets(prior.fields) }));
+  };
+  const finish = useRef(finishLinking);
+  finish.current = finishLinking;
+
+  // Adds a box to the set being put together, or takes it back out.
+  const pickForSet = (id: string) => update((prior) => {
+    const anchor = prior.fields.find((f) => f.id === linking);
+    const target = prior.fields.find((f) => f.id === id);
+    if (!anchor?.group || !target) return prior;
+    const joining = target.group !== anchor.group;
+    return {
+      ...prior,
+      fields: prior.fields.map((f) => (f.id === id ? { ...f, group: joining ? anchor.group : undefined, required: joining ? anchor.required : f.required } : f)),
+    };
+  });
+
+  const unlink = (id: string) => update((prior) => ({
+    ...prior,
+    fields: withoutLoneSets(prior.fields.map((f) => (f.id === id ? { ...f, group: undefined } : f))),
+  }));
+
+  // "Must choose one" is a property of the whole set, so it changes on every box in it.
+  const setRequired = (id: string, required: boolean) => update((prior) => {
+    const field = prior.fields.find((f) => f.id === id);
+    if (!field) return prior;
+    const ids = new Set([id, ...setOf(field, prior.fields).map((f) => f.id)]);
+    return { ...prior, fields: prior.fields.map((f) => (ids.has(f.id) ? { ...f, required } : f)) };
+  });
+
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === 'Escape') {
+        finish.current();
         setArmed(null);
         setSelected(null);
       }
@@ -495,11 +609,6 @@ export default function Editor({ env, user, onSent }: Props) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-
-  const update = (patch: Partial<Draft> | ((prior: Draft) => Draft)) => {
-    edited.current = true;
-    setDraft((prior) => (typeof patch === 'function' ? patch(prior) : { ...prior, ...patch }));
-  };
 
   const signers = useMemo(() => draft.recipients.filter((r) => r.role === 'signer'), [draft.recipients]);
   const active = signers.find((r) => r.id === activeId) ?? signers[0];
@@ -556,6 +665,7 @@ export default function Editor({ env, user, onSent }: Props) {
   };
 
   const placeField = (page: number, size: PageSize, e: PointerEvent<HTMLDivElement>) => {
+    finishLinking();
     if (!armed || !active) {
       setSelected(null);
       return;
@@ -607,13 +717,15 @@ export default function Editor({ env, user, onSent }: Props) {
     findFields();
   }, [doc, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const changeField = (id: string, patch: Partial<Field>) => update((prior) => ({
-    ...prior,
-    fields: prior.fields.map((f) => (f.id === id ? { ...f, ...patch } : f)),
-  }));
+  // A set belongs to one signer, so a box handed to someone else leaves its set.
+  const changeField = (id: string, patch: Partial<Field>) => update((prior) => {
+    const fields = prior.fields.map((f) => (f.id === id ? { ...f, ...patch, ...(patch.recipientId && patch.recipientId !== f.recipientId ? { group: undefined } : {}) } : f));
+    return { ...prior, fields: patch.recipientId ? withoutLoneSets(fields) : fields };
+  });
 
   const removeField = (id: string) => {
-    update((prior) => ({ ...prior, fields: prior.fields.filter((f) => f.id !== id) }));
+    if (linking) setLinking(null);
+    update((prior) => ({ ...prior, fields: withoutLoneSets(prior.fields.filter((f) => f.id !== id)) }));
     setSelected(null);
   };
 
@@ -644,6 +756,30 @@ export default function Editor({ env, user, onSent }: Props) {
     navigate('/sign');
   });
 
+  // An outline around each "choose one" set on a page, so the boxes that go
+  // together can be seen at a glance.
+  const setsOn = (page: number, size: PageSize) => {
+    const sets = new Map<string, Field[]>();
+    for (const f of draft.fields) {
+      if (f.page !== page || f.type !== 'checkbox' || !f.group) continue;
+      const key = `${f.recipientId}:${f.group}`;
+      sets.set(key, [...(sets.get(key) ?? []), f]);
+    }
+    const [padX, padY] = [5 / size.width, 5 / size.height];
+    const focus = draft.fields.find((f) => f.id === (linking ?? selected));
+    return [...sets].map(([key, boxes]) => {
+      const x0 = Math.max(0, Math.min(...boxes.map((f) => f.x)) - padX);
+      const y0 = Math.max(0, Math.min(...boxes.map((f) => f.y)) - padY);
+      const x1 = Math.min(1, Math.max(...boxes.map((f) => f.x + f.w)) + padX);
+      const y1 = Math.min(1, Math.max(...boxes.map((f) => f.y + f.h)) + padY);
+      return {
+        key,
+        active: Boolean(focus) && boxes.some((f) => f.id === focus!.id),
+        style: { left: `${x0 * 100}%`, top: `${y0 * 100}%`, width: `${(x1 - x0) * 100}%`, height: `${(y1 - y0) * 100}%`, color: tintOf(boxes[0].recipientId) } as CSSProperties,
+      };
+    });
+  };
+
   const overlay = (page: number, size: PageSize) => (
     <div
       className={armed ? 'marks marks-armed' : 'marks'}
@@ -660,22 +796,39 @@ export default function Editor({ env, user, onSent }: Props) {
         placeAt(type, page, size, e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY);
       }}
     >
-      {draft.fields.filter((f) => f.page === page).map((f) => (
-        <FieldBox
-          key={f.id}
-          field={f}
-          tint={tintOf(f.recipientId)}
-          owner={draft.recipients.find((r) => r.id === f.recipientId)?.name ?? ''}
-          selected={selected === f.id}
-          people={signers}
-          onSelect={() => {
-            setSelected(f.id);
-            setArmed(null);
-          }}
-          onChange={(patch) => changeField(f.id, patch)}
-          onRemove={() => removeField(f.id)}
-        />
+      {setsOn(page, size).map((set) => (
+        <div key={set.key} className={set.active ? 'mark-set mark-set-on' : 'mark-set'} style={set.style}>
+          <span><b>choose one</b></span>
+        </div>
       ))}
+      {draft.fields.filter((f) => f.page === page).map((f) => {
+        const anchor = linking ? draft.fields.find((o) => o.id === linking) : undefined;
+        const pickable = Boolean(anchor) && f.id !== linking && f.type === 'checkbox' && f.recipientId === anchor!.recipientId;
+        return (
+          <FieldBox
+            key={f.id}
+            field={f}
+            tint={tintOf(f.recipientId)}
+            owner={draft.recipients.find((r) => r.id === f.recipientId)?.name ?? ''}
+            selected={selected === f.id}
+            people={signers}
+            setSize={setOf(f, draft.fields).length}
+            linking={f.id === linking ? 'anchor' : pickable ? 'pick' : null}
+            inSet={Boolean(anchor?.group) && f.type === 'checkbox' && f.recipientId === anchor!.recipientId && f.group === anchor!.group}
+            onSelect={() => {
+              if (linking && f.id !== linking) finishLinking();
+              setSelected(f.id);
+              setArmed(null);
+            }}
+            onChange={(patch) => changeField(f.id, patch)}
+            onRemove={() => removeField(f.id)}
+            onRequired={(required) => setRequired(f.id, required)}
+            onLink={() => startLinking(f.id)}
+            onUnlink={() => unlink(f.id)}
+            onPick={() => pickForSet(f.id)}
+          />
+        );
+      })}
     </div>
   );
 
@@ -754,7 +907,10 @@ export default function Editor({ env, user, onSent }: Props) {
               draggable={Boolean(active)}
               title="Click, then click the page. Or drag it onto the page."
               aria-pressed={armed === item.type}
-              onClick={() => setArmed(armed === item.type ? null : item.type)}
+              onClick={() => {
+                finishLinking();
+                setArmed(armed === item.type ? null : item.type);
+              }}
               onDragStart={(e) => {
                 e.dataTransfer.setData(DRAG_TYPE, item.type);
                 e.dataTransfer.effectAllowed = 'copy';
@@ -766,7 +922,9 @@ export default function Editor({ env, user, onSent }: Props) {
           ))}
         </div>
         <button type="button" className="secondary palette-find" disabled={!active || !doc} onClick={findFields}>Find fields automatically</button>
-        {armed
+        {linking
+          ? <p className="palette-hint">Click each box that belongs with the highlighted one, then choose Done above the page.</p>
+          : armed
           ? <p className="palette-hint" role="status">Click the page to place it. Hold Shift to place several, or press Esc to stop.</p>
           : finding
             ? <p className="palette-hint" role="status">{finding}</p>
@@ -776,6 +934,7 @@ export default function Editor({ env, user, onSent }: Props) {
       <main className="editor-doc" onPointerDown={(e) => {
         if (e.target === e.currentTarget) setSelected(null);
       }}>
+        {linking && <LinkBar onDone={finishLinking} />}
         {loadError && <Notice>{loadError}</Notice>}
         {doc ? <PdfPages doc={doc} sizes={env.document.sizes} overlay={overlay} /> : !loadError && <Loading label="Opening the document" />}
       </main>
