@@ -167,14 +167,15 @@ with several documents gets one email listing them with a link (good for 14 days
 straight into their documents at `/sign`, and someone with one gets a link to it. You,
 and anyone you share a link with yourself, are skipped.
 
-Email goes out through Resend, and the Resend plan sets how many messages can be
-sent in a day. Once that runs out nothing more sends until it resets at midnight
-UTC (mid-afternoon in California), sign-in links included. A list send stops
+Email goes out through Resend. The account is on a paid plan, and Resend's paid
+plans have no daily limit, only a monthly allowance. Its free plan also caps each
+day, resetting at midnight UTC (mid-afternoon in California). If a limit is ever reached nothing more sends until it resets,
+sign-in links included, and the message says which limit it was. A list send stops
 there: nobody further down the list gets a copy, and the result lists them so they
 can be sent to once it has reset. An email that did
-not go out is marked on its document, and the documents page offers **Send them
-now**, which emails only the people who were missed, as a first email rather than
-a reminder. When everyone has signed, each person on the document gets the signed
+not go out for any reason is marked on its document, and the documents page offers
+**Send them now**, which emails only the people who were missed, as a first email
+rather than a reminder. When everyone has signed, each person on the document gets the signed
 copy once; a sender who also signed it gets one email, not two.
 
 A document closes for signing after the time chosen when it was sent. One with a

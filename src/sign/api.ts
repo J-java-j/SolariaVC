@@ -91,7 +91,8 @@ export type SentLink = { recipientId: string; name: string; url: string };
 
 export type BulkResult = { name: string; email: string; ok: boolean; id?: string; links?: SentLink[]; emailFailed?: boolean; error?: string; quota?: boolean; unsent?: boolean };
 
-// `quota` is the day's email limit running out; `resumes` is when sending starts again, if known.
+// `quota` is an email limit running out. `resumes` is when sending starts again: a time for
+// the day's limit, null for the month's, which has no reset we can see.
 export type EmailOutcome = { reminded: number; documents: number; skipped: number; failed: string[]; quota?: boolean; resumes?: string | null };
 
 export type Folder = { id: string; name: string };

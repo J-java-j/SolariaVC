@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEv
 import { api, type EnvelopeSummary, type Folder } from './api';
 import { Link, navigate } from './router';
 import { waitingOn } from './SignQueue';
-import { afterReset, closesIn, closesLabel, ExtendSheet, formatDate, Notice, Sheet, SignerDots, statusLabel, useBusy } from './ui';
+import { afterReset, closesIn, closesLabel, ExtendSheet, formatDate, limitName, Notice, Sheet, SignerDots, statusLabel, useBusy } from './ui';
 
 const MAX_UPLOAD = 20 * 1024 * 1024;
 const LIST_LIMIT = 500;
@@ -281,7 +281,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
   const current = inDeleted ? DELETED : folder?.id ?? ALL;
   const live = (envelopes ?? []).filter((env) => !env.deletedAt);
   const mine = waitingOn(envelopes ?? [], user.email);
-  // Documents with an email that never went out, such as on a day the email limit ran out.
+  // Documents with an email that never went out, such as when an email limit ran out.
   const unsent = live.filter((env) => env.recipients.some((r) => r.emailFailed));
   // Counted by person: someone on every copy of a list is one email, not one per copy.
   const unsentCount = new Set(unsent.flatMap((env) => env.recipients.filter((r) => r.emailFailed).map((r) => r.email))).size;
@@ -431,14 +431,14 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
           <div className="mine mine-alert">
             <span>
               <strong>{unsentCount === 1 ? '1 person was not emailed.' : `${unsentCount} people were not emailed.`}</strong>
-              {' '}{unsent.length === 1 ? 'The document is' : `${unsent.length} documents are`} ready, but the email about {unsent.length === 1 ? 'it' : 'them'} did not go out. This usually means the day's email limit ran out.
+              {' '}{unsent.length === 1 ? 'The document is' : `${unsent.length} documents are`} ready, but the email about {unsent.length === 1 ? 'it' : 'them'} did not go out.
             </span>
             <button type="button" className="primary" disabled={busy} onClick={() => run(async () => {
               const sent = await api.resendDocuments(unsent.map((env) => env.id).slice(0, 200));
               const reached = sent.reminded + sent.copies;
               setUndo(null);
               setNotice(sent.failed.length
-                ? `${reached ? `Sent ${reached}. ` : ''}${sent.quota ? "Today's email limit has been reached, so" : 'Something went wrong, so'} ${sent.failed.length === 1 ? `the email to ${sent.failed[0]} is` : `${sent.failed.length} emails are`} still waiting. Try again ${sent.quota ? afterReset(sent.resumes) : 'shortly'}.`
+                ? `${reached ? `Sent ${reached}. ` : ''}${sent.quota ? `${limitName(sent.resumes, true)} has been reached, so` : 'Something went wrong, so'} ${sent.failed.length === 1 ? `the email to ${sent.failed[0]} is` : `${sent.failed.length} emails are`} still waiting. Try again ${sent.quota ? afterReset(sent.resumes) : 'shortly'}.`
                 : `Sent ${reached === 1 ? 'the email' : `${reached} emails`}. Everyone has now been told.`);
               await load();
             })}>{busy ? 'Sending' : unsentCount === 1 ? 'Send it now' : 'Send them now'}</button>
@@ -665,7 +665,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
             const what = `Reminded ${sent.reminded} ${sent.reminded === 1 ? 'person' : 'people'} about ${sent.documents} ${sent.documents === 1 ? 'document' : 'documents'}`;
             const names = sent.failed.length > 4 ? `${sent.failed.slice(0, 3).join(', ')} and ${sent.failed.length - 3} more` : sent.failed.join(', ');
             setNotice(!sent.failed.length ? `${what}.`
-              : sent.quota ? `${what}. Today's email limit was reached, so the email to ${names} did not go out. Try again ${afterReset(sent.resumes)}.`
+              : sent.quota ? `${what}. ${limitName(sent.resumes, true)} was reached, so the email to ${names} did not go out. Try again ${afterReset(sent.resumes)}.`
               : `${what}. Email to ${names} did not go through.`);
             await finish();
           }}

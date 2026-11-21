@@ -122,8 +122,15 @@ export function Shell({ user, children }: { user: { name: string; owner: boolean
   );
 }
 
-// When email sends again after the day's limit ran out, in the reader's own time.
-// The limit resets at midnight UTC, which is mid-afternoon in California.
+// Which limit stopped the email. A day's limit comes with the time it resets; the
+// month's does not, and it is the only one a paid Resend plan has.
+export function limitName(resumes?: string | null, capital = false) {
+  const name = resumes ? "today's email limit" : resumes === null ? "this month's email limit" : 'the email limit';
+  return capital ? name[0].toUpperCase() + name.slice(1) : name;
+}
+
+// When email sends again after a limit ran out, in the reader's own time. A day's
+// limit resets at midnight UTC, which is mid-afternoon in California.
 export function afterReset(resumes?: string | null) {
   if (!resumes) return 'once the limit resets';
   const at = new Date(resumes);

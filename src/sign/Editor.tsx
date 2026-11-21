@@ -6,7 +6,7 @@ import type { User } from './App';
 import { openPdf, type PdfDocument } from './pdf';
 import { PdfPages } from './PdfPages';
 import { Link, navigate } from './router';
-import { afterReset, Loading, Notice, Sheet, useBusy, Wordmark } from './ui';
+import { afterReset, limitName, Loading, Notice, Sheet, useBusy, Wordmark } from './ui';
 
 const EXPIRY_DAYS = [7, 14, 30, 60, 90];
 const MIN_SIZE = 0.012;
@@ -361,7 +361,7 @@ function SendSheet({ draft, onChange, onSend, onBulkSend, onClose, busy, error }
 function BulkSentSheet({ results, others = [], resumes, onDone }: { results: BulkResult[]; others?: string[]; resumes?: string | null; onDone: () => void }) {
   const [copied, setCopied] = useState('');
   const sent = results.filter((r) => r.ok);
-  // People the list never reached, because the day's email limit ran out first.
+  // People the list never reached, because an email limit ran out first.
   const waiting = results.filter((r) => r.unsent);
   const failed = results.filter((r) => !r.ok && !r.unsent);
   const unmailed = sent.filter((r) => r.emailFailed);
@@ -382,7 +382,7 @@ function BulkSentSheet({ results, others = [], resumes, onDone }: { results: Bul
       {waiting.length > 0 && (
         <>
           <Notice>
-            Today's email limit was reached, so {waiting.length === 1 ? '1 person was' : `${waiting.length} people were`} not sent a copy.
+            {limitName(resumes, true)} was reached, so {waiting.length === 1 ? '1 person was' : `${waiting.length} people were`} not sent a copy.
             Nothing was created for them. Send to them from this draft {afterReset(resumes)}.
           </Notice>
           <label className="field">
@@ -395,7 +395,7 @@ function BulkSentSheet({ results, others = [], resumes, onDone }: { results: Bul
       {unmailed.length > 0 && (
         <Notice>
           {limit
-            ? `The email to ${unmailed.map((r) => r.name).join(', ')} did not go out, because today's email limit was reached. Their document is ready: your documents page will offer to send the email again.`
+            ? `The email to ${unmailed.map((r) => r.name).join(', ')} did not go out, because ${limitName(resumes)} was reached. Their document is ready: your documents page will offer to send the email again.`
             : `Email to ${unmailed.map((r) => r.name).join(', ')} did not go through. Your documents page will offer to send it again, or open their document to get a link instead.`}
         </Notice>
       )}
@@ -443,7 +443,7 @@ function SentSheet({ links, failed, quota, resumes, onDone }: { links: SentLink[
       {failed.length > 0 && (
         <Notice>
           {quota
-            ? `The email to ${failed.join(' and ')} did not go out, because today's email limit was reached. The document is ready: send the email again from its page ${afterReset(resumes)}, or get a link there to share yourself.`
+            ? `The email to ${failed.join(' and ')} did not go out, because ${limitName(resumes)} was reached. The document is ready: send the email again from its page ${afterReset(resumes)}, or get a link there to share yourself.`
             : `Email to ${failed.join(' and ')} did not go through. Open the document to send it again, or to get a link for them instead.`}
         </Notice>
       )}

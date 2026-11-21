@@ -1232,7 +1232,7 @@ export function createSignService({ store, config, mail: sendMail, log = console
       let stopped = mailStopped() && source.recipients.some((r) => r.role === 'signer' && r.delivery === 'email');
       for (const [i, person] of people.entries()) {
         if (stopped) {
-          results.push({ ...person, ok: false, unsent: true, error: 'Not sent: today\'s email limit was reached.' });
+          results.push({ ...person, ok: false, unsent: true, error: `Not sent: ${mailLimit().what}.` });
           continue;
         }
         if (i && config.bulkPaceMs) await new Promise((done) => setTimeout(done, config.bulkPaceMs));

@@ -5,7 +5,7 @@ import { openPdf, pageSizes, type PdfDocument } from './pdf';
 import { PdfPages } from './PdfPages';
 import { Link, navigate } from './router';
 import { Seal } from './Seal';
-import { afterReset, closesIn, closesLabel, ExtendSheet, formatDate, formatDateTime, Loading, Notice, Sheet, StatusText, useBusy } from './ui';
+import { afterReset, closesIn, closesLabel, ExtendSheet, formatDate, formatDateTime, limitName, Loading, Notice, Sheet, StatusText, useBusy } from './ui';
 
 const REFRESH_MS = 20_000;
 
@@ -39,7 +39,7 @@ function PersonLine({ env, person, onChanged }: { env: Envelope; person: Recipie
   const resendCopy = () => run(async () => {
     const sent = await api.resendDocuments([env.id]);
     setNotice(sent.failed.length ? '' : 'Signed copy sent.');
-    if (sent.failed.length) throw new Error(sent.quota ? `Today's email limit has been reached. Try again ${afterReset(sent.resumes)}.` : 'The email did not go through. Try again shortly.');
+    if (sent.failed.length) throw new Error(sent.quota ? `${limitName(sent.resumes, true)} has been reached. Try again ${afterReset(sent.resumes)}.` : 'The email did not go through. Try again shortly.');
     onChanged();
   });
   const newLink = () => run(async () => {

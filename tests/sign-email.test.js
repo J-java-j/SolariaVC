@@ -70,6 +70,7 @@ test('a list stops at the email limit, and says who is left', async (t) => {
     ['Di', false, false, true],
   ]);
   assert.equal(results[1].quota, true);
+  assert.match(results[2].error, /^Not sent: today's email limit has been reached\.$/);
   assert.equal((await svc.listEnvelopes()).length, 3, 'nothing was made for the people it never reached');
   assert.equal(mail.length, 1);
 
@@ -338,4 +339,11 @@ test('a spent monthly allowance is not promised back at midnight', async (t) => 
   await assert.rejects(svc.requestLogin(SENDER.email), (e) => e.status === 503 && /this month's email limit/.test(e.message) && !/hours?\b/.test(e.message));
   const ada = (await svc.getEnvelope(env.id)).recipients[0];
   await assert.rejects(svc.remind(env.id, ada.id), (e) => e.status === 503 && /This month's email limit has been reached, so this could not be sent\. Get a link to share yourself\./.test(e.message));
+
+  // A list sent then waits too, and each person left out is told which limit it was.
+  const template = await draft(svc, { recipients: [{ id: 'n', name: '', email: '' }] });
+  const people = ['Bo', 'Cy'].map((name) => ({ name, email: `${name.toLowerCase()}@example.com` }));
+  const list = await svc.bulkSend(template.id, SENDER, INFO, { recipientId: template.recipients[0].id, people });
+  assert.deepEqual([list.quota, list.resumes], [true, null]);
+  assert.ok(list.results.every((r) => r.unsent && /^Not sent: this month's email limit has been reached\.$/.test(r.error)));
 });
