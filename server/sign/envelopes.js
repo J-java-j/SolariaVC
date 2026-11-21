@@ -171,7 +171,6 @@ const MY_LINKS_KEPT = 10;
 const MAIL_PAUSE = 10 * 60_000;
 // However often a deadline is moved, a document is never open further ahead than this.
 const MAX_OPEN_DAYS = 180;
-const NO_MAIL = 'We can\'t send email right now, because today\'s email limit has been reached. Please try again tomorrow.';
 
 export function createSignService({ store, config, mail: sendMail, log = console }) {
   const signerUrl = (token) => `${config.baseUrl}/s#${token}`;
@@ -181,22 +180,43 @@ export function createSignService({ store, config, mail: sendMail, log = console
   // sends until it resets, so it is remembered for a while: a list stops instead
   // of going out unannounced, and sign-in says so to everyone alike.
   let mailStoppedAt = 0;
-  const mailStopped = () => Date.now() - mailStoppedAt < MAIL_PAUSE;
+  let mailStopMonthly = false;
+  // The daily allowance resets at midnight UTC, so that is when sending starts again.
+  const nextReset = (from = Date.now()) => {
+    const d = new Date(from);
+    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+  };
+  const mailStopped = () => Date.now() - mailStoppedAt < MAIL_PAUSE && (mailStopMonthly || Date.now() < nextReset(mailStoppedAt));
+  // When email will send again, for the sender's screen: null when only the month's allowance is spent.
+  const mailResumes = () => (mailStopMonthly ? null : new Date(nextReset()).toISOString());
+  // Which allowance ran out, and when it is worth trying again.
+  const mailLimit = () => {
+    if (mailStopMonthly) return { what: 'this month\'s email limit has been reached', when: null };
+    const hours = Math.ceil((nextReset() - Date.now()) / 3_600_000);
+    return { what: 'today\'s email limit has been reached', when: `in about ${hours <= 1 ? 'an hour' : `${hours} hours`}` };
+  };
+  const noMail = () => {
+    const { what, when } = mailLimit();
+    return `We can't send email right now, because ${what}. ${when ? `Please try again ${when}.` : 'Please ask the sender for a link instead.'}`;
+  };
   async function mail(message) {
     try {
       return await sendMail(message);
     } catch (e) {
-      if (e?.quota) mailStoppedAt = Date.now();
+      if (e?.quota) {
+        mailStoppedAt = Date.now();
+        mailStopMonthly = e.monthly === true;
+      }
       throw e;
     }
   }
   // For the emails someone is waiting on: a spent allowance is said plainly.
   async function mailNow(message) {
-    if (mailStopped()) throw new HttpError(503, NO_MAIL);
+    if (mailStopped()) throw new HttpError(503, noMail());
     try {
       return await mail(message);
     } catch (e) {
-      if (e?.quota) throw new HttpError(503, NO_MAIL);
+      if (e?.quota) throw new HttpError(503, noMail());
       throw e;
     }
   }
@@ -833,14 +853,14 @@ export function createSignService({ store, config, mail: sendMail, log = console
         outcome.documents += person.docs.length;
       } else outcome.failed.push(person.name);
     }
-    return { ...outcome, ...(stopped ? { quota: true } : {}) };
+    return { ...outcome, ...(stopped ? { quota: true, resumes: mailResumes() } : {}) };
   }
 
   return {
     // ---- sign in ----------------------------------------------------------
     // Answers identically for unknown addresses, so nobody can probe who has access.
     async requestLogin(emailInput) {
-      if (mailStopped()) throw new HttpError(503, NO_MAIL);
+      if (mailStopped()) throw new HttpError(503, noMail());
       const email = String(emailInput ?? '').trim().toLowerCase();
       // One sign-in page for everyone: the team gets a sign-in link, anyone else we
       // have sent documents to gets a link to theirs. The answer is the same either way.
@@ -863,7 +883,7 @@ export function createSignService({ store, config, mail: sendMail, log = console
     // Anyone sent a document can see all of theirs at /sign after proving the
     // address by email. Answers the same whether or not the address has documents.
     async requestMyDocuments(emailInput) {
-      if (mailStopped()) throw new HttpError(503, NO_MAIL);
+      if (mailStopped()) throw new HttpError(503, noMail());
       const email = String(emailInput ?? '').trim().toLowerCase();
       if (!EMAIL_RE.test(email) || email.length > 200) return;
       const envs = await store.listEnvelopes(LIST_LIMIT);
@@ -1243,7 +1263,7 @@ export function createSignService({ store, config, mail: sendMail, log = console
         if (!result.ok) unmailed.push(person.name);
         if (result.quota) stopped = true;
       }
-      return { batch, results, ...(unmailed.length ? { unmailed } : {}), ...(stopped ? { quota: true } : {}) };
+      return { batch, results, ...(unmailed.length ? { unmailed } : {}), ...(stopped ? { quota: true, resumes: mailResumes() } : {}) };
     },
 
     // `hold` names addresses not to email now: a list send writes to a signer who
@@ -1288,6 +1308,7 @@ export function createSignService({ store, config, mail: sendMail, log = console
         failed: results.filter((r) => !r.ok).map((r) => r.rec.name),
         // True when an email failed because the day's allowance is spent.
         quota: results.some((r) => r.quota),
+        ...(results.some((r) => r.quota) ? { resumes: mailResumes() } : {}),
       };
     },
 
@@ -1301,7 +1322,10 @@ export function createSignService({ store, config, mail: sendMail, log = console
         notice = { recipientId: rec.id, token: issueToken(fresh, rec) };
       });
       const [result] = await deliver(id, env, [notice], { reminder: true });
-      if (result?.quota) throw new HttpError(503, 'Today\'s email limit has been reached, so this could not be sent. Try again tomorrow, or get a link to share yourself.');
+      if (result?.quota) {
+        const { what, when } = mailLimit();
+        throw new HttpError(503, `${what[0].toUpperCase()}${what.slice(1)}, so this could not be sent. ${when ? `Try again ${when}, or get` : 'Get'} a link to share yourself.`);
+      }
       if (!result?.ok) throw new HttpError(502, 'The email could not be sent. Try again shortly.');
     },
 
@@ -1333,7 +1357,7 @@ export function createSignService({ store, config, mail: sendMail, log = console
         copies += owed.length - still.length;
         outcome.failed.push(...still.map((r) => r.name));
       }
-      return { ...outcome, copies, ...(mailStopped() && outcome.failed.length ? { quota: true } : {}) };
+      return { ...outcome, copies, ...(mailStopped() && outcome.failed.length ? { quota: true, resumes: mailResumes() } : {}) };
     },
 
     // Replaces every earlier link for this person, because links are stored only

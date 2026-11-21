@@ -36,6 +36,19 @@ test('a spent daily allowance fails at once, while a burst is waited out', async
 
   globalThis.fetch = async () => new Response('bad address', { status: 422 });
   await assert.rejects(mailer(message), (e) => !e.quota && /422/.test(e.message));
+
+  // The month's allowance is told apart from the day's, and it goes by the
+  // error's name: a rate limit whose message mentions a quota is still a burst.
+  globalThis.fetch = async () => new Response(JSON.stringify({ name: 'monthly_quota_exceeded', message: 'You have exceeded your monthly email sending quota.' }), { status: 429 });
+  await assert.rejects(mailer(message), (e) => e.quota === true && e.monthly === true);
+  calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return calls < 2
+      ? new Response(JSON.stringify({ name: 'rate_limit_exceeded', message: 'Too many requests for your quota tier.' }), { status: 429, headers: { 'retry-after': '0.01' } })
+      : new Response(JSON.stringify({ id: 'm2' }), { status: 200 });
+  };
+  assert.equal(await mailer(message), 'm2');
 });
 
 test('a list stops at the email limit, and says who is left', async (t) => {
@@ -44,8 +57,12 @@ test('a list stops at the email limit, and says who is left', async (t) => {
   const people = ['Ada', 'Bo', 'Cy', 'Di'].map((name) => ({ name, email: `${name.toLowerCase()}@example.com` }));
   failMailWhen((m) => (m.to === 'ada@example.com' ? false : 'quota'));
 
-  const { results, quota } = await svc.bulkSend(template.id, SENDER, INFO, { recipientId: template.recipients[0].id, people });
+  const { results, quota, resumes } = await svc.bulkSend(template.id, SENDER, INFO, { recipientId: template.recipients[0].id, people });
   assert.equal(quota, true);
+  // The allowance resets at midnight UTC, and the sender is told when that is.
+  const reset = new Date(resumes);
+  assert.deepEqual([reset.getUTCHours(), reset.getUTCMinutes()], [0, 0]);
+  assert.ok(reset > new Date() && reset - new Date() <= 24 * 3_600_000);
   assert.deepEqual(results.map((r) => [r.name, r.ok, Boolean(r.emailFailed), Boolean(r.unsent)]), [
     ['Ada', true, false, false],
     ['Bo', true, true, false],
@@ -191,7 +208,7 @@ test('with email stopped, sign-in says so to everyone alike', async (t) => {
   failMailWhen(() => false);
   mail.length = 0;
   for (const email of [SENDER.email, 'ada@example.com', 'stranger@example.com']) {
-    await assert.rejects(svc.requestLogin(email), (e) => e.status === 503 && /email limit/.test(e.message), `${email} is told the same`);
+    await assert.rejects(svc.requestLogin(email), (e) => e.status === 503 && /today's email limit has been reached\. Please try again in about (an hour|\d+ hours)\./.test(e.message), `${email} is told the same`);
   }
   assert.equal(mail.length, 0);
 });
@@ -310,4 +327,15 @@ test('a document with a box to tick is left out of signing everything at once', 
 test('a dead signing link says where to go instead', async (t) => {
   const { svc } = harness(t);
   await assert.rejects(svc.signerSession(`${'A'.repeat(12)}.r${'0'.repeat(10)}.${'x'.repeat(43)}`), (e) => e.status === 404 && /solariavc\.com\/sign/.test(e.message));
+});
+
+test('a spent monthly allowance is not promised back at midnight', async (t) => {
+  const { svc, failMailWhen } = harness(t);
+  const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
+  failMailWhen(() => 'monthly');
+  const first = await send(svc, env);
+  assert.deepEqual([first.quota, first.resumes], [true, null]);
+  await assert.rejects(svc.requestLogin(SENDER.email), (e) => e.status === 503 && /this month's email limit/.test(e.message) && !/hours?\b/.test(e.message));
+  const ada = (await svc.getEnvelope(env.id)).recipients[0];
+  await assert.rejects(svc.remind(env.id, ada.id), (e) => e.status === 503 && /This month's email limit has been reached, so this could not be sent\. Get a link to share yourself\./.test(e.message));
 });

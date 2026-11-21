@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEv
 import { api, type EnvelopeSummary, type Folder } from './api';
 import { Link, navigate } from './router';
 import { waitingOn } from './SignQueue';
-import { closesIn, closesLabel, ExtendSheet, formatDate, Notice, Sheet, SignerDots, statusLabel, useBusy } from './ui';
+import { afterReset, closesIn, closesLabel, ExtendSheet, formatDate, Notice, Sheet, SignerDots, statusLabel, useBusy } from './ui';
 
 const MAX_UPLOAD = 20 * 1024 * 1024;
 const LIST_LIMIT = 500;
@@ -438,7 +438,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
               const reached = sent.reminded + sent.copies;
               setUndo(null);
               setNotice(sent.failed.length
-                ? `${reached ? `Sent ${reached}. ` : ''}${sent.quota ? "Today's email limit has been reached, so" : 'Something went wrong, so'} ${sent.failed.length === 1 ? `the email to ${sent.failed[0]} is` : `${sent.failed.length} emails are`} still waiting. Try again ${sent.quota ? 'tomorrow' : 'shortly'}.`
+                ? `${reached ? `Sent ${reached}. ` : ''}${sent.quota ? "Today's email limit has been reached, so" : 'Something went wrong, so'} ${sent.failed.length === 1 ? `the email to ${sent.failed[0]} is` : `${sent.failed.length} emails are`} still waiting. Try again ${sent.quota ? afterReset(sent.resumes) : 'shortly'}.`
                 : `Sent ${reached === 1 ? 'the email' : `${reached} emails`}. Everyone has now been told.`);
               await load();
             })}>{busy ? 'Sending' : unsentCount === 1 ? 'Send it now' : 'Send them now'}</button>
@@ -665,7 +665,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
             const what = `Reminded ${sent.reminded} ${sent.reminded === 1 ? 'person' : 'people'} about ${sent.documents} ${sent.documents === 1 ? 'document' : 'documents'}`;
             const names = sent.failed.length > 4 ? `${sent.failed.slice(0, 3).join(', ')} and ${sent.failed.length - 3} more` : sent.failed.join(', ');
             setNotice(!sent.failed.length ? `${what}.`
-              : sent.quota ? `${what}. Today's email limit was reached, so the email to ${names} did not go out. Try again tomorrow.`
+              : sent.quota ? `${what}. Today's email limit was reached, so the email to ${names} did not go out. Try again ${afterReset(sent.resumes)}.`
               : `${what}. Email to ${names} did not go through.`);
             await finish();
           }}

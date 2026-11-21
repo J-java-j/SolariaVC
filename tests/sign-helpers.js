@@ -59,11 +59,11 @@ export function harness(t, { tsaUrls = [] } = {}) {
   const sent = [];
   const config = { baseUrl: 'https://sign.test', tsaUrls };
   let failMail = () => false;
-  // The test's rule returns true for an ordinary failure, or 'quota' for the
-  // mail provider's daily allowance running out.
+  // The test's rule returns true for an ordinary failure, 'quota' for the mail
+  // provider's daily allowance running out, or 'monthly' for the month's.
   const mail = async (message) => {
     const failure = failMail(message);
-    if (failure) throw Object.assign(new Error('mail failed'), failure === 'quota' ? { quota: true } : {});
+    if (failure) throw Object.assign(new Error('mail failed'), failure === 'quota' || failure === 'monthly' ? { quota: true, monthly: failure === 'monthly' } : {});
     sent.push(message);
     return `m${sent.length}`;
   };

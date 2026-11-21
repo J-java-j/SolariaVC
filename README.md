@@ -168,9 +168,10 @@ straight into their documents at `/sign`, and someone with one gets a link to it
 and anyone you share a link with yourself, are skipped.
 
 Email goes out through Resend, and the Resend plan sets how many messages can be
-sent in a day. Once that runs out nothing more sends until the next day, sign-in
-links included. A list send stops there: nobody further down the list gets a copy,
-and the result lists them so they can be sent to the next day. An email that did
+sent in a day. Once that runs out nothing more sends until it resets at midnight
+UTC (mid-afternoon in California), sign-in links included. A list send stops
+there: nobody further down the list gets a copy, and the result lists them so they
+can be sent to once it has reset. An email that did
 not go out is marked on its document, and the documents page offers **Send them
 now**, which emails only the people who were missed, as a first email rather than
 a reminder. When everyone has signed, each person on the document gets the signed

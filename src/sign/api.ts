@@ -91,7 +91,8 @@ export type SentLink = { recipientId: string; name: string; url: string };
 
 export type BulkResult = { name: string; email: string; ok: boolean; id?: string; links?: SentLink[]; emailFailed?: boolean; error?: string; quota?: boolean; unsent?: boolean };
 
-export type EmailOutcome = { reminded: number; documents: number; skipped: number; failed: string[]; quota?: boolean };
+// `quota` is the day's email limit running out; `resumes` is when sending starts again, if known.
+export type EmailOutcome = { reminded: number; documents: number; skipped: number; failed: string[]; quota?: boolean; resumes?: string | null };
 
 export type Folder = { id: string; name: string };
 
@@ -205,13 +206,13 @@ export const api = {
   resendDocuments: (ids: string[]) => call<EmailOutcome & { copies: number }>('envelopes/selection/resend', post({ ids })),
   extendDocuments: (ids: string[], days: number) => call<{ extended: number }>('envelopes/selection/extend', post({ ids, days })),
   moveDocuments: (ids: string[], folderId: string | null) => call('envelopes/selection/move', post({ ids, folderId })),
-  send: (id: string) => call<{ envelope: Envelope; links: SentLink[]; failed: string[]; quota?: boolean }>(`envelopes/${id}/send`, post()),
+  send: (id: string) => call<{ envelope: Envelope; links: SentLink[]; failed: string[]; quota?: boolean; resumes?: string | null }>(`envelopes/${id}/send`, post()),
   remind: (id: string, recipientId: string) => call(`envelopes/${id}/remind`, post({ recipientId })),
   newLink: (id: string, recipientId: string) => call<{ url: string }>(`envelopes/${id}/link`, post({ recipientId })),
   voidEnvelope: (id: string, reason: string) => call(`envelopes/${id}/void`, post({ reason })),
   duplicate: (id: string) => call<Envelope>(`envelopes/${id}/duplicate`, post()),
   bulkSend: (id: string, recipientId: string, people: { name: string; email: string }[]) =>
-    call<{ batch: string; results: BulkResult[]; quota?: boolean; unmailed?: string[] }>(`envelopes/${id}/bulk`, post({ recipientId, people })),
+    call<{ batch: string; results: BulkResult[]; quota?: boolean; resumes?: string | null; unmailed?: string[] }>(`envelopes/${id}/bulk`, post({ recipientId, people })),
   finish: (id: string) => call<Envelope>(`envelopes/${id}/finish`, post()),
   timestamp: (id: string) => call<Envelope>(`envelopes/${id}/timestamp`, post()),
   original: (id: string) => bytes(`envelopes/${id}/original`),

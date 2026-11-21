@@ -122,6 +122,15 @@ export function Shell({ user, children }: { user: { name: string; owner: boolean
   );
 }
 
+// When email sends again after the day's limit ran out, in the reader's own time.
+// The limit resets at midnight UTC, which is mid-afternoon in California.
+export function afterReset(resumes?: string | null) {
+  if (!resumes) return 'once the limit resets';
+  const at = new Date(resumes);
+  const time = at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `after ${time} ${at.toDateString() === new Date().toDateString() ? 'today' : 'tomorrow'}`;
+}
+
 // Whole days until signing closes, for a document still waiting on someone.
 export function closesIn(env: Pick<EnvelopeSummary, 'status' | 'sealing' | 'expiresAt'>) {
   if (env.status !== 'sent' || env.sealing || !env.expiresAt) return null;

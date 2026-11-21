@@ -235,9 +235,27 @@ export function nextSignerEmail({ env, rec, url }) {
 }
 
 // The mail provider's allowance for the day (or month) is spent: nothing more
-// will send until it resets, however often it is tried.
+// will send until it resets, however often it is tried. Resend names these
+// daily_quota_exceeded and monthly_quota_exceeded; the daily one resets at
+// midnight UTC.
 export class MailQuotaError extends Error {
   quota = true;
+
+  constructor(message, { monthly = false } = {}) {
+    super(message);
+    this.monthly = monthly;
+  }
+}
+
+// Which allowance a refused request ran into, if any. Goes by the error's name,
+// so a message that merely mentions a quota is not mistaken for one.
+function spentQuota(body) {
+  let name = '';
+  try {
+    name = String(JSON.parse(body)?.name ?? '');
+  } catch { /* not JSON: fall back to the text below */ }
+  if (name) return /_quota_exceeded$/.test(name) ? { monthly: name.startsWith('monthly') } : null;
+  return /quota exceeded|sending quota/i.test(body) ? { monthly: /monthly/i.test(body) } : null;
 }
 
 export function createMailer(config) {
@@ -278,7 +296,8 @@ export function createMailer(config) {
       const res = await post();
       if (res.ok) return (await res.json().catch(() => ({}))).id ?? null;
       const body = await res.text().catch(() => '');
-      if (res.status === 429 && /quota/i.test(body)) throw new MailQuotaError(`resend http 429: ${body.slice(0, 200)}`);
+      const spent = res.status === 429 ? spentQuota(body) : null;
+      if (spent) throw new MailQuotaError(`resend http 429: ${body.slice(0, 200)}`, spent);
       if (res.status === 429 && attempt < 4) {
         const wait = Number(res.headers.get('retry-after')) || attempt;
         await new Promise((done) => setTimeout(done, Math.min(wait, 5) * 1000));
