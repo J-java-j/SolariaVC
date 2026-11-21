@@ -45,6 +45,56 @@ function Answer({ f, text, size, cssWidth }: { f: Pick<Field, 'w' | 'h'>; text: 
 
 const longDate = () => new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(new Date());
 
+type Waiting = { id: string; title: string };
+
+// What else is waiting for this signer, when this browser is signed in to their
+// documents page as the same address. Null until known, or when it is not.
+function useWaiting(active: boolean, email?: string) {
+  const [waiting, setWaiting] = useState<Waiting[] | null>(null);
+  useEffect(() => {
+    if (!active || !email) return;
+    let cancelled = false;
+    fetch('/api/sign/my', { credentials: 'same-origin' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body: { email: string; documents: (Waiting & { state: string })[] } | null) => {
+        if (cancelled || !body || body.email !== email) return;
+        setWaiting(body.documents.filter((d) => d.state === 'sign').map(({ id, title }) => ({ id, title })));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [active, email]);
+  return waiting;
+}
+
+// After signing: straight on to the next document waiting, or back to the list.
+function Onward({ waiting }: { waiting: Waiting[] | null }) {
+  const { busy, run } = useBusy();
+  if (!waiting?.length) return <a className="link" href="/sign">See all your documents</a>;
+  const next = () => run(async () => {
+    const res = await fetch(`/api/sign/my/${waiting[0].id}/open`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    }).catch(() => null);
+    const url = res?.ok ? (await res.json() as { url?: string }).url : undefined;
+    window.location.assign(url ?? '/sign');
+  });
+  return (
+    <div className="onward">
+      <p><strong>{waiting.length === 1 ? 'One more document is' : `${waiting.length} more documents are`} waiting for your signature.</strong></p>
+      <div className="actions">
+        <button type="button" className="primary" disabled={busy} onClick={next}>
+          {busy ? 'Opening' : waiting.length === 1 ? `Sign ${waiting[0].title ? `"${waiting[0].title}"` : 'it'} now` : 'Sign the next one'}
+        </button>
+        <a className="link" href="/sign">See all your documents</a>
+      </div>
+    </div>
+  );
+}
+
 function CodeGate({ session, signer, onVerified }: { session: SignerSession; signer: SignerApi; onVerified: (secret: string) => void }) {
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState('');
@@ -463,7 +513,7 @@ function ActionSheet({ kind, session, signer, onClose, onDone }: {
   );
 }
 
-function Completed({ session, signer, strike }: { session: SignerSession; signer: SignerApi; strike: boolean }) {
+function Completed({ session, signer, strike, waiting }: { session: SignerSession; signer: SignerApi; strike: boolean; waiting: Waiting[] | null }) {
   const { busy, error, run } = useBusy();
   const download = () => run(async () => saveFile(await signer.sealed(), signedFileName(session.title ?? 'Document')));
   // Someone back on a code link after their code lapsed still has their emailed copy.
@@ -487,8 +537,8 @@ function Completed({ session, signer, strike }: { session: SignerSession; signer
             {session.sha256 && <dt>SHA-256</dt>}
             {session.sha256 && <dd className="hash">{session.sha256}</dd>}
           </dl>
+          <Onward waiting={waiting} />
           <Link to="/sign/verify" className="link">Check a signed copy</Link>
-          <a className="link" href="/sign">See all your documents</a>
         </div>
       </div>
     </div>
@@ -559,6 +609,16 @@ export default function Signer() {
     }
     return true;
   }, [signer]);
+
+  // Another signing link opened in this tab only changes the part after the #.
+  useEffect(() => {
+    const reopen = () => window.location.reload();
+    window.addEventListener('hashchange', reopen);
+    return () => window.removeEventListener('hashchange', reopen);
+  }, []);
+
+  const finished = session?.state === 'signed' || session?.state === 'completed';
+  const waiting = useWaiting(finished, session?.recipient?.email);
 
   // Each state is a different page, so none should open at the last one's scroll.
   useEffect(() => {
@@ -639,7 +699,7 @@ export default function Signer() {
     );
   }
 
-  if (session.state === 'completed') return <Completed session={session} signer={signer} strike={strike} />;
+  if (session.state === 'completed') return <Completed session={session} signer={signer} strike={strike} waiting={waiting} />;
   if (session.state === 'sealing') {
     return (
       <Sealing
@@ -655,7 +715,7 @@ export default function Signer() {
   const closed = CLOSED[session.state];
   if (closed) {
     const [title, body] = closed(session);
-    return <PageMessage title={title}><p>{body}</p><a className="link" href="/sign">See all your documents</a></PageMessage>;
+    return <PageMessage title={title}><p>{body}</p><Onward waiting={session.state === 'signed' ? waiting : null} /></PageMessage>;
   }
 
   const stage = session.needsConsent && !consented
