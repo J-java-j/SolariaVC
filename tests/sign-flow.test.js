@@ -846,7 +846,17 @@ test('a bulk send gives each person their own envelope and leaves the draft for 
   assert.equal(listed[0].batch.size, 3);
   assert.equal((await svc.listEnvelopes()).find((e) => e.id === template.id).batch, null, 'the draft is not part of it');
   for (const p of ['ada@example.com', 'bo@example.com', 'cy@example.com', 'johnsonjiang@solariavc.com']) {
-    assert.equal(mail.filter((m) => m.to === p).length, p.startsWith('johnson') ? 3 : 1, `${p} got the right number of emails`);
+    assert.equal(mail.filter((m) => m.to === p).length, 1, `${p} got one email`);
+  }
+  // The countersigner on every copy hears once, about all of them.
+  const toMe = mail.find((m) => m.to === 'johnsonjiang@solariavc.com');
+  assert.equal(toMe.subject, '3 documents waiting for your signature');
+  assert.match(toMe.text, /Subscription Agreement \(3 copies\)/);
+  for (const r of results) {
+    const env = await svc.getEnvelope(r.id);
+    const told = env.events.filter((e) => e.type === 'recipient.notified');
+    assert.deepEqual(told.map((e) => e.by).sort(), ['Johnson Jiang', r.name].sort(), 'each copy records both emails');
+    assert.equal(told.find((e) => e.by === 'Johnson Jiang').details.together, 3);
   }
 
   // One person signing touches only their own copy.

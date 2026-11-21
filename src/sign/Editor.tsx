@@ -312,7 +312,7 @@ function SendSheet({ draft, onChange, onSend, onBulkSend, onClose, busy, error }
   );
 }
 
-function BulkSentSheet({ results, onDone }: { results: BulkResult[]; onDone: () => void }) {
+function BulkSentSheet({ results, others = [], onDone }: { results: BulkResult[]; others?: string[]; onDone: () => void }) {
   const [copied, setCopied] = useState('');
   const sent = results.filter((r) => r.ok);
   // People the list never reached, because the day's email limit ran out first.
@@ -353,6 +353,9 @@ function BulkSentSheet({ results, onDone }: { results: BulkResult[]; onDone: () 
             : `Email to ${unmailed.map((r) => r.name).join(', ')} did not go through. Your documents page will offer to send it again, or open their document to get a link instead.`}
         </Notice>
       )}
+      {others.length > 0 && (
+        <Notice>The email telling {others.join(' and ')} about these copies did not go out. Your documents page will offer to send it again.</Notice>
+      )}
       {links.length > 0 ? (
         <>
           <p>Each link belongs to one person. Copy them now, because they can't be shown again.</p>
@@ -371,7 +374,7 @@ function BulkSentSheet({ results, onDone }: { results: BulkResult[]; onDone: () 
         </>
       ) : sent.length > 0 && (
         <p>
-          {unmailed.length || waiting.length || failed.length
+          {unmailed.length || waiting.length || failed.length || others.length
             ? 'Each copy that was sent shows on your documents page, where you can follow it.'
             : 'Everyone on the list has an email asking them to sign. Each copy shows on your documents page, where you can follow it.'}
         </p>
@@ -434,7 +437,7 @@ export default function Editor({ env, user, onSent }: Props) {
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'failed'>('saved');
   const [sheet, setSheet] = useState<'send' | 'delete' | null>(null);
   const [result, setResult] = useState<{ envelope: Envelope; links: SentLink[]; failed: string[]; quota?: boolean } | null>(null);
-  const [bulkResult, setBulkResult] = useState<BulkResult[] | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ results: BulkResult[]; unmailed?: string[] } | null>(null);
   const { busy, error, run, setError } = useBusy();
 
   const latest = useRef(draft);
@@ -630,9 +633,9 @@ export default function Editor({ env, user, onSent }: Props) {
   const bulkSend = (slotId: string, people: Person[]) => run(async () => {
     window.clearTimeout(timer.current);
     await save();
-    const { results } = await api.bulkSend(env.id, slotId, people);
+    const { results, unmailed } = await api.bulkSend(env.id, slotId, people);
     setSheet(null);
-    setBulkResult(results);
+    setBulkResult({ results, unmailed });
   });
 
   const remove = () => run(async () => {
@@ -789,7 +792,7 @@ export default function Editor({ env, user, onSent }: Props) {
         </Sheet>
       )}
       {result && <SentSheet links={result.links} failed={result.failed} quota={result.quota} onDone={() => onSent(result.envelope)} />}
-      {bulkResult && <BulkSentSheet results={bulkResult} onDone={() => navigate('/sign')} />}
+      {bulkResult && <BulkSentSheet results={bulkResult.results} others={bulkResult.unmailed} onDone={() => navigate('/sign')} />}
     </div>
   );
 }

@@ -215,3 +215,63 @@ test('voiding does not write to someone the request never reached', async (t) =>
   await svc.voidEnvelope(env.id, 'Sent by mistake', SENDER, INFO);
   assert.deepEqual(mail.map((m) => [m.to, m.subject.startsWith('Cancelled')]), [['ada@example.com', true]]);
 });
+
+test('a list from someone else tells the countersigner once, and the link opens every copy', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const admin = { email: 'dana@solariavc.com', name: 'Dana Admin' };
+  const template = await draft(svc, { recipients: [{ id: 'n', name: '', email: '' }, { id: 'j', name: 'Johnson Jiang', email: SENDER.email }] });
+  const people = ['Ada', 'Bo', 'Cy'].map((name) => ({ name, email: `${name.toLowerCase()}@example.com` }));
+  const { results, unmailed } = await svc.bulkSend(template.id, admin, INFO, { recipientId: template.recipients[0].id, people });
+  assert.equal(unmailed, undefined);
+  assert.equal(mail.length, 4, 'three people and one countersigner');
+  const toMe = mail.filter((m) => m.to === SENDER.email);
+  assert.equal(toMe.length, 1);
+  assert.equal(toMe[0].subject, 'Dana Admin sent you 3 documents to sign');
+  const { sessionId } = await svc.openMyDocuments(/\/sign#(\S+)/.exec(toMe[0].text)[1]);
+  assert.equal((await svc.listMyDocuments(await svc.myEmail(sessionId))).filter((d) => d.state === 'sign').length, 3);
+  assert.ok(results.every((r) => r.ok));
+
+  // A list of one is just a document: its own email, as before.
+  mail.length = 0;
+  await svc.bulkSend(template.id, admin, INFO, { recipientId: template.recipients[0].id, people: [{ name: 'Di', email: 'di@example.com' }] });
+  assert.deepEqual(mail.map((m) => [m.to, / sent you "?Subscription Agreement"? to sign/.test(m.subject)]).sort(), [['di@example.com', true], [SENDER.email, true]].sort());
+});
+
+test('the countersigner\'s one email failing is recorded on every copy and sent again together', async (t) => {
+  const { svc, sent: mail, failMailWhen } = harness(t);
+  const admin = { email: 'dana@solariavc.com', name: 'Dana Admin' };
+  const template = await draft(svc, { recipients: [{ id: 'n', name: '', email: '' }, { id: 'j', name: 'Johnson Jiang', email: SENDER.email }] });
+  const people = ['Ada', 'Bo'].map((name) => ({ name, email: `${name.toLowerCase()}@example.com` }));
+  failMailWhen((m) => m.to === SENDER.email);
+  const { results, unmailed } = await svc.bulkSend(template.id, admin, INFO, { recipientId: template.recipients[0].id, people });
+  assert.deepEqual(unmailed, ['Johnson Jiang']);
+  for (const r of results) {
+    assert.deepEqual((await svc.getEnvelope(r.id)).recipients.map((p) => p.emailFailed ?? null), [null, 'request']);
+  }
+  failMailWhen(() => false);
+  mail.length = 0;
+  const outcome = await svc.resendFailed(results.map((r) => r.id), admin);
+  assert.deepEqual([outcome.reminded, outcome.documents, outcome.failed], [1, 2, []]);
+  assert.deepEqual(mail.map((m) => m.to), [SENDER.email], 'the two people who were reached hear nothing more');
+});
+
+test('a sender who also signed gets one signed copy, not two', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const env = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }, { id: 'j', name: 'Johnson Jiang', email: SENDER.email }] });
+  await send(svc, env);
+  await signAs(svc, await linkIn(svc, mail.find((m) => m.to === 'ada@example.com')));
+  await signAs(svc, await linkIn(svc, mail.find((m) => m.to === SENDER.email)), { name: 'Johnson Jiang' });
+  const copies = mail.filter((m) => m.subject.startsWith('Completed'));
+  assert.deepEqual(copies.map((m) => m.to).sort(), ['ada@example.com', SENDER.email].sort());
+  assert.match(copies.find((m) => m.to === SENDER.email).text, /\/sign\/e\//, 'theirs opens the document in Solaria Sign');
+  assert.ok(copies.every((m) => m.attachments?.length === 1));
+  const view = await svc.getEnvelope(env.id);
+  assert.equal(view.events.filter((e) => e.type === 'copy.sent').length, 2);
+  assert.ok(view.recipients.every((r) => r.copySentAt && !r.emailFailed));
+
+  // Someone who only sent it still gets theirs.
+  const other = await draft(svc);
+  await send(svc, other);
+  for (const to of ['ada@example.com', 'karl@example.com']) await signAs(svc, await linkIn(svc, mail.find((m) => m.to === to && m.envelopeId === other.id)));
+  assert.equal(mail.filter((m) => m.subject.startsWith('Completed') && m.to === SENDER.email).length, 2);
+});

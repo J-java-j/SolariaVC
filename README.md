@@ -156,7 +156,8 @@ To send the same document to many people (onboarding, say), leave one signer's
 name and email blank, place their fields, then choose **Review and send → Send to
 a list** and paste one person per line (`Name, email`, a spreadsheet column pair,
 or `"Name" <email>`). Each person gets their own copy with its own audit trail and
-sealed PDF; anyone else on the draft, such as a countersigner, is on every copy.
+sealed PDF; anyone else on the draft, such as a countersigner, is on every copy
+and gets one email about the whole list rather than one per copy.
 Up to 50 people per batch. The draft stays, so it can be reused for the next group.
 
 A list send shows as one row that opens to show each person. Tick documents (or a
@@ -172,7 +173,8 @@ links included. A list send stops there: nobody further down the list gets a cop
 and the result lists them so they can be sent to the next day. An email that did
 not go out is marked on its document, and the documents page offers **Send them
 now**, which emails only the people who were missed, as a first email rather than
-a reminder.
+a reminder. When everyone has signed, each person on the document gets the signed
+copy once; a sender who also signed it gets one email, not two.
 
 Documents waiting on your own signature say **Your turn to sign** in the list. Open
 one and choose **Sign now**, or tick several and choose **Sign**, to sign without

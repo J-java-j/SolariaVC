@@ -117,16 +117,18 @@ export function myDocumentsEmail({ url }) {
 
 // One email for several documents waiting on one person: a reminder, or the first
 // they hear of them when the earlier emails never went out.
-export function digestEmail({ name, senders, titles, url, reminder = true }) {
+export function digestEmail({ name, senders, titles, url, reminder = true, own = false }) {
   const from = senders.length === 1 ? senders[0].name : ORG.name;
   const count = `${titles.length} documents`;
-  const heading = reminder ? `${from} is waiting on ${count} from you` : `${from} sent you ${count} to sign`;
+  // `own` is someone being told about documents they sent themselves.
+  const heading = own ? `${count} are waiting for your signature`
+    : reminder ? `${from} is waiting on ${count} from you` : `${from} sent you ${count} to sign`;
   // Copies of one document read as "NDA (2 copies)".
   const counts = new Map();
   for (const t of titles) counts.set(t, (counts.get(t) ?? 0) + 1);
   const listed = [...counts].map(([t, n]) => (n > 1 ? `${t} (${n} copies)` : t));
   return {
-    subject: reminder ? `Reminder: ${count} waiting for your signature` : heading,
+    subject: reminder ? `Reminder: ${count} waiting for your signature` : own ? `${count} waiting for your signature` : heading,
     replyTo: senders.length === 1 ? senders[0].email : undefined,
     html: layout({
       heading: esc(heading),

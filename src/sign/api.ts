@@ -210,7 +210,7 @@ export const api = {
   voidEnvelope: (id: string, reason: string) => call(`envelopes/${id}/void`, post({ reason })),
   duplicate: (id: string) => call<Envelope>(`envelopes/${id}/duplicate`, post()),
   bulkSend: (id: string, recipientId: string, people: { name: string; email: string }[]) =>
-    call<{ batch: string; results: BulkResult[]; quota?: boolean }>(`envelopes/${id}/bulk`, post({ recipientId, people })),
+    call<{ batch: string; results: BulkResult[]; quota?: boolean; unmailed?: string[] }>(`envelopes/${id}/bulk`, post({ recipientId, people })),
   finish: (id: string) => call<Envelope>(`envelopes/${id}/finish`, post()),
   timestamp: (id: string) => call<Envelope>(`envelopes/${id}/timestamp`, post()),
   original: (id: string) => bytes(`envelopes/${id}/original`),
