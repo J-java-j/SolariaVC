@@ -572,6 +572,10 @@ export default function Editor({ env, user, onSent }: Props) {
   };
   const finish = useRef(finishLinking);
   finish.current = finishLinking;
+  // The box a set was being built round can go, with its signer for one.
+  useEffect(() => {
+    if (linking && !draft.fields.some((f) => f.id === linking)) setLinking(null);
+  }, [linking, draft.fields]);
 
   // Adds a box to the set being put together, or takes it back out.
   const pickForSet = (id: string) => update((prior) => {

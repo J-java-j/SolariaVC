@@ -283,7 +283,8 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
   const mine = waitingOn(envelopes ?? [], user.email);
   // Documents with an email that never went out, such as on a day the email limit ran out.
   const unsent = live.filter((env) => env.recipients.some((r) => r.emailFailed));
-  const unsentCount = unsent.reduce((sum, env) => sum + env.recipients.filter((r) => r.emailFailed).length, 0);
+  // Counted by person: someone on every copy of a list is one email, not one per copy.
+  const unsentCount = new Set(unsent.flatMap((env) => env.recipients.filter((r) => r.emailFailed).map((r) => r.email))).size;
   const deleted = (envelopes ?? []).filter((env) => env.deletedAt);
   const inFolder = (id: string) => live.filter((env) => env.folderId === id);
   const inView = inDeleted ? deleted : folder ? inFolder(folder.id) : live;
@@ -429,8 +430,8 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
         {unsent.length > 0 && !inDeleted && (
           <div className="mine mine-alert">
             <span>
-              <strong>{unsentCount === 1 ? '1 email did not go out.' : `${unsentCount} emails did not go out.`}</strong>
-              {' '}The {unsent.length === 1 ? 'document is' : 'documents are'} ready, but {unsentCount === 1 ? 'that person has' : 'those people have'} not been told. This usually means the day's email limit ran out.
+              <strong>{unsentCount === 1 ? '1 person was not emailed.' : `${unsentCount} people were not emailed.`}</strong>
+              {' '}{unsent.length === 1 ? 'The document is' : `${unsent.length} documents are`} ready, but the email about {unsent.length === 1 ? 'it' : 'them'} did not go out. This usually means the day's email limit ran out.
             </span>
             <button type="button" className="primary" disabled={busy} onClick={() => run(async () => {
               const sent = await api.resendDocuments(unsent.map((env) => env.id).slice(0, 200));
@@ -438,7 +439,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
               setUndo(null);
               setNotice(sent.failed.length
                 ? `${reached ? `Sent ${reached}. ` : ''}${sent.quota ? "Today's email limit has been reached, so" : 'Something went wrong, so'} ${sent.failed.length === 1 ? `the email to ${sent.failed[0]} is` : `${sent.failed.length} emails are`} still waiting. Try again ${sent.quota ? 'tomorrow' : 'shortly'}.`
-                : `Sent ${reached === 1 ? 'the email' : `all ${reached} emails`}.`);
+                : `Sent ${reached === 1 ? 'the email' : `${reached} emails`}. Everyone has now been told.`);
               await load();
             })}>{busy ? 'Sending' : unsentCount === 1 ? 'Send it now' : 'Send them now'}</button>
           </div>
