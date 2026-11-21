@@ -45,6 +45,43 @@ function Answer({ f, text, size, cssWidth }: { f: Pick<Field, 'w' | 'h'>; text: 
 
 const longDate = () => new Intl.DateTimeFormat('en-US', { dateStyle: 'long' }).format(new Date());
 
+// A picture of the page around a blank, taken from the page as displayed, with
+// the blank marked. The sheet for typing an answer covers the blank, and most
+// blanks have no hint of their own, so this keeps the printed words beside it
+// in view. Null when the page is not on screen to copy from.
+function pageAround(room: HTMLElement | null, f: Field, size: PageSize): string | null {
+  const canvas = room?.querySelector<HTMLCanvasElement>(`.page[data-page="${f.page}"] canvas`);
+  if (!canvas) return null;
+  try {
+    const scale = canvas.width / size.width;
+    const box = { x: f.x * size.width, y: f.y * size.height, w: f.w * size.width, h: f.h * size.height };
+    // As many points across as the sheet has pixels, so print stays readable.
+    const w = Math.min(size.width, Math.max(280, Math.min(window.innerWidth - 40, 470)));
+    const h = Math.min(size.height, box.h + 58);
+    // Labels sit to the left of a blank, or on the line above or below it, so
+    // most of the picture is the words before the blank and where it starts.
+    const x = Math.min(Math.max(box.x - Math.max(w * 0.6, w - box.w - 24), 0), size.width - w);
+    const y = Math.min(Math.max(box.y - (h - box.h) / 2, 0), size.height - h);
+    const out = document.createElement('canvas');
+    out.width = Math.round(w * scale);
+    out.height = Math.round(h * scale);
+    const context = out.getContext('2d');
+    if (!context) return null;
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, out.width, out.height);
+    context.drawImage(canvas, Math.round(x * scale), Math.round(y * scale), out.width, out.height, 0, 0, out.width, out.height);
+    const mark = [(box.x - x) * scale, (box.y - y) * scale, box.w * scale, box.h * scale] as const;
+    context.fillStyle = 'rgba(244, 183, 64, 0.28)';
+    context.fillRect(...mark);
+    context.strokeStyle = '#b97a00';
+    context.lineWidth = Math.max(2, scale * 1.1);
+    context.strokeRect(...mark);
+    return out.toDataURL('image/png');
+  } catch {
+    return null;
+  }
+}
+
 type Waiting = { id: string; title: string };
 
 // What else is waiting for this signer, when this browser is signed in to their
@@ -248,6 +285,7 @@ function DocumentRoom({ session, signer, doc, failed, onDone, onAction, resync }
   const [marks, setMarks] = useState<{ signature?: Mark; initials?: Mark }>({});
   const [adopting, setAdopting] = useState<Field | null>(null);
   const [typing, setTyping] = useState<Field | null>(null);
+  const [around, setAround] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [finishing, setFinishing] = useState(false);
   const [arrived, setArrived] = useState<string | null>(null);
@@ -292,6 +330,7 @@ function DocumentRoom({ session, signer, doc, failed, onDone, onAction, resync }
       });
     } else if (f.type === 'text') {
       setDraft(String(values[f.id] ?? ''));
+      setAround(pageAround(room.current, f, session.sizes![f.page - 1]));
       setTyping(f);
     } else if (placed.has(f.id)) {
       setPlaced((prior) => {
@@ -425,6 +464,12 @@ function DocumentRoom({ session, signer, doc, failed, onDone, onAction, resync }
       {typing && (
         <Sheet title={typing.label || 'Fill in this field'} onClose={() => setTyping(null)}>
           <form onSubmit={saveText} className="stack">
+            {around && (
+              <figure className="answer-where">
+                <img src={around} alt="" />
+                <figcaption className="muted">Your answer goes in the marked space, on page {typing.page}.</figcaption>
+              </figure>
+            )}
             <label className="field">
               Your answer
               <textarea

@@ -666,6 +666,9 @@ img { display: block; max-width: 100%; }
 .spot .answer > span, .placed .answer > span { display: block; padding: 0 !important; white-space: nowrap; overflow: hidden; }
 .answer-input { width: 100%; min-height: 64px; max-height: 50vh; resize: vertical; font: inherit; line-height: 1.4; }
 .answer-count { display: block; margin-top: 4px; font-size: 12.5px; }
+.answer-where { display: grid; gap: 4px; margin: 0; }
+.answer-where img { display: block; width: 100%; border: 1px solid var(--paper-line); border-radius: var(--radius); }
+.answer-where figcaption { font-size: 12.5px; }
 /* A "choose one" set: an outline round the boxes that go together. */
 .mark-set { position: absolute; z-index: 0; border: 1.5px dashed currentColor; border-radius: 4px; pointer-events: none; opacity: 0.75; }
 .mark-set span { position: absolute; bottom: 100%; left: -1.5px; padding: 1px 5px 0; border-radius: 3px 3px 0 0; background: currentColor; font-size: 9.5px; font-weight: 600; line-height: 1.35; white-space: nowrap; }

@@ -221,8 +221,10 @@ signer can tick only one of its boxes (ticking another unticks the first); with
 **Must choose one** ticked, exactly one has to be. Printed boxes (☐) under a line
 such as "check one" are found and set up this way automatically.
 
-Text answers are never cut off: the signer types in a box that grows as they
-write, and the answer is wrapped onto more lines when its space allows, or set
+While a signer types an answer, the sheet shows a picture of the page around that
+blank with the blank marked, so the printed words beside it ("Mailing address:")
+stay in view even when the field was given no hint. Text answers are never cut
+off: the signer types in a box that grows as they write, and the answer is wrapped onto more lines when its space allows, or set
 smaller when it does not, the same way on screen and in the sealed PDF.
 
 When a PDF is uploaded, the editor reads it for places to fill in and adds fields
