@@ -187,8 +187,8 @@ shown before it can be signed. Each copy still gets its own viewed, agreed and
 signed entries in its audit trail, marked as signed from the documents page. Each text
 blank (Title, Email) gets its own numbered box matching a numbered marker on the
 document, and its answer is filled on every copy (Email starts as your address).
-Signatures are drawn by default, with Type as an alternative. A document with a checkbox only you can tick has to be signed
-from its email.
+Signatures are drawn by default, with Type as an alternative. A document with a checkbox only you can tick is signed
+on its own, from its email, so each box is ticked on the page.
 
 `/sign` is one door for everyone. A team member who enters their address gets a
 sign-in link to the full documents page. Anyone else gets a one-time link (sent
@@ -198,7 +198,7 @@ download each (once everyone has signed, **Download signed PDF** saves the seale
 copy straight from the list). Someone with more than one waiting can choose **Sign all**: each
 file is shown, they agree once, adopt a signature once, and every one of their
 documents is signed in a row. It only ever signs their own place, and a document
-that asks for an emailed code is still signed on its own. The page says the same either way, so it never reveals who is on
+that asks for an emailed code, or has a box only they can tick, is still signed on its own. The page says the same either way, so it never reveals who is on
 the team. Every signing email opens this page rather than the one document: it
 names the new document, lists anything else still waiting for that person's
 signature, and its button signs them straight in. The button stays valid until the

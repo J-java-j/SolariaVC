@@ -30,7 +30,7 @@ const RECIPIENT_ID = /^r[0-9a-f]{10}$/;
 const ENVELOPE_ID = /^[0-9A-Z]{12}$/;
 const FOLDER_ID = /^d[0-9a-f]{10}$/;
 const ALWAYS_REQUIRED = new Set(['signature', 'initials', 'date', 'name']);
-const INVALID_LINK = 'This signing link is not valid. Ask the sender for a new one.';
+const INVALID_LINK = 'This signing link no longer works. Enter your email at solariavc.com/sign to see your documents and get a new one.';
 
 const nowIso = () => new Date().toISOString();
 const signersOf = (env) => env.recipients.filter((r) => r.role === 'signer');
@@ -132,6 +132,10 @@ function assertReadyToSend(env) {
     }
   }
 }
+
+// A document with a box its signer must tick is signed on its own, where each
+// box is ticked on the page, never as one of a batch.
+const hasOwnBoxes = (env, rec) => env.fields.some((f) => f.recipientId === rec.id && f.required && f.type === 'checkbox');
 
 // Whether an email asking this person to sign has ever gone out.
 function everNotified(env, recipientId) {
@@ -907,6 +911,8 @@ export function createSignService({ store, config, mail: sendMail, log = console
           sha256: env.document.sha256,
           others: signersOf(env).filter((r) => r.id !== rec.id).map((r) => r.name).join(', '),
           code: Boolean(rec.requireCode),
+          // Boxes only this person can tick: signed on its own, never in a batch.
+          boxes: hasOwnBoxes(env, rec),
           name: rec.name,
           state: signerState(env, rec, false),
         })))
@@ -1548,8 +1554,10 @@ export function createSignService({ store, config, mail: sendMail, log = console
       if (signer && rec.requireCode) {
         throw new HttpError(409, `"${env.title}" asks for an emailed code. Open it on its own to sign.`);
       }
-      if (env.fields.some((f) => f.recipientId === rec.id && f.required && f.type === 'checkbox')) {
-        throw new HttpError(409, `"${env.title}" has boxes only you can tick. Open it from your email to sign.`);
+      if (hasOwnBoxes(env, rec)) {
+        throw new HttpError(409, signer
+          ? `"${env.title}" has boxes only you can tick, so it is signed on its own. Go back to your documents and choose Review and sign.`
+          : `"${env.title}" has boxes only you can tick, so it is signed on its own. Open it from the email we sent you.`);
       }
       // Text answers come once for all the copies of a file: a list in the order
       // of the signer's blanks (copies share it), or a map keyed by the blank's label.

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api } from './api';
 import { Notice, PageMessage, useBusy } from './ui';
 
@@ -43,9 +43,22 @@ export function Login() {
 export function LoginLanding() {
   const { busy, error, run } = useBusy();
   const token = window.location.hash.slice(1);
+  const [signedIn, setSignedIn] = useState(false);
+
+  // An emailed link works once, but people open the same email again to get back
+  // in. Someone still signed in on this browser goes straight through.
+  useEffect(() => {
+    api.me().then((r) => {
+      if (r.user) setSignedIn(true);
+    }).catch(() => undefined);
+  }, []);
 
   const finish = () => run(async () => {
-    await api.verifyLogin(token);
+    try {
+      await api.verifyLogin(token);
+    } catch (e) {
+      if (!signedIn && !(await api.me().catch(() => null))?.user) throw e;
+    }
     window.location.replace('/sign');
   });
 

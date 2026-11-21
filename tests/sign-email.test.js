@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HttpError } from '../server/sign/envelopes.js';
 import { createMailer } from '../server/sign/mail.js';
-import { INFO, SENDER, draft, harness, linkIn, signAs } from './sign-helpers.js';
+import { INFO, SENDER, draft, harness, linkIn, mark, signAs } from './sign-helpers.js';
 
 const httpError = (status) => (e) => e instanceof HttpError && e.status === status;
 const send = (svc, env) => svc.send(env.id, SENDER, INFO);
@@ -274,4 +274,40 @@ test('a sender who also signed gets one signed copy, not two', async (t) => {
   await send(svc, other);
   for (const to of ['ada@example.com', 'karl@example.com']) await signAs(svc, await linkIn(svc, mail.find((m) => m.to === to && m.envelopeId === other.id)));
   assert.equal(mail.filter((m) => m.subject.startsWith('Completed') && m.to === SENDER.email).length, 2);
+});
+
+test('a document with a box to tick is left out of signing everything at once', async (t) => {
+  const { svc, sent: mail } = harness(t);
+  const plain = await draft(svc, { recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }] });
+  const boxed = await draft(svc, {
+    recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }],
+    fields: [
+      { recipientId: 'a', type: 'signature', page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.05 },
+      { recipientId: 'a', type: 'checkbox', page: 1, x: 0.1, y: 0.3, w: 0.03, h: 0.02, group: 'A' },
+      { recipientId: 'a', type: 'checkbox', page: 1, x: 0.1, y: 0.35, w: 0.03, h: 0.02, group: 'A' },
+    ],
+  });
+  const optional = await draft(svc, {
+    recipients: [{ id: 'a', name: 'Ada Investor', email: 'ada@example.com' }],
+    fields: [
+      { recipientId: 'a', type: 'signature', page: 1, x: 0.1, y: 0.5, w: 0.3, h: 0.05 },
+      { recipientId: 'a', type: 'checkbox', page: 1, x: 0.1, y: 0.3, w: 0.03, h: 0.02, required: false },
+    ],
+  });
+  for (const env of [plain, boxed, optional]) await send(svc, env);
+  const mine = await svc.listMyDocuments('ada@example.com');
+  assert.deepEqual(Object.fromEntries(mine.map((d) => [d.id, d.boxes])), { [plain.id]: false, [boxed.id]: true, [optional.id]: false });
+
+  const body = { rendered: [boxed.document.sha256], consent: true, disclosureVersion: '2026-10-31', intent: true, signature: mark('Ada Investor'), timeZone: 'UTC' };
+  await assert.rejects(
+    svc.signMine({ email: 'ada@example.com' }, boxed.id, body, INFO, { signer: true }),
+    (e) => e.status === 409 && /Review and sign/.test(e.message) && !/from your email/.test(e.message),
+    'the refusal points at what to do on the page they are on',
+  );
+  assert.ok(mail.length);
+});
+
+test('a dead signing link says where to go instead', async (t) => {
+  const { svc } = harness(t);
+  await assert.rejects(svc.signerSession(`${'A'.repeat(12)}.r${'0'.repeat(10)}.${'x'.repeat(43)}`), (e) => e.status === 404 && /solariavc\.com\/sign/.test(e.message));
 });

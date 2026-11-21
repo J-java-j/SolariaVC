@@ -9,6 +9,9 @@ import { SignaturePad } from './SignaturePad';
 import { Loading, Notice, PageMessage, Sheet, Wordmark, useBusy } from './ui';
 
 type SignerApi = ReturnType<typeof signerApi>;
+// After the server refuses something, shows where the document now stands.
+// Resolves false when nothing has changed, so the caller reports its own problem.
+type Resync = (cause: unknown) => Promise<boolean>;
 
 const FLAG: Record<string, string> = { signature: 'Sign', initials: 'Initial', text: 'Fill in', checkbox: 'Check' };
 // Wide enough for the flag to sit beside its field. Closer to the edge it sits above.
@@ -90,13 +93,14 @@ function CodeGate({ session, signer, onVerified }: { session: SignerSession; sig
   );
 }
 
-function Consent({ session, signer, doc, failed, onAgree, onAction }: {
+function Consent({ session, signer, doc, failed, onAgree, onAction, resync }: {
   session: SignerSession;
   signer: SignerApi;
   doc: PdfDocument | null;
   failed: boolean;
   onAgree: () => void;
   onAction: (sheet: 'paper' | 'decline') => void;
+  resync: Resync;
 }) {
   const [shown, setShown] = useState(false);
   const [broken, setBroken] = useState(false);
@@ -109,14 +113,19 @@ function Consent({ session, signer, doc, failed, onAgree, onAction }: {
   const rendered = useCallback(() => {
     if (recorded.current) return;
     recorded.current = true;
-    signer.viewed().then(() => setShown(true)).catch(() => {
+    signer.viewed().then(() => setShown(true)).catch(async (e) => {
       recorded.current = false;
-      setBroken(true);
+      if (!(await resync(e))) setBroken(true);
     });
-  }, [signer]);
+  }, [signer, resync]);
 
   const agree = () => run(async () => {
-    await signer.consent(disclosure.version);
+    try {
+      await signer.consent(disclosure.version);
+    } catch (e) {
+      if (await resync(e)) return;
+      throw e;
+    }
     onAgree();
   });
 
@@ -171,13 +180,14 @@ function OtherMark({ field, size, cssWidth }: { field: OtherField; size: PageSiz
   );
 }
 
-function DocumentRoom({ session, signer, doc, failed, onDone, onAction }: {
+function DocumentRoom({ session, signer, doc, failed, onDone, onAction, resync }: {
   session: SignerSession;
   signer: SignerApi;
   doc: PdfDocument | null;
   failed: boolean;
   onDone: (next: SignerSession) => void;
   onAction: (sheet: 'paper' | 'decline') => void;
+  resync: Resync;
 }) {
   const fields = session.fields!;
   // An "Email" blank starts with the address this link was sent to; the signer can change it.
@@ -253,13 +263,19 @@ function DocumentRoom({ session, signer, doc, failed, onDone, onAction }: {
 
   const submit = () => run(async () => {
     const needsInitials = fields.some((f) => f.type === 'initials');
-    onDone(await signer.submit({
-      intent: true,
-      values,
-      signature: marks.signature,
-      ...(needsInitials ? { initials: marks.initials } : {}),
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    }));
+    try {
+      onDone(await signer.submit({
+        intent: true,
+        values,
+        signature: marks.signature,
+        ...(needsInitials ? { initials: marks.initials } : {}),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }));
+    } catch (e) {
+      // Signed in another tab, or withdrawn meanwhile: show that, not a refusal.
+      if (e instanceof ApiError && (e.status === 409 || e.status === 403) && await resync(e)) return;
+      throw e;
+    }
   });
 
   const overlay = (page: number, size: PageSize, cssWidth: number) => (
@@ -517,7 +533,7 @@ export default function Signer() {
   }
   const signer = useMemo(() => signerApi(token, () => verified.current), [token]);
   const [session, setSession] = useState<SignerSession | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<ApiError | null>(null);
   const [doc, setDoc] = useState<PdfDocument | null>(null);
   const [failed, setFailed] = useState(false);
   const [consented, setConsented] = useState(false);
@@ -526,9 +542,23 @@ export default function Signer() {
   const [strike, setStrike] = useState(false);
 
   const load = useCallback(() => {
-    signer.session().then(setSession).catch((e: ApiError) => setError(e.message));
+    signer.session().then(setSession).catch((e: ApiError) => setError(e));
   }, [signer]);
   useEffect(load, [load]);
+
+  // A request the server refuses usually means the document moved on while this
+  // page was open: signed in another tab, withdrawn, or the emailed code lapsed.
+  const resync = useCallback<Resync>(async (cause) => {
+    if (!(cause instanceof ApiError) || cause.status < 400) return false;
+    try {
+      const next = await signer.session();
+      if (next.state === 'sign') return false;
+      setSession(next);
+    } catch (e) {
+      setError(e as ApiError);
+    }
+    return true;
+  }, [signer]);
 
   // Each state is a different page, so none should open at the last one's scroll.
   useEffect(() => {
@@ -544,15 +574,41 @@ export default function Signer() {
       opened = pdf;
       if (cancelled) pdf.destroy();
       else setDoc(pdf);
-    }).catch(() => setFailed(true));
+    }).catch(async (e) => {
+      if (cancelled) return;
+      // No connection is its own problem, with its own way out.
+      if (e instanceof ApiError && e.status === 0) setError(e);
+      // Only a file that will not open means this device can't display it.
+      else if (!(await resync(e)) && !cancelled) setFailed(true);
+    });
     return () => {
       cancelled = true;
       opened?.destroy();
     };
-  }, [signer, signing]);
+  }, [signer, signing, resync]);
 
-  if (!token) return <PageMessage title="This signing link is not valid"><p>Open the link from your email, or ask the sender for a new one.</p></PageMessage>;
-  if (error) return <PageMessage title="This link can't be opened"><p>{error}</p></PageMessage>;
+  // A link that no longer opens anything still leads somewhere: the page that
+  // lists everything waiting for this person.
+  if (!token || error?.status === 404) {
+    return (
+      <PageMessage title="This link no longer works">
+        <p>The document may have been signed, replaced or withdrawn since this link was sent.</p>
+        <p>Your documents page lists everything waiting for you. Enter your email address there and we'll send you a new link.</p>
+        <a className="primary" href="/sign">Go to my documents</a>
+      </PageMessage>
+    );
+  }
+  if (error) {
+    return (
+      <PageMessage title="This link can't be opened right now">
+        <p>{error.message}</p>
+        <div className="actions">
+          <button type="button" className="primary" onClick={() => window.location.reload()}>Try again</button>
+          <a className="link" href="/sign">See all your documents</a>
+        </div>
+      </PageMessage>
+    );
+  }
   if (!session) return <Loading />;
 
   if (outcome) {
@@ -603,7 +659,7 @@ export default function Signer() {
   }
 
   const stage = session.needsConsent && !consented
-    ? <Consent session={session} signer={signer} doc={doc} failed={failed} onAgree={() => setConsented(true)} onAction={setSheet} />
+    ? <Consent session={session} signer={signer} doc={doc} failed={failed} onAgree={() => setConsented(true)} onAction={setSheet} resync={resync} />
     : (
       <DocumentRoom
         session={session}
@@ -611,6 +667,7 @@ export default function Signer() {
         doc={doc}
         failed={failed}
         onAction={setSheet}
+        resync={resync}
         onDone={(next) => {
           setStrike(next.state === 'completed');
           setSession(next);

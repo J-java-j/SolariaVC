@@ -86,6 +86,7 @@ export function Queue({ email, name, source }: { email: string; name: string; so
   const stop = useRef(false);
 
   useEffect(() => {
+    stop.current = false;
     Promise.all([source.list(), api.disclosure()])
       .then(([items, t]) => {
         setGroups(byFile(items));

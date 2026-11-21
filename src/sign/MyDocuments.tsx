@@ -15,6 +15,7 @@ type Doc = {
   sha256: string;
   others: string;
   code: boolean;
+  boxes?: boolean;
   name: string;
   state: 'sign' | 'waiting' | 'signed' | 'sealing' | 'completed' | 'declined' | 'voided' | 'expired' | 'unavailable';
 };
@@ -42,16 +43,26 @@ export default function MyDocuments() {
   const [data, setData] = useState<{ email: string; documents: Doc[] } | null | undefined>(undefined);
   const [opening, setOpening] = useState('');
   const [signingAll, setSigningAll] = useState(false);
+  // Set when an old link was opened in a browser already signed in to this page.
+  const [stale, setStale] = useState(false);
   const { busy, error, run } = useBusy();
 
-  const load = useCallback(() => call<{ email: string; documents: Doc[] }>('').then(setData).catch((e: ApiError) => {
+  const [loadError, setLoadError] = useState('');
+  const load = useCallback(() => call<{ email: string; documents: Doc[] }>('').then((next) => {
+    setLoadError('');
+    setData(next);
+  }).catch((e: ApiError) => {
     if (e.status === 401) setData(null);
     else throw e;
   }), []);
+  const firstLoad = useCallback(() => {
+    setLoadError('');
+    load().catch((e: Error) => setLoadError(e.message));
+  }, [load]);
 
   useEffect(() => {
-    if (!token) load();
-  }, [token, load]);
+    if (!token) firstLoad();
+  }, [token, firstLoad]);
 
   // A link opened in the tab already showing this page only changes the hash.
   useEffect(() => {
@@ -70,14 +81,32 @@ export default function MyDocuments() {
         {error
           ? <a className="primary" href="/sign">Get a new link</a>
           : <button type="button" className="primary" disabled={busy} onClick={() => run(async () => {
-            await post('/open', { token });
+            try {
+              await post('/open', { token });
+            } catch (e) {
+              // A link already used or lapsed still opens the page if this browser is signed in to it.
+              const here = await call<{ email: string; documents: Doc[] }>('').catch(() => null);
+              if (!here) throw e;
+              window.history.replaceState(null, '', '/sign');
+              setStale(true);
+              setData(here);
+              return;
+            }
             window.history.replaceState(null, '', '/sign');
             await load();
           })}>{busy ? 'Opening' : 'Continue'}</button>}
       </PageMessage>
     );
   }
-  if (data === undefined) return <Loading />;
+  if (data === undefined) {
+    if (!loadError) return <Loading />;
+    return (
+      <PageMessage title="Your documents could not be loaded">
+        <Notice>{loadError}</Notice>
+        <button type="button" className="primary" onClick={firstLoad}>Try again</button>
+      </PageMessage>
+    );
+  }
   if (data === null) return <Login />;
   const bar = (
     <header className="bar">
@@ -88,8 +117,8 @@ export default function MyDocuments() {
       </span>
     </header>
   );
-  // Documents that ask for an emailed code are signed one at a time.
-  const batchable = data.documents.filter((d) => d.state === 'sign' && !d.code);
+  // Documents that ask for an emailed code, or have boxes to tick, are signed one at a time.
+  const batchable = data.documents.filter((d) => d.state === 'sign' && !d.code && !d.boxes);
   if (signingAll) {
     return (
       <div className="shell">
@@ -99,12 +128,24 @@ export default function MyDocuments() {
     );
   }
 
+  // A session that ran out mid-visit goes back to the form that sends a new link.
+  const expired = (e: unknown) => {
+    if (e instanceof ApiError && e.status === 401) setData(null);
+    else throw e;
+  };
   const open = (doc: Doc) => run(async () => {
     setOpening(doc.id);
-    const { url } = await post(`/${doc.id}/open`) as { url: string };
-    window.location.assign(url);
+    try {
+      const { url } = await post(`/${doc.id}/open`) as { url: string };
+      window.location.assign(url);
+    } catch (e) {
+      setOpening('');
+      expired(e);
+    }
   });
   const waiting = data.documents.filter((d) => d.state === 'sign');
+  // Waiting documents that are signed on their own rather than in the batch.
+  const alone = waiting.length - batchable.length;
   const downloadSigned = (doc: Doc) => run(async () => {
     setOpening(doc.id);
     try {
@@ -112,6 +153,8 @@ export default function MyDocuments() {
       if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).error ?? 'The signed copy could not be downloaded.', res.status);
       const name = (doc.title || 'Document').replace(/[^\p{L}\p{N} ._-]+/gu, '').trim().slice(0, 80) || 'Document';
       saveFile(await res.arrayBuffer(), `${name} - signed.pdf`);
+    } catch (e) {
+      expired(e);
     } finally {
       setOpening('');
     }
@@ -130,13 +173,14 @@ export default function MyDocuments() {
               <div className="mine">
                 <span>
                   <strong>{waiting.length === 1 ? '1 document needs' : `${waiting.length} documents need`} your signature.</strong>
-                  {batchable.length > 1 && ' Read each one, then sign them all at once.'}
-                  {batchable.length < waiting.length && ` ${waiting.length - batchable.length === 1 ? 'One asks' : `${waiting.length - batchable.length} ask`} for an emailed code, so sign ${waiting.length - batchable.length === 1 ? 'it' : 'them'} on ${waiting.length - batchable.length === 1 ? 'its' : 'their'} own.`}
+                  {batchable.length > 1 && alone === 0 && ' Read each one, then sign them all at once.'}
+                  {batchable.length > 1 && alone > 0 && ` Read and sign ${batchable.length} of them at once. ${alone === 1 ? 'The other has' : `The other ${alone} have`} boxes to tick or ${alone === 1 ? 'asks' : 'ask'} for an emailed code, so sign ${alone === 1 ? 'it' : 'them'} on ${alone === 1 ? 'its' : 'their'} own with Review and sign.`}
                 </span>
                 {batchable.length > 1 && <button type="button" className="primary" onClick={() => setSigningAll(true)}>Sign all {batchable.length}</button>}
               </div>
             )
             : data.documents.length > 0 && <div className="mine mine-done"><strong>You're all caught up.</strong> Nothing is waiting for your signature.</div>}
+          {stale && <Notice tone="quiet">That link had already been used or had expired, but you are still signed in here as {data.email}.</Notice>}
           {error && <Notice>{error}</Notice>}
           {!data.documents.length && <p className="ledger-empty">There are no documents for {data.email}.</p>}
           {GROUPS.map(([title, match]) => {
