@@ -224,6 +224,7 @@ async function sender(req, res, url, svc, parts) {
         break;
       case 'remind': return sendJson(res, 200, await svc.remindEnvelopes(body.ids, user));
       case 'resend': return sendJson(res, 200, await svc.resendFailed(body.ids, user));
+      case 'extend': return sendJson(res, 200, await svc.extendEnvelopes(body.ids, body.days, user, info));
       default: throw new HttpError(404, 'Not found.');
     }
     return sendJson(res, 200, { ok: true });

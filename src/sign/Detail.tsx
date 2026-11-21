@@ -5,7 +5,7 @@ import { openPdf, pageSizes, type PdfDocument } from './pdf';
 import { PdfPages } from './PdfPages';
 import { Link, navigate } from './router';
 import { Seal } from './Seal';
-import { formatDate, formatDateTime, Loading, Notice, Sheet, StatusText, useBusy } from './ui';
+import { closesIn, closesLabel, ExtendSheet, formatDate, formatDateTime, Loading, Notice, Sheet, StatusText, useBusy } from './ui';
 
 const REFRESH_MS = 20_000;
 
@@ -115,7 +115,10 @@ function VoidSheet({ env, onClose, onDone }: { env: Envelope; onClose: () => voi
 export default function Detail({ env, user, onChange }: { env: Envelope; user: { email: string }; onChange: (env: Envelope) => void }) {
   const [preview, setPreview] = useState<{ doc: PdfDocument; sizes: PageSize[] } | null>(null);
   const [voiding, setVoiding] = useState(false);
+  const [extending, setExtending] = useState(false);
   const { busy, error, run } = useBusy();
+  const expired = env.status === 'expired';
+  const daysLeft = closesIn(env);
   const sealedKey = env.sealed?.sha256;
   const refresh = () => api.get(env.id).then(onChange);
 
@@ -166,7 +169,12 @@ export default function Detail({ env, user, onChange }: { env: Envelope; user: {
           <h1>{env.title}</h1>
           <p className="detail-status">
             <StatusText env={env} />
-            {env.status === 'sent' && env.expiresAt && <span className="muted">Signing closes {formatDate(env.expiresAt)}</span>}
+            {env.status === 'sent' && env.expiresAt && (
+              <span className={daysLeft !== null && daysLeft <= 7 ? 'closing' : 'muted'}>
+                {daysLeft !== null && daysLeft <= 7 ? `${closesLabel(daysLeft)}, ${formatDate(env.expiresAt)}` : `Signing closes ${formatDate(env.expiresAt)}`}
+              </span>
+            )}
+            {expired && env.expiresAt && <span className="muted">Signing closed {formatDate(env.expiresAt)}</span>}
             {env.completedAt && <span className="muted">{formatDateTime(env.completedAt)}</span>}
           </p>
           <p className="muted">Reference {env.reference}</p>
@@ -194,10 +202,17 @@ export default function Detail({ env, user, onChange }: { env: Envelope; user: {
               <button type="button" className="primary" onClick={() => navigate(`/sign/queue?ids=${env.id}`)}>Sign now</button>
             </div>
           )}
+          {expired && !env.deletedAt && (
+            <div className="mine">
+              <span><strong>Time ran out before everyone signed.</strong> Reopen it and the signatures already given stay.</span>
+              <button type="button" className="primary" onClick={() => setExtending(true)}>Reopen for signing</button>
+            </div>
+          )}
           <div className="actions">
             {env.sealed && <button type="button" className="primary" disabled={busy} onClick={downloadSealed}>Download signed copy</button>}
             <button type="button" className="secondary" disabled={busy} onClick={downloadOriginal}>Download original</button>
             <button type="button" className="quiet" disabled={busy} onClick={useAgain}>Use again</button>
+            {env.status === 'sent' && !env.sealing && !env.deletedAt && <button type="button" className="quiet" onClick={() => setExtending(true)}>Give more time</button>}
             {env.status === 'sent' && !env.sealing && <button type="button" className="quiet quiet-danger" onClick={() => setVoiding(true)}>Void</button>}
             {env.status !== 'sent' && !env.deletedAt && <button type="button" className="quiet quiet-danger" disabled={busy} onClick={remove}>Move to Deleted</button>}
           </div>
@@ -249,6 +264,17 @@ export default function Detail({ env, user, onChange }: { env: Envelope; user: {
         {preview ? <PdfPages doc={preview.doc} sizes={preview.sizes} /> : <Loading label="Opening the document" />}
       </section>
 
+      {extending && (
+        <ExtendSheet
+          ids={[env.id]}
+          reopening={expired}
+          onClose={() => setExtending(false)}
+          onDone={async () => {
+            await refresh();
+            setExtending(false);
+          }}
+        />
+      )}
       {voiding && <VoidSheet env={env} onClose={() => setVoiding(false)} onDone={() => {
         setVoiding(false);
         refresh().catch(() => undefined);

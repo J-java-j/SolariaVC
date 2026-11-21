@@ -203,6 +203,7 @@ export const api = {
     call<{ ok: true }>(`envelopes/${id}/sign-mine`, post(body)),
   remindDocuments: (ids: string[]) => call<EmailOutcome>('envelopes/selection/remind', post({ ids })),
   resendDocuments: (ids: string[]) => call<EmailOutcome & { copies: number }>('envelopes/selection/resend', post({ ids })),
+  extendDocuments: (ids: string[], days: number) => call<{ extended: number }>('envelopes/selection/extend', post({ ids, days })),
   moveDocuments: (ids: string[], folderId: string | null) => call('envelopes/selection/move', post({ ids, folderId })),
   send: (id: string) => call<{ envelope: Envelope; links: SentLink[]; failed: string[]; quota?: boolean }>(`envelopes/${id}/send`, post()),
   remind: (id: string, recipientId: string) => call(`envelopes/${id}/remind`, post({ recipientId })),

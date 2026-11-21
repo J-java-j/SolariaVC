@@ -122,6 +122,64 @@ export function Shell({ user, children }: { user: { name: string; owner: boolean
   );
 }
 
+// Whole days until signing closes, for a document still waiting on someone.
+export function closesIn(env: Pick<EnvelopeSummary, 'status' | 'sealing' | 'expiresAt'>) {
+  if (env.status !== 'sent' || env.sealing || !env.expiresAt) return null;
+  return Math.max(0, Math.ceil((Date.parse(env.expiresAt) - Date.now()) / 86_400_000));
+}
+
+export const closesLabel = (days: number) => (days <= 0 ? 'Closes today' : days === 1 ? 'Closes tomorrow' : `Closes in ${days} days`);
+
+const MORE_DAYS = [7, 14, 30, 60, 90];
+
+// Moves the signing deadline back on one document or many. `reopening` is when
+// every one of them has already run out of time.
+export function ExtendSheet({ ids, reopening, onClose, onDone }: {
+  ids: string[];
+  reopening: boolean;
+  onClose: () => void;
+  onDone: (extended: number) => Promise<unknown> | void;
+}) {
+  const [days, setDays] = useState(14);
+  const { busy, error, run } = useBusy();
+  const many = ids.length > 1;
+  const title = reopening
+    ? (many ? `Reopen ${ids.length} documents for signing?` : 'Reopen this document for signing?')
+    : (many ? `Give more time on ${ids.length} documents?` : 'Give more time to sign?');
+  return (
+    <Sheet title={title} onClose={onClose}>
+      <p>
+        {reopening
+          ? `Signing opens again for the time you choose, counted from today.`
+          : `${many ? 'Each deadline' : 'The deadline'} moves back by the time you choose${many ? '; one that has already passed counts from today' : ''}.`}
+        {' '}Signatures already given stay as they are.
+      </p>
+      <label className="field">
+        {reopening ? 'Keep it open for' : 'Add'}
+        <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
+          {MORE_DAYS.map((d) => <option key={d} value={d}>{d} days</option>)}
+        </select>
+      </label>
+      <p className="muted">Nobody is emailed about this. Send a reminder afterwards if you want signers to know.</p>
+      {error && <Notice>{error}</Notice>}
+      <div className="actions">
+        <button
+          type="button"
+          className="primary"
+          disabled={busy}
+          onClick={() => run(async () => {
+            const { extended } = await api.extendDocuments(ids, days);
+            await onDone(extended);
+          })}
+        >
+          {busy ? 'Saving' : reopening ? 'Reopen' : 'Give more time'}
+        </button>
+        <button type="button" className="quiet" onClick={onClose}>Cancel</button>
+      </div>
+    </Sheet>
+  );
+}
+
 export function PageMessage({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="desk-center">

@@ -1130,3 +1130,52 @@ test('a signer sees all their documents at /sign and can open each one', async (
   await svc.endMyDocuments(sessionId);
   assert.equal(await svc.myEmail(sessionId), null);
 });
+
+test('a deadline can be moved back, and a document whose time ran out reopens', async (t) => {
+  const { svc, store, sent: mail } = harness(t);
+  const env = await draft(svc);
+  await sent(svc, env);
+  const day = 86_400_000;
+  const before = Date.parse((await svc.getEnvelope(env.id)).expiresAt);
+  const emailed = /\/sign#(\S+)/.exec(mail[0].text)[1];
+  assert.equal(Date.parse((await store.getRecord('my_links', sha256Hex(emailed))).expiresAt), before, 'the emailed button lasts as long as the document');
+
+  assert.deepEqual(await svc.extendEnvelopes([env.id], 14, SENDER, INFO), { extended: 1 });
+  let view = await svc.getEnvelope(env.id);
+  assert.equal(Date.parse(view.expiresAt), before + 14 * day);
+  const event = view.events.at(-1);
+  assert.deepEqual([event.type, event.label, event.details.days, event.by], ['envelope.extended', 'Signing deadline moved back by sender', 14, SENDER.email]);
+  assert.equal(view.chainValid, true);
+  assert.equal(Date.parse((await store.getRecord('my_links', sha256Hex(emailed))).expiresAt), before + 14 * day, 'and so does the button in the email already sent');
+  assert.equal(mail.length, 2, 'nobody is emailed about it');
+  assert.equal((await svc.listMyDocuments('ada@example.com'))[0].expiresAt, view.expiresAt);
+
+  // Time runs out with one signature in. Reopening keeps it.
+  await signAs(svc, await linkIn(svc, mail.find((m) => m.to === 'ada@example.com')));
+  const current = await store.getEnvelope(env.id);
+  current.data.expiresAt = new Date(Date.now() - 5 * day).toISOString();
+  await store.saveEnvelope(current.data, current.rev);
+  const karl = await linkIn(svc, mail.find((m) => m.to === 'karl@example.com'));
+  assert.equal((await svc.signerSession(karl)).state, 'expired');
+  await svc.extendEnvelopes([env.id], 7, SENDER, INFO);
+  view = await svc.getEnvelope(env.id);
+  assert.equal(view.status, 'sent');
+  assert.ok(Math.abs(Date.parse(view.expiresAt) - (Date.now() + 7 * day)) < 5000, 'a deadline already past counts from today');
+  assert.equal(view.recipients[0].status, 'signed', 'the signature already given stays');
+  await signAs(svc, karl);
+  assert.equal((await svc.getEnvelope(env.id)).status, 'completed');
+
+  // Nothing but a document waiting for signatures can be extended, and one bad pick changes none.
+  const other = await draft(svc);
+  await sent(svc, other);
+  const was = (await svc.getEnvelope(other.id)).expiresAt;
+  await assert.rejects(svc.extendEnvelopes([other.id, env.id], 30, SENDER, INFO), httpError(409));
+  assert.equal((await svc.getEnvelope(other.id)).expiresAt, was);
+  await assert.rejects(svc.extendEnvelopes([other.id], 10, SENDER, INFO), httpError(400), 'only the offered lengths');
+  await assert.rejects(svc.extendEnvelopes([(await draft(svc)).id], 30, SENDER, INFO), httpError(409), 'not a draft');
+
+  // It is never open more than about half a year ahead.
+  for (let i = 0; i < 4; i++) await svc.extendEnvelopes([other.id], 90, SENDER, INFO);
+  assert.ok(Date.parse((await svc.getEnvelope(other.id)).expiresAt) <= Date.now() + 180 * day + 5000);
+  assert.deepEqual(await svc.extendEnvelopes([other.id], 90, SENDER, INFO), { extended: 0 }, 'at the limit nothing changes');
+});

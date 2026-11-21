@@ -169,6 +169,8 @@ function bulkList(input) {
 const LIST_LIMIT = 500;
 const MY_LINKS_KEPT = 10;
 const MAIL_PAUSE = 10 * 60_000;
+// However often a deadline is moved, a document is never open further ahead than this.
+const MAX_OPEN_DAYS = 180;
 const NO_MAIL = 'We can\'t send email right now, because today\'s email limit has been reached. Please try again tomorrow.';
 
 export function createSignService({ store, config, mail: sendMail, log = console }) {
@@ -1377,6 +1379,50 @@ export function createSignService({ store, config, mail: sendMail, log = console
       }
       for (const id of ids) await this.voidEnvelope(id, reason, sender, info);
       return { voided: ids.length };
+    },
+
+    // More time to sign, for documents still out and for ones whose time ran out.
+    // The new deadline counts from the old one, or from now if that has passed.
+    // Signatures already given stay, the trail records the change, and nobody is
+    // emailed. Every document is checked before any is changed.
+    async extendEnvelopes(idsInput, daysInput, sender, info) {
+      const ids = selection(idsInput);
+      const days = Number(daysInput);
+      if (!EXPIRY_DAYS.includes(days)) throw new HttpError(400, 'Choose how many days to add.');
+      const open = (env) => !env.deletedAt && env.status === 'sent' && !allSigned(env);
+      for (const id of ids) {
+        const env = await requireEnvelope(id);
+        if (!open(env)) throw new HttpError(409, `"${env.title}" is not waiting for signatures, so its deadline can't be moved.`);
+      }
+      const limit = Date.now() + MAX_OPEN_DAYS * 86_400_000;
+      const until = new Map();
+      let extended = 0;
+      for (const id of ids) {
+        const { env, result } = await mutate(id, (fresh) => {
+          if (!open(fresh)) return { save: false };
+          const from = fresh.expiresAt;
+          const to = Math.min(Math.max(Date.now(), Date.parse(from) || 0) + days * 86_400_000, limit);
+          // Already as far ahead as a document may be open.
+          if (to - Date.parse(from) < 60_000) return { save: false };
+          fresh.expiresAt = new Date(to).toISOString();
+          appendEvent(fresh, 'envelope.extended', { actor: senderActor(sender), ...info, details: { from, to: fresh.expiresAt, days } });
+          return { to };
+        });
+        if (!result?.to) continue;
+        extended += 1;
+        for (const rec of signersOf(env)) {
+          if (rec.status !== 'signed' && rec.delivery === 'email') until.set(rec.email, Math.max(until.get(rec.email) ?? 0, result.to));
+        }
+      }
+      // The button in an email already sent keeps working until the new deadline.
+      for (const [email, to] of until) {
+        const latest = await store.getRecord('my_link_latest', sha256Hex(email));
+        await Promise.all((latest?.tokenHashes ?? []).map(async (hash) => {
+          const link = await store.getRecord('my_links', hash);
+          if (link && Date.parse(link.expiresAt) < to) await store.putRecord('my_links', hash, { ...link, expiresAt: new Date(to).toISOString() });
+        }));
+      }
+      return { extended };
     },
 
     async finish(id) {

@@ -18,6 +18,7 @@ export const EVENT_LABELS = {
   'envelope.created': 'Document uploaded',
   'envelope.sent': 'Sent for signature',
   'envelope.voided': 'Voided by sender',
+  'envelope.extended': 'Signing deadline moved back by sender',
   'envelope.expired': 'Expired',
   'envelope.completed': 'Completed',
   'envelope.deleted': 'Moved to Deleted',

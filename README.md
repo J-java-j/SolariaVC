@@ -176,6 +176,14 @@ now**, which emails only the people who were missed, as a first email rather tha
 a reminder. When everyone has signed, each person on the document gets the signed
 copy once; a sender who also signed it gets one email, not two.
 
+A document closes for signing after the time chosen when it was sent. One with a
+week or less to go says **Closes in N days** in the list. **Give more time** on a
+document, or **More time** with several ticked, moves the deadline back by 7 to 90
+days (never more than 180 days ahead); on one that has already run out it is
+**Reopen**, counted from today. Signatures already given stay, the change is
+recorded in the audit trail, the button in an email already sent keeps working
+until the new deadline, and nobody is emailed about it.
+
 Documents waiting on your own signature say **Your turn to sign** in the list. Open
 one and choose **Sign now**, or tick several and choose **Sign**, to sign without
 the email.

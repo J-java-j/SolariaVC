@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEv
 import { api, type EnvelopeSummary, type Folder } from './api';
 import { Link, navigate } from './router';
 import { waitingOn } from './SignQueue';
-import { formatDate, Notice, Sheet, SignerDots, statusLabel, useBusy } from './ui';
+import { closesIn, closesLabel, ExtendSheet, formatDate, Notice, Sheet, SignerDots, statusLabel, useBusy } from './ui';
 
 const MAX_UPLOAD = 20 * 1024 * 1024;
 const LIST_LIMIT = 500;
@@ -67,6 +67,8 @@ function batchSummary(envs: EnvelopeSummary[]) {
   }
   const unsent = envs.filter((e) => !e.deletedAt && e.recipients.some((r) => r.emailFailed)).length;
   if (unsent) parts.push(`${unsent} not emailed`);
+  const soon = envs.filter((e) => (closesIn(e) ?? 99) <= 7).length;
+  if (soon) parts.push(`${soon} closing within a week`);
   return parts.join(' · ');
 }
 
@@ -244,7 +246,9 @@ function DocRow({ env, picked, showSender, onToggle, person, yourTurn = false }:
         <span className="row-when">
           {env.recipients.some((r) => r.emailFailed)
             ? <strong className="email-failed">Email did not go out</strong>
-            : yourTurn ? <strong className="your-turn">Your turn to sign</strong> : <>{when(env)}{showSender && ` by ${env.sender.name}`}</>}
+            : yourTurn ? <strong className="your-turn">Your turn to sign</strong>
+            : (closesIn(env) ?? 99) <= 7 ? <strong className="closing">{closesLabel(closesIn(env)!)}</strong>
+            : <>{when(env)}{showSender && ` by ${env.sender.name}`}</>}
         </span>
       </Link>
     </li>
@@ -257,7 +261,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
   const [view, setView] = useState(savedView);
   const [sentBy, setSentBy] = useState('');
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const [sheet, setSheet] = useState<'new' | 'rename' | 'delete-folder' | 'delete' | 'erase' | 'void' | 'remind' | null>(null);
+  const [sheet, setSheet] = useState<'new' | 'rename' | 'delete-folder' | 'delete' | 'erase' | 'void' | 'remind' | 'extend' | null>(null);
   const [over, setOver] = useState(false);
   const picker = useRef<HTMLInputElement>(null);
   const { busy, error, run, setError } = useBusy();
@@ -297,6 +301,8 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
   const stillOut = selected.some((env) => env.status === 'sent');
   const voidable = selected.filter((env) => env.status === 'sent' && !env.sealing);
   const mineSelected = waitingOn(selected, user.email);
+  // Documents whose deadline can move: still out, or out of time.
+  const extendable = selected.filter((env) => (env.status === 'sent' && !env.sealing) || env.status === 'expired');
   // Who a reminder would reach: emailed signers whose turn it is, other than you.
   const dueDocs = voidable.flatMap((env) => env.recipients.filter((r) => r.role === 'signer' && r.delivery === 'email' && r.email !== user.email && r.status !== 'signed' && r.status !== 'waiting'));
   // Reminders go out once per person, however many of their documents are ticked.
@@ -528,6 +534,7 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
                   </select>
                   {mineSelected.length > 0 && <button type="button" className="primary" onClick={() => navigate(`/sign/queue?ids=${mineSelected.map((env) => env.id).join(',')}`)}>Sign {mineSelected.length > 1 ? mineSelected.length : 'it'}</button>}
                   {due.length > 0 && <button type="button" className="secondary" disabled={busy} onClick={() => setSheet('remind')}>Remind{due.length > 1 ? ` ${due.length}` : ''}</button>}
+                  {extendable.length > 0 && <button type="button" className="secondary" disabled={busy} onClick={() => setSheet('extend')}>{extendable.every((env) => env.status === 'expired') ? 'Reopen' : 'More time'}{extendable.length > 1 ? ` ${extendable.length}` : ''}</button>}
                   {voidable.length > 0 && <button type="button" className="quiet quiet-danger" disabled={busy} onClick={() => setSheet('void')}>Void{voidable.length > 1 ? ` ${voidable.length}` : ''}</button>}
                   <button type="button" className="quiet quiet-danger" disabled={busy || stillOut} onClick={() => setSheet('delete')}>Delete</button>
                 </>
@@ -671,6 +678,18 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
             <p className="muted">You aren't emailed, and neither are signers whose links you hand out yourself.</p>
           )}
         </ConfirmSheet>
+      )}
+      {sheet === 'extend' && (
+        <ExtendSheet
+          ids={extendable.map((env) => env.id)}
+          reopening={extendable.every((env) => env.status === 'expired')}
+          onClose={() => setSheet(null)}
+          onDone={async (extended) => {
+            setUndo(null);
+            setNotice(extended ? `Moved the deadline on ${extended === 1 ? '1 document' : `${extended} documents`}.` : 'Those documents are already open as far ahead as they can be.');
+            await finish();
+          }}
+        />
       )}
       {sheet === 'void' && (
         <VoidSheet

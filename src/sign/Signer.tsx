@@ -513,7 +513,7 @@ function Sealing({ session, signer, onUpdate }: { session: SignerSession; signer
 
 const CLOSED: Partial<Record<SignerSession['state'], (s: SignerSession) => [string, string]>> = {
   voided: (s) => ['This document was withdrawn', `${s.sender.name} withdrew it, so it can no longer be signed.`],
-  expired: (s) => ['This signing link has expired', `Ask ${s.sender.name} to send the document again.`],
+  expired: (s) => ['The time to sign this has run out', `Ask ${s.sender.name} to reopen it, or to send the document again.`],
   declined: (s) => ['This document was declined', `Signing has ended. ${s.sender.name} has been told.`],
   unavailable: (s) => ['There is nothing to sign here', `If you expected a document, ask ${s.sender.name} to send it again.`],
   waiting: (s) => ["It isn't your turn yet", `We'll email you when ${s.title ? `"${s.title}"` : 'the document'} is ready for your signature.`],
