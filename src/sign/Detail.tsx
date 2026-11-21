@@ -10,6 +10,7 @@ import { formatDate, formatDateTime, Loading, Notice, Sheet, StatusText, useBusy
 const REFRESH_MS = 20_000;
 
 function personStatus(r: Recipient) {
+  if (r.emailFailed === 'request') return 'The email asking them to sign did not go out';
   switch (r.status) {
     case 'signed': return `Signed ${formatDateTime(r.signedAt)}`;
     case 'declined': return r.declineReason ? `Declined: ${r.declineReason}` : 'Declined';
@@ -28,9 +29,17 @@ function PersonLine({ env, person, onChanged }: { env: Envelope; person: Recipie
   const open = env.status === 'sent' && !env.sealing && person.role === 'signer' && person.status !== 'signed';
   const canRemind = open && person.status !== 'waiting' && person.delivery === 'email';
 
+  const unsent = person.emailFailed === 'request';
   const remind = () => run(async () => {
     await api.remind(env.id, person.id);
-    setNotice('Reminder sent.');
+    setNotice(unsent ? 'Email sent.' : 'Reminder sent.');
+    onChanged();
+  });
+  // The signed copy that did not reach them goes out again, to them alone.
+  const resendCopy = () => run(async () => {
+    const sent = await api.resendDocuments([env.id]);
+    setNotice(sent.failed.length ? '' : 'Signed copy sent.');
+    if (sent.failed.length) throw new Error(sent.quota ? "Today's email limit has been reached. Try again tomorrow." : 'The email did not go through. Try again shortly.');
     onChanged();
   });
   const newLink = () => run(async () => {
@@ -52,8 +61,14 @@ function PersonLine({ env, person, onChanged }: { env: Envelope; person: Recipie
       <p>{personStatus(person)}</p>
       {open && (
         <div className="party-actions">
-          {canRemind && <button type="button" className="secondary" disabled={busy} onClick={remind}>Send a reminder</button>}
+          {canRemind && <button type="button" className={unsent ? 'primary' : 'secondary'} disabled={busy} onClick={remind}>{unsent ? 'Send the email again' : 'Send a reminder'}</button>}
           <button type="button" className="quiet" disabled={busy} onClick={newLink}>Get a new link</button>
+        </div>
+      )}
+      {person.emailFailed === 'copy' && (
+        <div className="party-actions">
+          <span className="muted">Their signed copy did not reach them by email.</span>
+          <button type="button" className="secondary" disabled={busy} onClick={resendCopy}>Email it again</button>
         </div>
       )}
       {link && (

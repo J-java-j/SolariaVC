@@ -31,6 +31,8 @@ export type Recipient = {
   declinedAt?: string;
   declineReason?: string;
   copySentAt?: string;
+  // Set when an email to this person did not go out: the request to sign, or their signed copy.
+  emailFailed?: 'request' | 'copy';
 };
 
 export type PageSize = { width: number; height: number };
@@ -87,7 +89,9 @@ export type Draft = Pick<Envelope, 'title' | 'message' | 'sequential' | 'expiryD
 
 export type SentLink = { recipientId: string; name: string; url: string };
 
-export type BulkResult = { name: string; email: string; ok: boolean; id?: string; links?: SentLink[]; emailFailed?: boolean; error?: string };
+export type BulkResult = { name: string; email: string; ok: boolean; id?: string; links?: SentLink[]; emailFailed?: boolean; error?: string; quota?: boolean; unsent?: boolean };
+
+export type EmailOutcome = { reminded: number; documents: number; skipped: number; failed: string[]; quota?: boolean };
 
 export type Folder = { id: string; name: string };
 
@@ -197,15 +201,16 @@ export const api = {
   disclosure: () => call<{ disclosure: Disclosure; intent: { version: string; adopt: string; finish: string } }>('disclosure'),
   signMine: (id: string, body: { rendered: string[]; consent: true; disclosureVersion: string; intent: true; signature: Mark; initials?: Mark; answers?: string[] | Record<string, string>; timeZone: string }) =>
     call<{ ok: true }>(`envelopes/${id}/sign-mine`, post(body)),
-  remindDocuments: (ids: string[]) => call<{ reminded: number; documents: number; skipped: number; failed: string[] }>('envelopes/selection/remind', post({ ids })),
+  remindDocuments: (ids: string[]) => call<EmailOutcome>('envelopes/selection/remind', post({ ids })),
+  resendDocuments: (ids: string[]) => call<EmailOutcome & { copies: number }>('envelopes/selection/resend', post({ ids })),
   moveDocuments: (ids: string[], folderId: string | null) => call('envelopes/selection/move', post({ ids, folderId })),
-  send: (id: string) => call<{ envelope: Envelope; links: SentLink[]; failed: string[] }>(`envelopes/${id}/send`, post()),
+  send: (id: string) => call<{ envelope: Envelope; links: SentLink[]; failed: string[]; quota?: boolean }>(`envelopes/${id}/send`, post()),
   remind: (id: string, recipientId: string) => call(`envelopes/${id}/remind`, post({ recipientId })),
   newLink: (id: string, recipientId: string) => call<{ url: string }>(`envelopes/${id}/link`, post({ recipientId })),
   voidEnvelope: (id: string, reason: string) => call(`envelopes/${id}/void`, post({ reason })),
   duplicate: (id: string) => call<Envelope>(`envelopes/${id}/duplicate`, post()),
   bulkSend: (id: string, recipientId: string, people: { name: string; email: string }[]) =>
-    call<{ batch: string; results: BulkResult[] }>(`envelopes/${id}/bulk`, post({ recipientId, people })),
+    call<{ batch: string; results: BulkResult[]; quota?: boolean }>(`envelopes/${id}/bulk`, post({ recipientId, people })),
   finish: (id: string) => call<Envelope>(`envelopes/${id}/finish`, post()),
   timestamp: (id: string) => call<Envelope>(`envelopes/${id}/timestamp`, post()),
   original: (id: string) => bytes(`envelopes/${id}/original`),

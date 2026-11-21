@@ -650,6 +650,8 @@ img { display: block; max-width: 100%; }
 .my-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 6px; border-top: 1px solid var(--paper-line); }
 .my-main { display: grid; min-width: 0; flex: 1 1 260px; }
 .mine-done { border-left-color: var(--title-green); }
+.mine-alert { border-left-color: var(--danger); background: #fbeeec; }
+.email-failed { color: var(--danger); font-weight: 600; }
 
 .palette-find { width: 100%; margin-top: 10px; }
 .palette-items button[draggable='true'] { cursor: grab; }

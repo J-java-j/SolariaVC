@@ -115,25 +115,32 @@ export function myDocumentsEmail({ url }) {
   };
 }
 
-export function digestReminderEmail({ name, senders, titles, url }) {
+// One email for several documents waiting on one person: a reminder, or the first
+// they hear of them when the earlier emails never went out.
+export function digestEmail({ name, senders, titles, url, reminder = true }) {
   const from = senders.length === 1 ? senders[0].name : ORG.name;
   const count = `${titles.length} documents`;
+  const heading = reminder ? `${from} is waiting on ${count} from you` : `${from} sent you ${count} to sign`;
+  // Copies of one document read as "NDA (2 copies)".
+  const counts = new Map();
+  for (const t of titles) counts.set(t, (counts.get(t) ?? 0) + 1);
+  const listed = [...counts].map(([t, n]) => (n > 1 ? `${t} (${n} copies)` : t));
   return {
-    subject: `Reminder: ${count} waiting for your signature`,
+    subject: reminder ? `Reminder: ${count} waiting for your signature` : heading,
     replyTo: senders.length === 1 ? senders[0].email : undefined,
     html: layout({
-      heading: `${esc(from)} is waiting on ${esc(count)} from you`,
+      heading: esc(heading),
       paragraphs: [
-        `Hi ${esc(name.split(/\s+/)[0] || name)}, these still need your signature:`,
-        `<ul style="margin:0;padding-left:20px;">${titles.map((t) => `<li style="margin:0 0 4px;">${esc(t)}</li>`).join('')}</ul>`,
+        `Hi ${esc(name.split(/\s+/)[0] || name)}, these ${reminder ? 'still ' : ''}need your signature:`,
+        `<ul style="margin:0;padding-left:20px;">${listed.map((t) => `<li style="margin:0 0 4px;">${esc(t)}</li>`).join('')}</ul>`,
         'Open your documents page to review and sign each one.',
       ],
       button: { url, label: 'Review and sign' },
       note: "This link is personal to you, so please don't forward it. It works for 14 days. You can ask for a paper version at any time.",
     }),
     text: [
-      `${from} is waiting on ${count} from you:`,
-      titles.map((t) => `- ${t}`).join('\n'),
+      `${heading}:`,
+      listed.map((t) => `- ${t}`).join('\n'),
       `Review and sign: ${url}`,
       "This link is personal to you, so please don't forward it. It works for 14 days.",
     ].join('\n\n'),
@@ -225,6 +232,12 @@ export function nextSignerEmail({ env, rec, url }) {
   };
 }
 
+// The mail provider's allowance for the day (or month) is spent: nothing more
+// will send until it resets, however often it is tried.
+export class MailQuotaError extends Error {
+  quota = true;
+}
+
 export function createMailer(config) {
   return async function send({ to, subject, html, text, replyTo, attachments }) {
     if (!config.resendKey) {
@@ -257,18 +270,19 @@ export function createMailer(config) {
       signal: AbortSignal.timeout(30_000),
     });
     // A burst can meet Resend's rate limit; waiting and trying again is all it asks.
+    // A used-up daily or monthly allowance stays used up, so that fails at once
+    // and says so, rather than holding a whole list up while it retries.
     for (let attempt = 1; ; attempt++) {
       const res = await post();
+      if (res.ok) return (await res.json().catch(() => ({}))).id ?? null;
+      const body = await res.text().catch(() => '');
+      if (res.status === 429 && /quota/i.test(body)) throw new MailQuotaError(`resend http 429: ${body.slice(0, 200)}`);
       if (res.status === 429 && attempt < 4) {
         const wait = Number(res.headers.get('retry-after')) || attempt;
         await new Promise((done) => setTimeout(done, Math.min(wait, 5) * 1000));
         continue;
       }
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`resend http ${res.status}: ${body.slice(0, 200)}`);
-      }
-      return (await res.json().catch(() => ({}))).id ?? null;
+      throw new Error(`resend http ${res.status}: ${body.slice(0, 200)}`);
     }
   };
 }

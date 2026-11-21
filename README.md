@@ -166,6 +166,14 @@ with several documents gets one email listing them with a link (good for 14 days
 straight into their documents at `/sign`, and someone with one gets a link to it. You,
 and anyone you share a link with yourself, are skipped.
 
+Email goes out through Resend, and the Resend plan sets how many messages can be
+sent in a day. Once that runs out nothing more sends until the next day, sign-in
+links included. A list send stops there: nobody further down the list gets a copy,
+and the result lists them so they can be sent to the next day. An email that did
+not go out is marked on its document, and the documents page offers **Send them
+now**, which emails only the people who were missed, as a first email rather than
+a reminder.
+
 Documents waiting on your own signature say **Your turn to sign** in the list. Open
 one and choose **Sign now**, or tick several and choose **Sign**, to sign without
 the email.

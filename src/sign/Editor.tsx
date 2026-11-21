@@ -315,22 +315,43 @@ function SendSheet({ draft, onChange, onSend, onBulkSend, onClose, busy, error }
 function BulkSentSheet({ results, onDone }: { results: BulkResult[]; onDone: () => void }) {
   const [copied, setCopied] = useState('');
   const sent = results.filter((r) => r.ok);
-  const failed = results.filter((r) => !r.ok);
+  // People the list never reached, because the day's email limit ran out first.
+  const waiting = results.filter((r) => r.unsent);
+  const failed = results.filter((r) => !r.ok && !r.unsent);
   const unmailed = sent.filter((r) => r.emailFailed);
+  const limit = unmailed.some((r) => r.quota);
+  const rest = waiting.map((r) => `${r.name}, ${r.email}`).join('\n');
   const links = sent.flatMap((r) => r.links ?? []);
   const copy = async (key: string, text: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(key);
   };
   return (
-    <Sheet title={failed.length ? `Sent ${sent.length} of ${results.length}` : `Sent ${sent.length} ${sent.length === 1 ? 'copy' : 'copies'}`} onClose={onDone}>
+    <Sheet title={failed.length || waiting.length ? `Sent ${sent.length} of ${results.length}` : `Sent ${sent.length} ${sent.length === 1 ? 'copy' : 'copies'}`} onClose={onDone}>
       {failed.length > 0 && (
         <Notice>
           These were not sent: {failed.map((r) => `${r.name} (${r.error})`).join('; ')}. Fix them and send again with just those people.
         </Notice>
       )}
+      {waiting.length > 0 && (
+        <>
+          <Notice>
+            Today's email limit was reached, so {waiting.length === 1 ? '1 person was' : `${waiting.length} people were`} not sent a copy.
+            Nothing was created for them. Send to them from this draft tomorrow.
+          </Notice>
+          <label className="field">
+            Not sent yet
+            <textarea readOnly rows={Math.min(waiting.length, 6)} value={rest} onFocus={(e) => e.target.select()} />
+          </label>
+          <button type="button" className="secondary" onClick={() => copy('rest', rest)}>{copied === 'rest' ? 'Copied' : 'Copy this list'}</button>
+        </>
+      )}
       {unmailed.length > 0 && (
-        <Notice>Email to {unmailed.map((r) => r.name).join(', ')} did not go through. Open their document to get a link instead.</Notice>
+        <Notice>
+          {limit
+            ? `The email to ${unmailed.map((r) => r.name).join(', ')} did not go out, because today's email limit was reached. Their document is ready: your documents page will offer to send the email again.`
+            : `Email to ${unmailed.map((r) => r.name).join(', ')} did not go through. Your documents page will offer to send it again, or open their document to get a link instead.`}
+        </Notice>
       )}
       {links.length > 0 ? (
         <>
@@ -349,7 +370,11 @@ function BulkSentSheet({ results, onDone }: { results: BulkResult[]; onDone: () 
           </ul>
         </>
       ) : sent.length > 0 && (
-        <p>Everyone on the list has an email asking them to sign. Each copy shows on your documents page, where you can follow it.</p>
+        <p>
+          {unmailed.length || waiting.length || failed.length
+            ? 'Each copy that was sent shows on your documents page, where you can follow it.'
+            : 'Everyone on the list has an email asking them to sign. Each copy shows on your documents page, where you can follow it.'}
+        </p>
       )}
       <div className="actions">
         <button type="button" className="primary" onClick={onDone}>Done</button>
@@ -358,7 +383,7 @@ function BulkSentSheet({ results, onDone }: { results: BulkResult[]; onDone: () 
   );
 }
 
-function SentSheet({ links, failed, onDone }: { links: SentLink[]; failed: string[]; onDone: () => void }) {
+function SentSheet({ links, failed, quota, onDone }: { links: SentLink[]; failed: string[]; quota?: boolean; onDone: () => void }) {
   const [copied, setCopied] = useState('');
   const copy = async (link: SentLink) => {
     await navigator.clipboard.writeText(link.url);
@@ -366,7 +391,13 @@ function SentSheet({ links, failed, onDone }: { links: SentLink[]; failed: strin
   };
   return (
     <Sheet title={links.length ? 'Share these links' : 'Sent, with a problem'} onClose={onDone}>
-      {failed.length > 0 && <Notice>Email to {failed.join(' and ')} did not go through. Open the document to get a link for them instead.</Notice>}
+      {failed.length > 0 && (
+        <Notice>
+          {quota
+            ? `The email to ${failed.join(' and ')} did not go out, because today's email limit was reached. The document is ready: send the email again from its page tomorrow, or get a link there to share yourself.`
+            : `Email to ${failed.join(' and ')} did not go through. Open the document to send it again, or to get a link for them instead.`}
+        </Notice>
+      )}
       {links.length > 0 && <p>Each link belongs to one person. Copy them now, because they can't be shown again. A new link replaces the old one.</p>}
       <ul className="link-list">
         {links.map((link) => (
@@ -402,7 +433,7 @@ export default function Editor({ env, user, onSent }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'failed'>('saved');
   const [sheet, setSheet] = useState<'send' | 'delete' | null>(null);
-  const [result, setResult] = useState<{ envelope: Envelope; links: SentLink[]; failed: string[] } | null>(null);
+  const [result, setResult] = useState<{ envelope: Envelope; links: SentLink[]; failed: string[]; quota?: boolean } | null>(null);
   const [bulkResult, setBulkResult] = useState<BulkResult[] | null>(null);
   const { busy, error, run, setError } = useBusy();
 
@@ -757,7 +788,7 @@ export default function Editor({ env, user, onSent }: Props) {
           </div>
         </Sheet>
       )}
-      {result && <SentSheet links={result.links} failed={result.failed} onDone={() => onSent(result.envelope)} />}
+      {result && <SentSheet links={result.links} failed={result.failed} quota={result.quota} onDone={() => onSent(result.envelope)} />}
       {bulkResult && <BulkSentSheet results={bulkResult} onDone={() => navigate('/sign')} />}
     </div>
   );

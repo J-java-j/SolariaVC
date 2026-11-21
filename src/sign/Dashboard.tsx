@@ -65,6 +65,8 @@ function batchSummary(envs: EnvelopeSummary[]) {
   for (const [status, label] of [['declined', 'declined'], ['voided', 'voided'], ['expired', 'expired']] as const) {
     if (count(status)) parts.push(`${count(status)} ${label}`);
   }
+  const unsent = envs.filter((e) => !e.deletedAt && e.recipients.some((r) => r.emailFailed)).length;
+  if (unsent) parts.push(`${unsent} not emailed`);
   return parts.join(' · ');
 }
 
@@ -239,7 +241,11 @@ function DocRow({ env, picked, showSender, onToggle, person, yourTurn = false }:
         <span className="row-title">{person ?? title}</span>
         <span className="row-people">{person ? env.recipients.find((r) => r.name === person)?.email : people(env)}</span>
         <SignerDots recipients={env.recipients} />
-        <span className="row-when">{yourTurn ? <strong className="your-turn">Your turn to sign</strong> : <>{when(env)}{showSender && ` by ${env.sender.name}`}</>}</span>
+        <span className="row-when">
+          {env.recipients.some((r) => r.emailFailed)
+            ? <strong className="email-failed">Email did not go out</strong>
+            : yourTurn ? <strong className="your-turn">Your turn to sign</strong> : <>{when(env)}{showSender && ` by ${env.sender.name}`}</>}
+        </span>
       </Link>
     </li>
   );
@@ -271,6 +277,9 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
   const current = inDeleted ? DELETED : folder?.id ?? ALL;
   const live = (envelopes ?? []).filter((env) => !env.deletedAt);
   const mine = waitingOn(envelopes ?? [], user.email);
+  // Documents with an email that never went out, such as on a day the email limit ran out.
+  const unsent = live.filter((env) => env.recipients.some((r) => r.emailFailed));
+  const unsentCount = unsent.reduce((sum, env) => sum + env.recipients.filter((r) => r.emailFailed).length, 0);
   const deleted = (envelopes ?? []).filter((env) => env.deletedAt);
   const inFolder = (id: string) => live.filter((env) => env.folderId === id);
   const inView = inDeleted ? deleted : folder ? inFolder(folder.id) : live;
@@ -409,6 +418,23 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
               </>
             )}
             <button type="button" className="quiet toast-close" aria-label="Dismiss" onClick={() => { setNotice(''); setUndo(null); }}>×</button>
+          </div>
+        )}
+        {unsent.length > 0 && !inDeleted && (
+          <div className="mine mine-alert">
+            <span>
+              <strong>{unsentCount === 1 ? '1 email did not go out.' : `${unsentCount} emails did not go out.`}</strong>
+              {' '}The {unsent.length === 1 ? 'document is' : 'documents are'} ready, but {unsentCount === 1 ? 'that person has' : 'those people have'} not been told. This usually means the day's email limit ran out.
+            </span>
+            <button type="button" className="primary" disabled={busy} onClick={() => run(async () => {
+              const sent = await api.resendDocuments(unsent.map((env) => env.id).slice(0, 200));
+              const reached = sent.reminded + sent.copies;
+              setUndo(null);
+              setNotice(sent.failed.length
+                ? `${reached ? `Sent ${reached}. ` : ''}${sent.quota ? "Today's email limit has been reached, so" : 'Something went wrong, so'} ${sent.failed.length === 1 ? `the email to ${sent.failed[0]} is` : `${sent.failed.length} emails are`} still waiting. Try again ${sent.quota ? 'tomorrow' : 'shortly'}.`
+                : `Sent ${reached === 1 ? 'the email' : `all ${reached} emails`}.`);
+              await load();
+            })}>{busy ? 'Sending' : unsentCount === 1 ? 'Send it now' : 'Send them now'}</button>
           </div>
         )}
         {mine.length > 0 && !inDeleted && (
@@ -629,7 +655,10 @@ export default function Dashboard({ user }: { user: { owner: boolean; email: str
             const sent = await api.remindDocuments(voidable.map((env) => env.id));
             setUndo(null);
             const what = `Reminded ${sent.reminded} ${sent.reminded === 1 ? 'person' : 'people'} about ${sent.documents} ${sent.documents === 1 ? 'document' : 'documents'}`;
-            setNotice(sent.failed.length ? `${what}. Email to ${sent.failed.join(', ')} did not go through.` : `${what}.`);
+            const names = sent.failed.length > 4 ? `${sent.failed.slice(0, 3).join(', ')} and ${sent.failed.length - 3} more` : sent.failed.join(', ');
+            setNotice(!sent.failed.length ? `${what}.`
+              : sent.quota ? `${what}. Today's email limit was reached, so the email to ${names} did not go out. Try again tomorrow.`
+              : `${what}. Email to ${names} did not go through.`);
             await finish();
           }}
         >

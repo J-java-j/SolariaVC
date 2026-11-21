@@ -11,7 +11,7 @@ import {
 import { DISCLOSURE, DISCLOSURE_SHA256, DISCLOSURE_VERSION, INTENT, INTENT_SHA256, INTENT_VERSION } from './disclosure.js';
 import { EVENT_LABELS } from './certificate.js';
 import {
-  codeEmail, completedEmail, declinedEmail, inviteEmail, loginEmail, myDocumentsEmail, digestReminderEmail, nextSignerEmail, signRequestEmail, voidedEmail,
+  codeEmail, completedEmail, declinedEmail, digestEmail, inviteEmail, loginEmail, myDocumentsEmail, nextSignerEmail, signRequestEmail, voidedEmail,
 } from './mail.js';
 import { assertEmbeddablePng, inspectPdf, sealDocument, timestampFile } from './pdf.js';
 import { ConflictError } from './store-local.js';
@@ -133,6 +133,11 @@ function assertReadyToSend(env) {
   }
 }
 
+// Whether an email asking this person to sign has ever gone out.
+function everNotified(env, recipientId) {
+  return env.events.some((e) => (e.type === 'recipient.notified' || e.type === 'recipient.reminded') && e.actor?.recipientId === recipientId);
+}
+
 // Copies from one bulk send share a batch, so the documents list can show them as one row.
 // Older copies only carry it on their first event.
 function batchOf(env) {
@@ -159,10 +164,36 @@ function bulkList(input) {
 
 const LIST_LIMIT = 500;
 const MY_LINKS_KEPT = 10;
+const MAIL_PAUSE = 10 * 60_000;
+const NO_MAIL = 'We can\'t send email right now, because today\'s email limit has been reached. Please try again tomorrow.';
 
-export function createSignService({ store, config, mail, log = console }) {
+export function createSignService({ store, config, mail: sendMail, log = console }) {
   const signerUrl = (token) => `${config.baseUrl}/s#${token}`;
   const adminUrl = (id) => `${config.baseUrl}/sign/e/${id}`;
+
+  // The mail provider allows so many messages a day. Once that is spent nothing
+  // sends until it resets, so it is remembered for a while: a list stops instead
+  // of going out unannounced, and sign-in says so to everyone alike.
+  let mailStoppedAt = 0;
+  const mailStopped = () => Date.now() - mailStoppedAt < MAIL_PAUSE;
+  async function mail(message) {
+    try {
+      return await sendMail(message);
+    } catch (e) {
+      if (e?.quota) mailStoppedAt = Date.now();
+      throw e;
+    }
+  }
+  // For the emails someone is waiting on: a spent allowance is said plainly.
+  async function mailNow(message) {
+    if (mailStopped()) throw new HttpError(503, NO_MAIL);
+    try {
+      return await mail(message);
+    } catch (e) {
+      if (e?.quota) throw new HttpError(503, NO_MAIL);
+      throw e;
+    }
+  }
 
   async function mutate(id, apply) {
     for (let attempt = 0; attempt < 8; attempt++) {
@@ -214,21 +245,23 @@ export function createSignService({ store, config, mail, log = console }) {
         const others = await waitingTitles(rec.email, env.id);
         const until = Math.max(Date.now() + 14 * 86_400_000, Date.parse(env.expiresAt) || 0);
         const url = `${config.baseUrl}/sign#${await myDocumentsLink(rec.email, until)}`;
-        const message = signRequestEmail({ env, rec, url, reminder, others });
-        return { rec, messageId: await mail({ to: rec.email, ...message }), ok: true };
+        // Someone whose first email never arrived gets it as a first email, not a reminder.
+        const again = reminder && everNotified(env, rec.id);
+        const message = signRequestEmail({ env, rec, url, reminder: again, others });
+        return { rec, messageId: await mail({ to: rec.email, ...message }), ok: true, again };
       } catch (e) {
         log.error('[sign] request email failed:', e.message);
-        return { rec, ok: false };
+        return { rec, ok: false, quota: e?.quota === true };
       }
     }));
     const results = outcomes.filter(Boolean);
     if (results.length) {
       await mutate(id, (fresh) => {
-        for (const { rec, ok, messageId } of results) {
-          const type = !ok ? 'recipient.notify_failed' : reminder ? 'recipient.reminded' : 'recipient.notified';
+        for (const { rec, ok, messageId, again, quota } of results) {
+          const type = !ok ? 'recipient.notify_failed' : again ? 'recipient.reminded' : 'recipient.notified';
           appendEvent(fresh, type, {
             actor: signerActor(rec),
-            details: { to: rec.email, ...(messageId ? { messageId } : {}) },
+            details: { to: rec.email, ...(messageId ? { messageId } : {}), ...(quota ? { reason: 'email limit reached' } : {}) },
           });
         }
       });
@@ -482,6 +515,7 @@ export function createSignService({ store, config, mail, log = console }) {
 
   function adminView(env, { full = true } = {}) {
     const names = new Map(env.recipients.map((r) => [r.id, r.name]));
+    const missed = undelivered(env);
     const summary = {
       id: env.id,
       reference: formatEnvelopeId(env.id),
@@ -493,7 +527,7 @@ export function createSignService({ store, config, mail, log = console }) {
       completedAt: env.completedAt,
       expiresAt: env.expiresAt,
       sender: env.sender,
-      recipients: env.recipients.map(publicRecipient),
+      recipients: env.recipients.map((r) => ({ ...publicRecipient(r), ...(missed.has(r.id) ? { emailFailed: missed.get(r.id) } : {}) })),
       folderId: env.folderId ?? null,
       deletedAt: env.deletedAt ?? null,
       batch: batchOf(env),
@@ -687,10 +721,105 @@ export function createSignService({ store, config, mail, log = console }) {
       .slice(0, 20);
   }
 
+  // Whose email did not go out, by recipient: 'request' for a signer whose turn it
+  // is and whose latest signing email failed, 'copy' for someone still owed the
+  // signed copy of a finished document. Someone who has opened it needs no email.
+  function undelivered(env) {
+    const out = new Map();
+    const latest = new Map();
+    for (const e of env.events) {
+      if (e.type === 'recipient.notified' || e.type === 'recipient.reminded' || e.type === 'recipient.notify_failed') latest.set(e.actor?.recipientId, e.type);
+    }
+    const open = effectiveStatus(env) === 'sent' && !allSigned(env) && !env.deletedAt;
+    for (const rec of env.recipients) {
+      if (open && rec.role === 'signer' && rec.status === 'sent' && rec.delivery === 'email' && latest.get(rec.id) === 'recipient.notify_failed') out.set(rec.id, 'request');
+      if (env.sealed && !rec.copySentAt && env.events.some((e) => e.type === 'copy.failed' && e.actor?.recipientId === rec.id)) out.set(rec.id, 'copy');
+    }
+    return out;
+  }
+
+  // Emails each person once about the documents given. With failedOnly, only the
+  // signers whose email never went out, the sender included.
+  async function nudge(ids, user, { failedOnly = false } = {}) {
+    const outcome = { reminded: 0, documents: 0, skipped: 0, failed: [] };
+    const people = new Map();
+    for (const id of ids) {
+      const env = await store.getEnvelope(id).then((r) => r?.data);
+      const open = env && !env.deletedAt && effectiveStatus(env) === 'sent' && !allSigned(env);
+      const missed = open && failedOnly ? undelivered(env) : null;
+      const due = open
+        ? signersOf(env).filter((r) => r.status !== 'signed' && r.status !== 'waiting' && r.delivery !== 'link'
+          && (missed ? missed.get(r.id) === 'request' : r.email !== user.email))
+        : [];
+      if (!due.length) {
+        outcome.skipped++;
+        continue;
+      }
+      for (const rec of due) {
+        const person = people.get(rec.email) ?? { name: rec.name, docs: [] };
+        person.docs.push({ id, recipientId: rec.id });
+        people.set(rec.email, person);
+      }
+    }
+    let first = true;
+    let stopped = false;
+    for (const [email, person] of people) {
+      // With the day's email allowance spent, nobody further down the list can be reached either.
+      if (stopped) {
+        outcome.failed.push(person.name);
+        continue;
+      }
+      if (!first && config.bulkPaceMs) await new Promise((done) => setTimeout(done, config.bulkPaceMs));
+      first = false;
+      try {
+        if (person.docs.length === 1) {
+          const [{ id, recipientId }] = person.docs;
+          let notice;
+          const { env } = await mutate(id, (fresh) => {
+            const rec = fresh.recipients.find((r) => r.id === recipientId);
+            if (!rec || rec.status === 'signed' || effectiveStatus(fresh) !== 'sent') throw new Error('no longer due');
+            notice = { recipientId, token: issueToken(fresh, rec) };
+          });
+          const [result] = await deliver(id, env, [notice], { reminder: true });
+          if (result?.quota) stopped = true;
+          if (!result?.ok) throw new Error('reminder failed');
+        } else {
+          const envs = await Promise.all(person.docs.map(({ id }) => requireEnvelope(id)));
+          const earlier = person.docs.map(({ recipientId }, i) => everNotified(envs[i], recipientId));
+          let messageId;
+          let failure = null;
+          try {
+            const url = `${config.baseUrl}/sign#${await myDocumentsLink(email)}`;
+            messageId = await mail({ to: email, ...digestEmail({ name: person.name, senders: [...new Map(envs.map((e) => [e.sender.email, e.sender])).values()], titles: envs.map((e) => e.title), url, reminder: earlier.some(Boolean) }) });
+          } catch (e) {
+            failure = e;
+            if (e?.quota) stopped = true;
+          }
+          for (const [i, { id, recipientId }] of person.docs.entries()) {
+            await mutate(id, (fresh) => {
+              appendEvent(fresh, failure ? 'recipient.notify_failed' : earlier[i] ? 'recipient.reminded' : 'recipient.notified', {
+                actor: { kind: 'recipient', recipientId },
+                details: { to: email, together: person.docs.length, ...(messageId ? { messageId } : {}), ...(failure?.quota ? { reason: 'email limit reached' } : {}) },
+              });
+            });
+          }
+          if (failure) throw failure;
+        }
+        outcome.reminded++;
+        outcome.documents += person.docs.length;
+      } catch (e) {
+        log.error('[sign] reminder failed:', e.message);
+        outcome.failed.push(person.name);
+      }
+    }
+    return { ...outcome, ...(stopped ? { quota: true } : {}) };
+  }
+
   return {
     // ---- sign in ----------------------------------------------------------
     // Answers identically for unknown addresses, so nobody can probe who has access.
     async requestLogin(emailInput) {
+      if (mailStopped()) throw new HttpError(503, NO_MAIL);
       const email = String(emailInput ?? '').trim().toLowerCase();
       // One sign-in page for everyone: the team gets a sign-in link, anyone else we
       // have sent documents to gets a link to theirs. The answer is the same either way.
@@ -706,13 +835,14 @@ export function createSignService({ store, config, mail, log = console }) {
         expiresAt: new Date(Date.now() + TIMES.loginToken).toISOString(),
       });
       await store.putRecord('login_latest', person, { tokenHash });
-      await mail({ to: email, ...loginEmail({ url: `${config.baseUrl}/sign/login#${token}` }) });
+      await mailNow({ to: email, ...loginEmail({ url: `${config.baseUrl}/sign/login#${token}` }) });
     },
 
     // ---- a signer's own documents --------------------------------------------
     // Anyone sent a document can see all of theirs at /sign after proving the
     // address by email. Answers the same whether or not the address has documents.
     async requestMyDocuments(emailInput) {
+      if (mailStopped()) throw new HttpError(503, NO_MAIL);
       const email = String(emailInput ?? '').trim().toLowerCase();
       if (!EMAIL_RE.test(email) || email.length > 200) return;
       const envs = await store.listEnvelopes(LIST_LIMIT);
@@ -723,7 +853,7 @@ export function createSignService({ store, config, mail, log = console }) {
       if (earlier) await store.deleteRecord('my_logins', earlier.tokenHash);
       await store.putRecord('my_logins', sha256Hex(token), { email, expiresAt: new Date(Date.now() + TIMES.loginToken).toISOString() });
       await store.putRecord('my_latest', person, { tokenHash: sha256Hex(token) });
-      await mail({ to: email, ...myDocumentsEmail({ url: `${config.baseUrl}/sign#${token}` }) });
+      await mailNow({ to: email, ...myDocumentsEmail({ url: `${config.baseUrl}/sign#${token}` }) });
     },
 
     async openMyDocuments(token) {
@@ -1049,7 +1179,14 @@ export function createSignService({ store, config, mail, log = console }) {
       }
       const batch = newId('b');
       const results = [];
+      // Once the day's email allowance is spent, the rest of the list waits: a copy
+      // nobody is told about would sit unseen with its deadline running.
+      let stopped = mailStopped() && source.recipients.some((r) => r.role === 'signer' && r.delivery === 'email');
       for (const [i, person] of people.entries()) {
+        if (stopped) {
+          results.push({ ...person, ok: false, unsent: true, error: 'Not sent: today\'s email limit was reached.' });
+          continue;
+        }
         if (i && config.bulkPaceMs) await new Promise((done) => setTimeout(done, config.bulkPaceMs));
         let copyId = null;
         try {
@@ -1060,14 +1197,15 @@ export function createSignService({ store, config, mail, log = console }) {
           copyId = copy.id;
           const sent = await this.send(copy.id, sender, info);
           copyId = null;
-          results.push({ ...person, ok: true, id: copy.id, links: sent.links, emailFailed: sent.failed.length > 0 });
+          results.push({ ...person, ok: true, id: copy.id, links: sent.links, emailFailed: sent.failed.length > 0, ...(sent.quota ? { quota: true } : {}) });
+          if (sent.quota) stopped = true;
         } catch (e) {
           log.error('[sign] bulk copy failed:', e.message);
           if (copyId) await this.deleteDraft(copyId).catch(() => undefined);
           results.push({ ...person, ok: false, error: e instanceof HttpError ? e.message : 'Something went wrong.' });
         }
       }
-      return { batch, results };
+      return { batch, results, ...(stopped ? { quota: true } : {}) };
     },
 
     async send(id, sender, info) {
@@ -1102,7 +1240,13 @@ export function createSignService({ store, config, mail, log = console }) {
         notices = activateNext(fresh).filter((n) => !n.handoff);
       });
       const results = await deliver(id, env, notices);
-      return { envelope: await this.getEnvelope(id), links, failed: results.filter((r) => !r.ok).map((r) => r.rec.name) };
+      return {
+        envelope: await this.getEnvelope(id),
+        links,
+        failed: results.filter((r) => !r.ok).map((r) => r.rec.name),
+        // True when an email failed because the day's allowance is spent.
+        quota: results.some((r) => r.quota),
+      };
     },
 
     async remind(id, recipientId) {
@@ -1115,7 +1259,8 @@ export function createSignService({ store, config, mail, log = console }) {
         notice = { recipientId: rec.id, token: issueToken(fresh, rec) };
       });
       const [result] = await deliver(id, env, [notice], { reminder: true });
-      if (!result?.ok) throw new HttpError(502, 'The reminder could not be sent. Try again shortly.');
+      if (result?.quota) throw new HttpError(503, 'Today\'s email limit has been reached, so this could not be sent. Try again tomorrow, or get a link to share yourself.');
+      if (!result?.ok) throw new HttpError(502, 'The email could not be sent. Try again shortly.');
     },
 
     // Emails everyone whose turn it is on the ticked documents, once per person: a
@@ -1125,56 +1270,28 @@ export function createSignService({ store, config, mail, log = console }) {
     // left out, since the sender hands those over personally, and so is the
     // sender, who signs from the documents page.
     async remindEnvelopes(idsInput, user) {
-      const outcome = { reminded: 0, documents: 0, skipped: 0, failed: [] };
-      const people = new Map();
-      for (const id of selection(idsInput)) {
+      return nudge(selection(idsInput), user);
+    },
+
+    // Sends again every email that did not go out on the ticked documents: the
+    // request to a signer whose turn it is, and the signed copy of a finished one.
+    // Nobody who was reached the first time hears anything.
+    async resendFailed(idsInput, user) {
+      const ids = selection(idsInput);
+      const outcome = await nudge(ids, user, { failedOnly: true });
+      let copies = 0;
+      for (const id of ids) {
         const env = await store.getEnvelope(id).then((r) => r?.data);
-        const due = env && !env.deletedAt && effectiveStatus(env) === 'sent' && !allSigned(env)
-          ? signersOf(env).filter((r) => r.status !== 'signed' && r.status !== 'waiting' && r.delivery !== 'link' && r.email !== user.email)
-          : [];
-        if (!due.length) {
-          outcome.skipped++;
-          continue;
-        }
-        for (const rec of due) {
-          const person = people.get(rec.email) ?? { name: rec.name, docs: [] };
-          person.docs.push({ id, recipientId: rec.id });
-          people.set(rec.email, person);
-        }
+        if (!env?.sealed || env.deletedAt) continue;
+        const owed = env.recipients.filter((r) => undelivered(env).get(r.id) === 'copy');
+        if (!owed.length) continue;
+        await deliverCopies(id);
+        const after = undelivered(await requireEnvelope(id));
+        const still = owed.filter((r) => after.get(r.id) === 'copy');
+        copies += owed.length - still.length;
+        outcome.failed.push(...still.map((r) => r.name));
       }
-      let first = true;
-      for (const [email, person] of people) {
-        if (!first && config.bulkPaceMs) await new Promise((done) => setTimeout(done, config.bulkPaceMs));
-        first = false;
-        try {
-          if (person.docs.length === 1) {
-            const [{ id, recipientId }] = person.docs;
-            let notice;
-            const { env } = await mutate(id, (fresh) => {
-              const rec = fresh.recipients.find((r) => r.id === recipientId);
-              if (!rec || rec.status === 'signed' || effectiveStatus(fresh) !== 'sent') throw new Error('no longer due');
-              notice = { recipientId, token: issueToken(fresh, rec) };
-            });
-            const [result] = await deliver(id, env, [notice], { reminder: true });
-            if (!result?.ok) throw new Error('reminder failed');
-          } else {
-            const envs = await Promise.all(person.docs.map(({ id }) => requireEnvelope(id)));
-            const url = `${config.baseUrl}/sign#${await myDocumentsLink(email)}`;
-            const messageId = await mail({ to: email, ...digestReminderEmail({ name: person.name, senders: [...new Map(envs.map((e) => [e.sender.email, e.sender])).values()], titles: envs.map((e) => e.title), url }) });
-            for (const { id, recipientId } of person.docs) {
-              await mutate(id, (fresh) => {
-                appendEvent(fresh, 'recipient.reminded', { actor: { kind: 'recipient', recipientId }, details: { to: email, together: person.docs.length, ...(messageId ? { messageId } : {}) } });
-              });
-            }
-          }
-          outcome.reminded++;
-          outcome.documents += person.docs.length;
-        } catch (e) {
-          log.error('[sign] reminder failed:', e.message);
-          outcome.failed.push(person.name);
-        }
-      }
-      return outcome;
+      return { ...outcome, copies, ...(mailStopped() && outcome.failed.length ? { quota: true } : {}) };
     },
 
     // Replaces every earlier link for this person, because links are stored only
@@ -1203,7 +1320,8 @@ export function createSignService({ store, config, mail, log = console }) {
         fresh.voidReason = reason;
         appendEvent(fresh, 'envelope.voided', { actor: senderActor(sender), ...info, details: { reason } });
       });
-      const notified = signersOf(env).filter((r) => r.sentAt);
+      // Someone whose request never reached them has nothing to be told was cancelled.
+      const notified = signersOf(env).filter((r) => r.sentAt && !(r.delivery === 'email' && r.status === 'sent' && !everNotified(env, r.id)));
       await Promise.allSettled(notified.map((r) => mail({ to: r.email, ...voidedEmail({ env, reason }) })));
     },
 
@@ -1305,7 +1423,7 @@ export function createSignService({ store, config, mail, log = console }) {
         appendEvent(e, 'recipient.code_sent', { actor: signerActor(rec), ...info, details: { to: rec.email } });
       });
       const rec = fresh.recipients.find((r) => r.id === recipientId);
-      await mail({ to: rec.email, ...codeEmail({ env: fresh, code }) });
+      await mailNow({ to: rec.email, ...codeEmail({ env: fresh, code }) });
     },
 
     async verifyCode(token, code, info) {
