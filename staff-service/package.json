@@ -1,0 +1,26 @@
+{
+  "name": "solaria-local-staff-service",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "emulator": "firebase emulators:start --only auth --project demo-solaria-staff --import=.emulator --export-on-exit=.emulator",
+    "start": "node server.js",
+    "seed": "node seed.js",
+    "setup:owner": "node owner-setup.js",
+    "roles": "node review.js",
+    "test:portal": "node --test browser.test.js sign-links.test.js launch.test.js",
+    "test:staging-build": "node --test enabled-build.test.js",
+    "test": "firebase emulators:exec --only auth --project demo-solaria-staff-test --config firebase.test.json \"node --test --test-concurrency=1 bootstrap.test.js integration.test.js invitation-delivery.test.js\""
+  },
+  "dependencies": {
+    "firebase-admin": "14.5.1",
+    "google-auth-library": "11.3.4"
+  },
+  "devDependencies": {
+    "firebase-tools": "15.37.0",
+    "playwright-core": "1.65.1"
+  }
+}

@@ -12,3 +12,9 @@ README.md
 !.env.example
 .sign-data
 tests
+**/node_modules
+**/.emulator
+**/.firebase
+**/firebase-export-*
+**/*.tsbuildinfo
+docs

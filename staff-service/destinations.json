@@ -1,0 +1,17 @@
+{
+  "terminal": { "href": "https://terminal.solariavc.com" },
+  "terminal-admin": { "href": "https://terminal.solariavc.com/admin", "roles": ["board-admin", "owner"] },
+  "documents": { "href": "/sign" },
+  "verify": { "href": "/sign/verify" },
+  "sign-team": { "href": "/sign/team", "roles": ["owner"] },
+  "sign-queue": { "href": "/sign/queue" },
+  "johnson-card": { "href": "/card" },
+  "karl-card": { "href": "/card/karl" },
+  "johnson-contact": { "href": "/card/johnson-jiang.vcf", "action": "download" },
+  "karl-contact": { "href": "/card/karl-li.vcf", "action": "download" },
+  "webmail": { "href": "https://app.titan.email" },
+  "contact": { "href": "mailto:contact@solariavc.com", "action": "mail" },
+  "website": { "href": "/" },
+  "linktree": { "href": "https://linktr.ee/solariaventure" },
+  "outbox": { "href": "/staff/outbox", "roles": ["board-admin", "owner"], "local": true }
+}

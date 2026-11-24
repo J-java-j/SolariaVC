@@ -89,7 +89,7 @@ export default function Footer() {
                 <rect x="3.5" y="7" width="9" height="6.5" rx="1.2" />
                 <path d="M5.5 7V5.2a2.5 2.5 0 015 0V7" />
               </svg>
-              Staff login
+              Team login
             </a>
           </div>
 

@@ -1,16 +1,16 @@
 /// <reference types="vite/client" />
 // The legacy build runs on older iPhones that investors may still sign from.
 // isEvalSupported stays off so a hostile PDF can't reach eval (CVE-2024-4367).
-import { GlobalWorkerOptions, getDocument, type PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import type { PDFDocumentProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
-
-GlobalWorkerOptions.workerSrc = workerUrl;
 
 const ASSETS = import.meta.env.DEV ? '/node_modules/pdfjs-dist' : '/pdfjs';
 
 export type PdfDocument = PDFDocumentProxy;
 
-export function openPdf(data: ArrayBuffer): Promise<PdfDocument> {
+export async function openPdf(data: ArrayBuffer): Promise<PdfDocument> {
+  const { GlobalWorkerOptions, getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  GlobalWorkerOptions.workerSrc = workerUrl;
   return getDocument({
     data,
     isEvalSupported: false,
