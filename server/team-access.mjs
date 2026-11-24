@@ -1,6 +1,9 @@
 // In the local connected stack both the Vite entry and the Node origin enforce
 // this before serving private Sign pages or forwarding private Sign API calls.
 export async function guardTeamDestination(req, res, portal = '', service = 'http://127.0.0.1:8787') {
+  // TEAM_SIGN_GATE=off takes this check off Solaria Sign: its own emailed-link sign-in then decides who is
+  // on the team, as it did before the Team Portal. Any other value, or none, keeps the check on.
+  if (process.env.TEAM_SIGN_GATE === 'off') return false;
   const path = new URL(req.url, 'http://localhost').pathname.split('/').filter(Boolean).join('/');
   const api = /^api\/sign\/(team|envelopes|folders|me)(?:\/|$)/.exec(path);
   const envelope = /^sign\/e\/([A-Z0-9]{12})$/.exec(path);
