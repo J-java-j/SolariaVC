@@ -39,12 +39,11 @@ export function configuredProvider() {
       process.env.TEAM_FIREBASE_TENANT !== 'team-login-prod-drkt6' || process.env.TEAM_SESSION_DATABASE !== 'team-login-prod')) {
     throw new Error('Unexpected production Team Login identity configuration.');
   }
-  const allowed = new Set(process.env.TEAM_INVITE_EMAILS.toLowerCase().split(',').map(s => s.trim()));
   const credential = applicationDefault();
   const tenantId = process.env.TEAM_FIREBASE_TENANT;
   const app = initializeApp({ projectId, credential }, projectId);
   const auth = getAuth(app).tenantManager().authForTenant(tenantId);
-  return { auth, app, projectId, portalOrigin: origin.origin, accepts: email => allowed.has(email),
+  return { auth, app, projectId, portalOrigin: origin.origin, accepts: approvedEmails(process.env.TEAM_INVITE_EMAILS),
     mail: { sender, key },
     updateAccount: accountWriter(auth, projectId + '/tenants/' + encodeURIComponent(tenantId), 'https://identitytoolkit.googleapis.com/v1', async () => (await credential.getAccessToken()).access_token) };
 }
@@ -66,6 +65,16 @@ function accountWriter(auth, projectId, identity, accessToken) {
     if (!response.ok) throw new Error('Local Firebase account update failed.');
     return auth.getUser(user.uid);
   };
+}
+
+// Who may be given an account. TEAM_INVITE_EMAILS names approved addresses; a "*" entry approves any
+// well-formed address, so the Owner and Board Admins can add people from the portal without a deploy.
+// Without a "*" the list is exact, as before.
+export function approvedEmails(list) {
+  const allowed = new Set(list.toLowerCase().split(',').map(s => s.trim()));
+  const any = allowed.delete('*');
+  return email => allowed.has(email) ||
+    (any && typeof email === 'string' && email.length <= 254 && /^[^@\s*]+@[^@\s*]+$/.test(email));
 }
 
 export const roles = ['staff', 'board-admin', 'owner'];
