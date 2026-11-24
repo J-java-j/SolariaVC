@@ -37,3 +37,18 @@ node scripts/check-production-recovery.cjs https://solariavc.com
 ```
 
 Verify authenticated roles separately in staging. A signed-out redirect alone cannot confirm that an Owner reaches the existing admin password prompt or that a demoted account loses access.
+
+## Production operator utilities
+
+Use the [production configuration template](../../staff-service/production.env.example) as a field reference. Build arguments, runtime settings and operator inputs belong in their indicated environments. Obtain image digests and revision names from the approved release record. Keep the configured mail sender, secret bindings and existing tenant in place.
+
+| Script under `scripts/` | Purpose |
+| --- | --- |
+| `check-deploy-access.py` | Read effective permissions for the active Google Cloud CLI account. |
+| `preflight-team-login-production.py` | Record the current traffic allocations and inspect aggregate account roles. Store the output outside Git. |
+| `team-login-production-image.py --tag <new-release-tag>` | Build and smoke-test the enabled website image. Reads the restricted Identity Toolkit browser key or creates it if missing. Add `--push` only when publishing an approved image. |
+| `check-production-owner-session.py` | Confirm the account identified by `TEAM_OWNER_EMAIL` and `TEAM_EXPECTED_OWNER_UID` has the Owner role and a current portal session. |
+| `invite-production-owner.py` | One-time first-Owner job for an approved single-recipient environment. Requires `TEAM_OWNER_EMAIL`, `TEAM_EXPECTED_WEB_REVISION` and `TEAM_EXPECTED_WEB_IMAGE`. Use the portal recovery screen for an existing Owner. |
+| `cutover-team-login-terminal.py` | For the original two-service cutover, validate the Owner session and expected single-revision allocations, prepare tagged revisions, then switch and check traffic. Requires `TEAM_OWNER_EMAIL`, `TEAM_EXPECTED_OWNER_UID`, both expected serving revision names, and `TEAM_EXPECTED_TERMINAL_IMAGE` pinned by digest. |
+
+These utilities run manually. Building or testing this repository does not execute the bootstrap, image publication or traffic switch. Keep local credential files, rollback records and generated invitation messages outside Git.
