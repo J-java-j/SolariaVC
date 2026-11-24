@@ -60,7 +60,7 @@ function RecoveryPage() {
         }}>
           <label className="field-label">Email<input className="field" type="email" name="email" required autoComplete="email" maxLength={254} /></label>
           {status === 'error' && <p className="form-error" role="alert">Could not send the request. Please try again in a few minutes.</p>}
-          <Button type="submit" disabled={status === 'sending'}>{status === 'sending' ? 'Requesting?' : 'Email me a password link'}</Button>
+          <Button type="submit" disabled={status === 'sending'}>{status === 'sending' ? 'Requesting…' : 'Email me a password link'}</Button>
         </form>}
       <details><summary>Enter a setup code from your email</summary>
         <form onSubmit={event => {
@@ -85,12 +85,16 @@ function WorkspacePortal() {
   const [offline, setOffline] = useState(false);
   const [message, setMessage] = useState('');
   const version = useRef(0);
+  // The last account list this tab loaded, and whose it was: a click shows a management page from it at
+  // once, and refresh() then brings it up to date. Signing in or out forgets it.
+  const kept = useRef<{ id: string; list: Account[] } | null>(null);
 
   const signOut = async () => {
     ++version.current;
     try {
       await request('/session', 'DELETE');
       ++version.current;
+      kept.current = null;
       setWorkspace(null);
       setOffline(false);
       setChecking(false);
@@ -118,9 +122,12 @@ function WorkspacePortal() {
       let page = permittedPage(user.role);
       let accounts: Account[] = [];
       if (page === 'staff' || page === 'board-admins') {
-        try { accounts = await roster(); }
-        catch (error) {
+        try {
+          accounts = await roster();
+          kept.current = { id: user.id, list: accounts };
+        } catch (error) {
           if (!(error instanceof ApiError) || error.status !== 403) throw error;
+          kept.current = null;
           // Permissions may have changed between the profile and roster requests.
           user = await currentAccount();
           page = 'dashboard';
@@ -132,6 +139,11 @@ function WorkspacePortal() {
       setPage(page, true);
       setMessage(redirected ? 'Your current role can access the dashboard.' : '');
       setWorkspace({ user, page, accounts });
+      // Load the list ahead of the first click on a management page (not for staff, who have none; once a person).
+      if (page !== 'staff' && page !== 'board-admins' && user.role !== 'staff' && kept.current?.id !== user.id) {
+        const person = user.id;
+        roster().then((list) => { if (revision === version.current) kept.current = { id: person, list }; }).catch(() => {});
+      }
     } catch (error) {
       if (revision !== version.current) return;
       if (error instanceof ApiError && [401, 403, 404].includes(error.status)) {
@@ -168,6 +180,7 @@ function WorkspacePortal() {
   async function signIn(email: string, password: string) {
     const token = await login(email, password);
     await request('/session', 'POST', undefined, token);
+    kept.current = null;
     setChecking(true);
     await refresh();
   }
@@ -175,6 +188,16 @@ function WorkspacePortal() {
   function navigate(view: PreviewView, page: Page = 'dashboard') {
     if (view === 'signin') { signOut(); return; }
     setPage(page);
+    setMessage('');
+    // Show the page at once from what this tab has; refresh() then checks it. A management page with no list
+    // kept for this person waits for it, as before.
+    setWorkspace((current) => {
+      if (!current) return current;
+      const next = permittedPage(current.user.role), held = kept.current;
+      const managing = next === 'staff' || next === 'board-admins';
+      if (managing && held?.id !== current.user.id) return current;
+      return { user: current.user, page: next, accounts: managing && held ? held.list : [] };
+    });
     void refresh();
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
