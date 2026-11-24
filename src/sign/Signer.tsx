@@ -31,7 +31,7 @@ const fieldText = (f: Pick<Field, 'h'>, size: PageSize, cssWidth: number) => ({
 
 // An answer drawn the way the sealed PDF will draw it: wrapped or shrunk to fit,
 // never cut off.
-function Answer({ f, text, size, cssWidth }: { f: Pick<Field, 'w' | 'h'>; text: string; size: PageSize; cssWidth: number }) {
+export function Answer({ f, text, size, cssWidth }: { f: Pick<Field, 'w' | 'h'>; text: string; size: PageSize; cssWidth: number }) {
   const scale = cssWidth / size.width;
   const boxW = f.w * size.width;
   const padding = Math.min(2, boxW * 0.05);

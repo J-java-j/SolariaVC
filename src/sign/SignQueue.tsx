@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps } from 'react';
 import { api, type Disclosure, type Envelope, type EnvelopeSummary, type Field, type Mark } from './api';
 import type { User } from './App';
 import { openPdf, type PdfDocument } from './pdf';
 import { PdfPages } from './PdfPages';
 import { navigate } from './router';
+import { Answer } from './Signer';
 import { SignaturePad } from './SignaturePad';
 import { Loading, Notice } from './ui';
 
@@ -13,6 +14,27 @@ import { Loading, Notice } from './ui';
 const AT_ONCE = 2;
 
 type Terms = { disclosure: Disclosure; intent: { version: string; adopt: string; finish: string } };
+
+// A blank's box: it grows as the answer is written, so all of it stays in view. Enter leaves the answer as
+// one paragraph (Shift+Enter starts a new line), as the one-line box here used to.
+function AnswerBox(props: ComponentProps<'textarea'>) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [props.value]);
+  return (
+    <textarea
+      ref={box}
+      className="answer-input"
+      rows={1}
+      onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) e.preventDefault(); }}
+      {...props}
+    />
+  );
+}
 
 // Documents where it is this person's turn to sign.
 export function waitingOn(envs: EnvelopeSummary[], email: string) {
@@ -216,16 +238,19 @@ export function Queue({ email, name, source }: { email: string; name: string; so
               sizes={sample.document.sizes}
               onRendered={() => setRendered((prior) => new Set(prior).add(group[0].sha256))}
               onError={() => setLoadError('This document could not be displayed, so it cannot be signed here.')}
-              overlay={(page) => mine.filter((f) => f.page === page).map((f) => (
+              overlay={(page, size, cssWidth) => mine.filter((f) => f.page === page).map((f) => (
                 <span
                   key={f.id}
                   data-answer={f.id}
-                  className={`queue-spot${f.type === 'text' && numberOf(f.id) === focused ? ' queue-spot-on' : ''}`}
+                  className={`queue-spot${f.type === 'text' && numberOf(f.id) === focused ? ' queue-spot-on' : ''}${f.type === 'text' && answerOf(numberOf(f.id)) ? ' queue-spot-filled' : ''}`}
                   style={{ left: `${f.x * 100}%`, top: `${f.y * 100}%`, width: `${f.w * 100}%`, height: `${f.h * 100}%` }}
                 >
                   {(f.type === 'signature' || f.type === 'initials') && marks[f.type]
                     ? <img src={marks[f.type]!.dataUrl} alt="" />
-                    : <>{f.type === 'text' && <b className="queue-num">{numberOf(f.id) + 1}</b>}<em>{f.type === 'text' && answerOf(numberOf(f.id)) ? answerOf(numberOf(f.id)) : f.type === 'date' ? 'Date' : f.type === 'name' ? 'Name' : f.type === 'initials' ? 'Initials' : f.type === 'signature' ? 'Sign' : f.label || 'Field'}</em></>}
+                    : <>{f.type === 'text' && <b className="queue-num">{numberOf(f.id) + 1}</b>}{f.type === 'text' && answerOf(numberOf(f.id))
+                      // Drawn as the sealed PDF will draw it: wrapped or smaller to fit, never cut off.
+                      ? <Answer f={f} text={answerOf(numberOf(f.id))} size={size} cssWidth={cssWidth} />
+                      : <em>{f.type === 'date' ? 'Date' : f.type === 'name' ? 'Name' : f.type === 'initials' ? 'Initials' : f.type === 'signature' ? 'Sign' : f.label || 'Field'}</em>}</>}
                 </span>
               ))}
             />
@@ -255,7 +280,7 @@ export function Queue({ email, name, source }: { email: string; name: string; so
             {questions.map((q) => (
               <label key={q.field.id} className="field queue-answer">
                 <span><b className="queue-num">{q.index + 1}</b> {q.label}<span className="muted"> · page {q.field.page}{q.required ? '' : ' · optional'}</span></span>
-                <input
+                <AnswerBox
                   value={answerOf(q.index)}
                   maxLength={500}
                   disabled={running}
@@ -273,6 +298,8 @@ export function Queue({ email, name, source }: { email: string; name: string; so
                     });
                   }}
                 />
+                {answerOf(q.index).length > 30 && q.field.w * (sample?.document.sizes[q.field.page - 1]?.width ?? 612) / answerOf(q.index).length < 4.5
+                  && <span className="muted answer-count">{answerOf(q.index).length}/500 · long answers print smaller to fit the space</span>}
               </label>
             ))}
           </div>
