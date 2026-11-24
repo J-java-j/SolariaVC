@@ -17,6 +17,8 @@ import { guardTeamDestination } from './team-access.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
+// The one address the site is listed under in search.
+const SITE_HOST = 'solariavc.com';
 
 // Optional local .env (Cloud Run sets env vars directly; this is for `npm run server`).
 function loadDotEnv() {
@@ -580,26 +582,60 @@ function handleCardVcf(req, res, url, card) {
 }
 
 // ---- static file serving --------------------------------------------------
+// The public site is one page, so an address with no file behind it is a 404 with a small page of
+// its own. It used to answer 200 with the home page, which made every mistyped, probed or long-gone
+// address (this domain once held a WordPress site) a copy of the home page to search engines.
+let notFoundPage;
+async function serveNotFound(res) {
+  notFoundPage ??= await fs.readFile(path.join(DIST, '404.html')).catch(() => Buffer.from(
+    '<!doctype html><meta charset="UTF-8"><title>Page not found</title><h1>Page not found</h1><a href="/">Go to Solaria Capital</a>'));
+  res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex' });
+  res.end(notFoundPage);
+}
+
+// Addresses browsers and phones ask for by habit, sent for good to the files the pages name.
+const MOVED = new Map([
+  ['/index.html', '/'],
+  ['/favicon.ico', '/favicon.svg'],
+  ['/apple-touch-icon.png', '/logo.png'],
+  ['/apple-touch-icon-precomposed.png', '/logo.png'],
+]);
+
+// The pages meant for search: the home page and each research paper. Each is dated by when its file
+// last changed, so the dates stay true without anyone editing them.
+async function serveSitemap(res) {
+  const day = async (file) => {
+    const changed = (await fs.stat(path.join(DIST, file))).mtime;
+    return (changed.getFullYear() < 2020 ? new Date() : changed).toISOString().slice(0, 10);
+  };
+  const entries = [{ loc: '/', lastmod: await day('index.html') }];
+  const papers = (await fs.readdir(path.join(DIST, 'research')).catch(() => [])).filter((name) => name.endsWith('.pdf')).sort();
+  for (const name of papers) entries.push({ loc: '/research/' + encodeURI(name), lastmod: await day(path.join('research', name)) });
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    entries.map((e) => `  <url>\n    <loc>https://${SITE_HOST}${e.loc}</loc>\n    <lastmod>${e.lastmod}</lastmod>\n  </url>\n`).join('') +
+    '</urlset>\n';
+  res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'no-cache' });
+  res.end(xml);
+}
+
 async function serveStatic(req, res, urlPath) {
+  const moved = MOVED.get(urlPath);
+  if (moved) {
+    res.writeHead(301, { Location: moved, 'Cache-Control': 'public, max-age=86400' });
+    res.end();
+    return;
+  }
   let safe = path.normalize(urlPath).replace(/^(\.\.[\\/])+/, '');
   if (safe === '/' || safe === '') safe = '/index.html';
   let filePath = path.join(DIST, safe);
 
-  // SPA fallback: if file doesn't exist, serve index.html (for routes / 404s)
+  let data;
   try {
     const st = await fs.stat(filePath);
     if (st.isDirectory()) filePath = path.join(filePath, 'index.html');
-  } catch {
-    filePath = path.join(DIST, 'index.html');
-    safe = '/index.html';
-  }
-
-  let data;
-  try {
     data = await fs.readFile(filePath);
   } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    res.end('Not Found');
+    await serveNotFound(res);
     return;
   }
 
@@ -669,6 +705,15 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const pathname = url.pathname;
+    // solariavc.com is the one address for search. www goes to it for good, and Cloud Run's own
+    // addresses for this service, which show the same pages, ask not to be listed.
+    const host = String(req.headers.host || '').toLowerCase().replace(/:\d+$/, '');
+    if (host === 'www.' + SITE_HOST && (req.method === 'GET' || req.method === 'HEAD')) {
+      res.writeHead(301, { Location: `https://${SITE_HOST}${pathname}${url.search}`, 'Cache-Control': 'public, max-age=3600' });
+      res.end();
+      return;
+    }
+    if (host.endsWith('.run.app')) res.setHeader('X-Robots-Tag', 'noindex');
     if (staffApi) {
       const api = /^\/staff\/local-api\/(recovery|session|me|accounts(?:\/[A-Za-z0-9_-]+(?:\/invite)?)?)$/.exec(pathname);
       if (api || /^\/staff\/launch\/[A-Za-z0-9-]+$/.test(pathname)) {
@@ -757,6 +802,11 @@ const server = http.createServer(async (req, res) => {
         'Cache-Control': 'public, max-age=30, s-maxage=30',
       });
       res.end(JSON.stringify({ quotes, fetchedAt: new Date().toISOString() }));
+      return;
+    }
+
+    if (pathname === '/sitemap.xml') {
+      await serveSitemap(res);
       return;
     }
 

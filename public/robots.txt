@@ -1,8 +1,9 @@
+# Pages kept out of search (the team sign-in, Solaria Sign, the business cards) say "noindex" themselves,
+# so they must stay readable here: a search engine can't see a noindex on a page it isn't allowed to fetch.
 User-agent: *
 Allow: /
 Disallow: /api/
-Disallow: /sign
-Disallow: /s$
-Disallow: /staff
+Disallow: /staff/local-api/
+Disallow: /staff/launch/
 
 Sitemap: https://solariavc.com/sitemap.xml
