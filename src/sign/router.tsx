@@ -3,6 +3,10 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 const listeners = new Set<() => void>();
 
 export function navigate(to: string) {
+  if (/^\/sign\/(?:team|queue|e\/[^/?]+)(?:[/?#]|$)/.test(to)) {
+    window.location.assign(to);
+    return;
+  }
   window.history.pushState(null, '', to);
   listeners.forEach((listener) => listener());
   window.scrollTo(0, 0);

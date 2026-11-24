@@ -43,7 +43,7 @@ const icons = {
   ),
 };
 
-const tools: Tool[] = [
+export const tools: Tool[] = [
   {
     name: 'Solaria Sign',
     about: 'Send documents for signature, follow who has signed, and keep the sealed copies. Fields are found when a PDF is uploaded.',

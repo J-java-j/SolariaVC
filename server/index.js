@@ -13,6 +13,7 @@ import { promises as fs, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CARD_PROFILES, getCardProfile } from './card-profiles.js';
+import { guardTeamDestination } from './team-access.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
@@ -38,6 +39,18 @@ function loadDotEnv() {
   }
 }
 loadDotEnv();
+
+// Bind internal guards only to loopback. Public traffic gets the explicitly
+// supported browser routes on the website origin, never the verifier surface.
+let staffApi, staffOrigin;
+if (process.env.TEAM_PORTAL_ENABLED === 'true') {
+  if (!['staging', 'production'].includes(process.env.TEAM_AUTH_MODE)) throw new Error('Configure hosted Team Login.');
+  const { configuredProvider } = await import('../staff-service/provider.js');
+  const { staffServer } = await import('../staff-service/api.js');
+  staffApi = staffServer(configuredProvider());
+  await new Promise((resolve, reject) => staffApi.once('error', reject).listen(0, '127.0.0.1', resolve));
+  staffOrigin = 'http://127.0.0.1:' + staffApi.address().port;
+}
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 
@@ -656,6 +669,19 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const pathname = url.pathname;
+    if (staffApi) {
+      const api = /^\/staff\/local-api\/(recovery|session|me|accounts(?:\/[A-Za-z0-9_-]+(?:\/invite)?)?)$/.exec(pathname);
+      if (api || /^\/staff\/launch\/[A-Za-z0-9-]+$/.test(pathname)) {
+        if (api) req.url = '/' + api[1];
+        staffApi.emit('request', req, res);
+        return;
+      }
+      if (/^\/(?:internal|guard|staff\/(?:outbox|launch|local-api))(?:\/|$)/.test(pathname)) {
+        res.writeHead(404, { 'Cache-Control': 'no-store' }).end();
+        return;
+      }
+      if (await guardTeamDestination(req, res, '', staffOrigin)) return;
+    } else if (process.env.NODE_ENV !== 'production' && await guardTeamDestination(req, res, 'http://127.0.0.1:5173')) return;
 
     if (pathname === '/healthz') {
       res.writeHead(200, { 'Content-Type': 'text/plain' });
