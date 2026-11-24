@@ -204,11 +204,17 @@ builds spinout companies from university research and patents, like UC San Diego
 One of them checks that everything real still answers 200: every site link, every portal
 shortcut in `destinations.json`, the emailed-link pages, the cards and their `.vcf` files.
 
+## Done outside the code
+
+- **`www.solariavc.com` now reaches the site.** A Cloud Run domain mapping to `solariavc` was made on
+  2026-11-24 at 17:19 ET, and Google issued its certificate at 17:32 ET.
+  - No DNS change was needed: at WordPress.com, `www` is a CNAME to `solariavc.com`, which already
+    points at Google.
+  - The server answers `www` with a 301 to `https://solariavc.com`.
+  - To undo, delete the mapping `www.solariavc.com` in europe-west1.
+
 ## Still to do, outside the code
 
-- **`www.solariavc.com`** needs a Cloud Run domain mapping and a DNS record at WordPress.com,
-  where the domain's DNS is hosted. Take the record from the mapping once it is made. The 301
-  is already in the server for when it arrives.
 - **Google Search Console:** verify `solariavc.com` and submit `https://solariavc.com/sitemap.xml`.
   That is the only way to see what Google has listed; it can't be read from here.
 - **The page's text comes from scripts.** Googlebot runs them (it fetched the script and style
@@ -235,6 +241,8 @@ not yet seen working for a real visitor:
   `/api/sign/envelopes`.
 - The new Sign all files (`sign-BkD4rtCl.js`, `sign-DDl034i8.css`) and the `Fast02` portal files.
 - A first invitation to an address outside the old list of two.
+- `www.solariavc.com` over https. Google reports the mapping ready, but by 17:33 ET only four
+  plain-http requests had arrived, which Google itself sent on to https.
 
 # Tools
 
@@ -245,7 +253,6 @@ not yet seen working for a real visitor:
 
 # Noticed, not changed
 
-- **`www.solariavc.com` isn't mapped** to the service. See "Still to do, outside the code" above.
 - **Cold starts:** the website runs with no minimum instance. It started 28 new instances
   today, and 17 requests waited more than 3 s. One always-on instance would remove that, at a
   cost; that is Johnson's call.
