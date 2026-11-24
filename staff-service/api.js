@@ -76,11 +76,12 @@ export function staffServer(provider) {
     return result;
   }
 
-  async function currentRole(req, management = false, cookieOnly = false, cookie = session.read(req)) {
+  async function currentRole(req, management = false, cookieOnly = false, cookie = session.read(req), fresh = req.method !== 'GET') {
     const token = !cookieOnly && /^Bearer (\S+)$/.exec(req.headers.authorization || '')?.[1];
     if (!token && !cookie) throw unauthorized();
     if (hosted && !token) {
-      const actor = profile(await hosted.user(cookie));
+      // Only portal page reads may use the 10-second memory; changes and guards check fresh.
+      const actor = profile(await hosted.user(cookie, fresh));
       if (management && actor.role === 'staff') throw forbidden();
       return actor;
     }
@@ -206,7 +207,9 @@ export function staffServer(provider) {
           if (!cookie) throw unauthorized();
         }
         const authorize = async () => {
-          const user = await currentRole(req, false, true, cookie);
+          // Guards always check fresh: the website authorizes every Sign page and Sign API
+          // call, writes included, through a GET to /guard/<id>.
+          const user = await currentRole(req, false, true, cookie, Boolean(guard) || req.method !== 'GET');
           if (item.roles && !item.roles.includes(user.role)) throw forbidden();
           return user;
         };

@@ -9,6 +9,11 @@ const key = value => createHash('sha256').update(value).digest('hex');
 const valid = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
 const active = record => record && record.expires.toMillis() > Date.now();
 const denied = (status = 401) => Object.assign(new Error(status === 403 ? 'Access denied.' : 'Team login required.'), { status });
+// The portal page asks /me on nearly every click. Remember a passed sign-in check for up to
+// 10 s, never past the session's own end, keyed by the cookie's hash. Refusals are never kept;
+// signing out and every fresh check (all changes ask for one) replace what was remembered.
+const KEEP_MS = 10_000;
+const KEEP_MAX = 1000;
 
 export function httpsOrigin(value) {
   const url = new URL(value);
@@ -26,6 +31,7 @@ export function hostedTerminal(auth, db, origin) {
   const parents = db.collection('teamBrowserSessions');
   const tickets = db.collection('terminalTickets');
   const handles = db.collection('terminalSessions');
+  const recent = new Map();
   async function user(parent) {
     if (!active(parent)) throw denied();
     const account = await auth.getUser(parent.uid);
@@ -39,12 +45,22 @@ export function hostedTerminal(auth, db, origin) {
       await parents.doc(key(cookie)).create({ uid: claims.uid, authTime: claims.auth_time, expires: new Date(Date.now() + 8 * 3600_000) });
       return cookie;
     },
-    async user(cookie) {
+    async user(cookie, fresh = false) {
       if (!valid(cookie)) throw denied();
-      return user((await parents.doc(key(cookie)).get()).data());
+      const id = key(cookie);
+      const kept = recent.get(id);
+      if (!fresh && kept && kept.until > Date.now()) return kept.account;
+      recent.delete(id);
+      const parent = (await parents.doc(id).get()).data();
+      const account = await user(parent);
+      if (recent.size >= KEEP_MAX) recent.clear();
+      recent.set(id, { account, until: Math.min(Date.now() + KEEP_MS, parent.expires.toMillis()) });
+      return account;
     },
     async forget(cookie) {
-      if (valid(cookie)) await parents.doc(key(cookie)).delete();
+      if (!valid(cookie)) return;
+      recent.delete(key(cookie));
+      await parents.doc(key(cookie)).delete();
     },
     async launch(res, id, cookie, authorize) {
       await authorize();
